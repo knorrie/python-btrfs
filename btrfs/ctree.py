@@ -16,9 +16,22 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 021110-1307, USA.
 
+from btrfs.ioctl import ULLONG_MAX
 import btrfs.ioctl
+import copy
 import os
+import struct
+import uuid
 
+
+DEV_ITEMS_OBJECTID = 1
+EXTENT_TREE_OBJECTID = 2
+CHUNK_TREE_OBJECTID = 3
+FIRST_CHUNK_TREE_OBJECTID = 256
+
+BLOCK_GROUP_ITEM_KEY = 192
+DEV_ITEM_KEY = 216
+CHUNK_ITEM_KEY = 228
 
 BLOCK_GROUP_DATA = 1 << 0
 BLOCK_GROUP_SYSTEM = 1 << 1
@@ -47,6 +60,91 @@ BLOCK_GROUP_PROFILE_MASK = (
 SPACE_INFO_GLOBAL_RSV = 1 << 49
 
 
+class Key(object):
+    def __init__(self, objectid, _type, offset):
+        self._objectid = objectid
+        self._type = _type
+        self._offset = offset
+        self._pack()
+
+    @property
+    def objectid(self):
+        return self._objectid
+
+    @objectid.setter
+    def objectid(self, _objectid):
+        self._objectid = _objectid
+        self._pack()
+
+    @property
+    def type(self):
+        return self._type
+
+    @type.setter
+    def type(self, _type):
+        self._type = _type
+        self._pack()
+
+    @property
+    def offset(self):
+        return self._offset
+
+    @offset.setter
+    def offset(self, _offset):
+        self._offset = _offset
+        self._pack()
+
+    @property
+    def key(self):
+        return self._key
+
+    @key.setter
+    def key(self, _key):
+        self._key = _key
+        self._unpack()
+
+    def _pack(self):
+        self._key = (self.objectid << 72) + (self._type << 64) + self.offset
+
+    def _unpack(self):
+        self._objectid = self._key >> 72
+        self._type = (self._key & ((1 << 72) - 1)) >> 64
+        self._offset = (self._key & ((1 << 64) - 1))
+
+    def __lt__(self, other):
+        if isinstance(other, Key):
+            return self._key < other._key
+        return self._key < other
+
+    def __le__(self, other):
+        if isinstance(other, Key):
+            return self._key <= other._key
+        return self._key <= other
+
+    def __eq__(self, other):
+        if isinstance(other, Key):
+            return self._key == other._key
+        return self._key == other
+
+    def __ge__(self, other):
+        if isinstance(other, Key):
+            return self._key >= other._key
+        return self._key >= other
+
+    def __gt__(self, other):
+        if isinstance(other, Key):
+            return self._key > other._key
+        return self._key > other
+
+    def __str__(self):
+        return "({0} {1} {2})".format(self._objectid, self._type, self._offset)
+
+    def __add__(self, amount):
+        new_key = copy.copy(self)
+        new_key.key += amount
+        return new_key
+
+
 class FileSystem(object):
     def __init__(self, path):
         self.path = path
@@ -54,3 +152,69 @@ class FileSystem(object):
 
     def space_info(self):
         return btrfs.ioctl.space_info(self.fd)
+
+    def devices(self):
+        tree = CHUNK_TREE_OBJECTID
+        min_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, 0)
+        max_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, ULLONG_MAX)
+        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+            yield Device(header, data)
+
+    def chunks(self):
+        tree = CHUNK_TREE_OBJECTID
+        min_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, 0)
+        max_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, ULLONG_MAX)
+        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+            yield Chunk(header, data)
+
+    def block_group(self, vaddr):
+        tree = EXTENT_TREE_OBJECTID
+        min_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, 0)
+        max_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, ULLONG_MAX)
+        block_groups = [BlockGroup(header, data)
+                        for header, data in
+                        btrfs.ioctl.search(self.fd, tree, min_key, max_key, nr_items=1)]
+        return block_groups[0]
+
+
+class Device(object):
+    dev_item = struct.Struct("<3Q3L3QL2B16s16s")
+
+    def __init__(self, header, data):
+        self.devid, self.total_bytes, self.bytes_used, self.io_align, self.io_width, \
+            self.sector_size, self.type, self.generation, self.start_offset, self.dev_group, \
+            self.seek_speed, self.bandwidth, uuid_bytes, fsid_bytes = \
+            Device.dev_item.unpack_from(data, 0)
+        self.uuid = uuid.UUID(bytes=uuid_bytes)
+        self.fsid = uuid.UUID(bytes=fsid_bytes)
+
+
+class Chunk(object):
+    chunk = struct.Struct("<4Q3L2H")
+
+    def __init__(self, header, data):
+        self.vaddr = header.offset
+        self.length, self.owner, self.stripe_len, self.type, self.io_align, \
+            self.io_width, self.sector_size, self.num_stripes, self.sub_stripes = \
+            Chunk.chunk.unpack_from(data, 0)
+        pos = Chunk.chunk.size
+        self.stripes = [Stripe(data, stripe_pos)
+                        for stripe_pos in xrange(pos,
+                                                 pos + Stripe.stripe.size * self.num_stripes,
+                                                 Stripe.stripe.size)]
+
+
+class Stripe(object):
+    stripe = struct.Struct("<2Q16s")
+
+    def __init__(self, data, pos=0):
+        self.devid, self.offset, uuid_bytes = Stripe.stripe.unpack_from(data, pos)
+        self.uuid = uuid.UUID(bytes=uuid_bytes)
+
+
+class BlockGroup(object):
+    block_group_item = struct.Struct("<3Q")
+
+    def __init__(self, header, data):
+        self.used, self.chunk_objectid, self.flags = \
+            BlockGroup.block_group_item.unpack_from(data, 0)
