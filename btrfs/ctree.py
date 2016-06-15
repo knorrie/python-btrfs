@@ -24,11 +24,20 @@ import struct
 import uuid
 
 
+def ULL(n):
+    if n < 0:
+        return n + (1 << 64)
+    return n
+
+
 DEV_ITEMS_OBJECTID = 1
+ROOT_TREE_OBJECTID = 1
 EXTENT_TREE_OBJECTID = 2
 CHUNK_TREE_OBJECTID = 3
 FIRST_CHUNK_TREE_OBJECTID = 256
+ORPHAN_OBJECTID = ULL(-5)
 
+ORPHAN_ITEM_KEY = 48
 BLOCK_GROUP_ITEM_KEY = 192
 DEV_ITEM_KEY = 216
 CHUNK_ITEM_KEY = 228
@@ -175,6 +184,14 @@ class FileSystem(object):
                         for header, data in
                         btrfs.ioctl.search(self.fd, tree, min_key, max_key, nr_items=1)]
         return block_groups[0]
+
+    def orphan_subvol_ids(self):
+        tree = ROOT_TREE_OBJECTID
+        min_key = Key(ORPHAN_OBJECTID, ORPHAN_ITEM_KEY, 0)
+        max_key = Key(ORPHAN_OBJECTID, ORPHAN_ITEM_KEY, ULLONG_MAX)
+        subvol_ids = [header.offset
+                      for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key)]
+        return subvol_ids
 
 
 class Device(object):
