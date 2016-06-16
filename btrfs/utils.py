@@ -23,6 +23,7 @@ from btrfs.ctree import (
     BLOCK_GROUP_RAID0, BLOCK_GROUP_RAID1, BLOCK_GROUP_RAID5,
     BLOCK_GROUP_RAID6, BLOCK_GROUP_DUP, BLOCK_GROUP_RAID10,
     BLOCK_GROUP_PROFILE_MASK,
+    EXTENT_FLAG_DATA, EXTENT_FLAG_TREE_BLOCK, BLOCK_FLAG_FULL_BACKREF,
 )
 
 _block_group_type_str_map = {
@@ -87,3 +88,14 @@ def pretty_size(size, unit=None, binary=True):
     if divide_by > 0:
         size = float(size) / divide_by
     return "{0:.2f}{1}{2}B".format(size, unit, 'i' if base == 1024 and unit != '' else '')
+
+
+def extent_flags_str(flags):
+    ret = []
+    if flags & EXTENT_FLAG_DATA:
+        ret.append("DATA")
+    if flags & EXTENT_FLAG_TREE_BLOCK:
+        ret.append("TREE_BLOCK")
+    if flags & BLOCK_FLAG_FULL_BACKREF:
+        ret.append("FULL_BACKREF")
+    return '|'.join(ret)

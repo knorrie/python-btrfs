@@ -38,6 +38,7 @@ FIRST_CHUNK_TREE_OBJECTID = 256
 ORPHAN_OBJECTID = ULL(-5)
 
 ORPHAN_ITEM_KEY = 48
+EXTENT_ITEM_KEY = 168
 BLOCK_GROUP_ITEM_KEY = 192
 DEV_ITEM_KEY = 216
 CHUNK_ITEM_KEY = 228
@@ -67,6 +68,10 @@ BLOCK_GROUP_PROFILE_MASK = (
 )
 
 SPACE_INFO_GLOBAL_RSV = 1 << 49
+
+EXTENT_FLAG_DATA = 1 << 0
+EXTENT_FLAG_TREE_BLOCK = 1 << 1
+BLOCK_FLAG_FULL_BACKREF = 1 << 1
 
 
 class Key(object):
@@ -185,6 +190,14 @@ class FileSystem(object):
                         btrfs.ioctl.search(self.fd, tree, min_key, max_key, nr_items=1)]
         return block_groups[0]
 
+    def extents(self, min_vaddr=0, max_vaddr=ULLONG_MAX):
+        tree = EXTENT_TREE_OBJECTID
+        min_key = Key(min_vaddr, 0, 0)
+        max_key = Key(max_vaddr, 255, ULLONG_MAX)
+        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+            if header.type == EXTENT_ITEM_KEY:
+                yield Extent(header, data)
+
     def orphan_subvol_ids(self):
         tree = ROOT_TREE_OBJECTID
         min_key = Key(ORPHAN_OBJECTID, ORPHAN_ITEM_KEY, 0)
@@ -233,5 +246,16 @@ class BlockGroup(object):
     block_group_item = struct.Struct("<3Q")
 
     def __init__(self, header, data):
+        self.vaddr = header.objectid
+        self.length = header.offset
         self.used, self.chunk_objectid, self.flags = \
             BlockGroup.block_group_item.unpack_from(data, 0)
+
+
+class Extent(object):
+    extent_item = struct.Struct("<3Q")
+
+    def __init__(self, header, data):
+        self.vaddr = header.objectid
+        self.length = header.offset
+        self.refs, self.generation, self.flags = Extent.extent_item.unpack_from(data, 0)
