@@ -17,5 +17,7 @@ for chunk in fs.chunks():
         stripe = chunk.stripes[i]
         print("chunk vaddr {0} type {1} stripe {2} devid {3} offset {4} length {5} "
               "used {6} used_pct {7}".format(
-                  chunk.vaddr, chunk.type, i, stripe.devid, stripe.offset,
+                  chunk.vaddr,
+                  btrfs.utils.block_group_flags_str(chunk.type),
+                  i, stripe.devid, stripe.offset,
                   chunk.length, used, used_pct))
