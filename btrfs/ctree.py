@@ -39,6 +39,8 @@ ORPHAN_OBJECTID = ULL(-5)
 
 ORPHAN_ITEM_KEY = 48
 EXTENT_ITEM_KEY = 168
+EXTENT_DATA_REF_KEY = 178
+SHARED_DATA_REF_KEY = 184
 BLOCK_GROUP_ITEM_KEY = 192
 DEV_ITEM_KEY = 216
 CHUNK_ITEM_KEY = 228
@@ -194,9 +196,21 @@ class FileSystem(object):
         tree = EXTENT_TREE_OBJECTID
         min_key = Key(min_vaddr, 0, 0)
         max_key = Key(max_vaddr, 255, ULLONG_MAX)
+        extent = None
         for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
-            if header.type == EXTENT_ITEM_KEY:
-                yield Extent(header, data)
+            if header.type == BLOCK_GROUP_ITEM_KEY:
+                continue
+            elif header.type == EXTENT_ITEM_KEY:
+                if extent is not None:
+                    yield extent
+                extent = Extent(header, data)
+            elif header.type == EXTENT_DATA_REF_KEY:
+                extent.append_extent_data_ref(header, data)
+            elif header.type == SHARED_DATA_REF_KEY:
+                extent.append_shared_data_ref(header, data)
+
+        if extent is not None:
+            yield extent
 
     def orphan_subvol_ids(self):
         tree = ROOT_TREE_OBJECTID
@@ -254,8 +268,44 @@ class BlockGroup(object):
 
 class Extent(object):
     extent_item = struct.Struct("<3Q")
+    extent_inline_ref = struct.Struct("<BQ")
 
     def __init__(self, header, data):
         self.vaddr = header.objectid
         self.length = header.offset
         self.refs, self.generation, self.flags = Extent.extent_item.unpack_from(data, 0)
+        self.extent_data_refs = []
+        self.shared_data_refs = []
+        pos = Extent.extent_item.size
+        while pos < len(data):
+            inline_ref_type, inline_ref_offset = Extent.extent_inline_ref.unpack_from(data, pos)
+            if self.flags == EXTENT_FLAG_DATA:
+                if inline_ref_type == EXTENT_DATA_REF_KEY:
+                    pos += 1
+                    self.extent_data_refs.append(ExtentDataRef(data, pos))
+                    pos += ExtentDataRef.extent_data_ref.size
+                elif inline_ref_type == SHARED_DATA_REF_KEY:
+                    pos += 1
+                    self.shared_data_refs.append(SharedDataRef(data, pos))
+                    pos += SharedDataRef.shared_data_ref.size
+
+    def append_extent_data_ref(self, header, data):
+        self.extent_data_refs.append(ExtentDataRef(data, 0))
+
+    def append_shared_data_ref(self, header, data):
+        self.shared_data_refs.append(SharedDataRef(data, 0))
+
+
+class ExtentDataRef(object):
+    extent_data_ref = struct.Struct("<3QL")
+
+    def __init__(self, data, pos=0):
+        self.root, self.objectid, self.offset, self.count = \
+            ExtentDataRef.extent_data_ref.unpack_from(data, pos)
+
+
+class SharedDataRef(object):
+    shared_data_ref = struct.Struct("<QL")
+
+    def __init__(self, data, pos):
+        self.parent, self.count = SharedDataRef.shared_data_ref.unpack_from(data, pos)
