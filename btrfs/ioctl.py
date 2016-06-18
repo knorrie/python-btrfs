@@ -22,6 +22,7 @@ import btrfs.ctree
 import fcntl
 import itertools
 import struct
+import uuid
 
 ULLONG_MAX = (1 << 64) - 1
 ULONG_MAX = (1 << 32) - 1
@@ -66,6 +67,29 @@ def _IOWR(_type, nr, _struct):
 
 def create_buf(size=4096):
     return array.array("B", itertools.repeat(0, size))
+
+
+ioctl_fs_info_args = struct.Struct("=QQ16sLLL980x")
+
+IOC_FS_INFO = _IOR(BTRFS_IOCTL_MAGIC, 31, ioctl_fs_info_args)
+
+
+class FsInfo(object):
+    def __init__(self, buf):
+        self.max_id, self.num_devices, fsid_bytes, self.nodesize, self.sectorsize, \
+            self.clone_alignment = ioctl_fs_info_args.unpack(buf)
+        self.fsid = uuid.UUID(bytes=fsid_bytes)
+
+    def __str__(self):
+        return "max_id {0} num_devices {1} fsid {2} nodesize {3} sectorsize {4} " \
+            "clone_alignment {5}".format(self.max_id, self.num_devices, self.fsid, self.nodesize,
+                                         self.sectorsize, self.clone_alignment)
+
+
+def fs_info(fd):
+    buf = create_buf(ioctl_fs_info_args.size)
+    fcntl.ioctl(fd, IOC_FS_INFO, buf)
+    return FsInfo(buf)
 
 
 ioctl_space_args = struct.Struct("=2Q")

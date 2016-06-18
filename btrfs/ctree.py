@@ -166,6 +166,9 @@ class FileSystem(object):
         self.path = path
         self.fd = os.open(path, os.O_RDONLY)
 
+    def fs_info(self):
+        return btrfs.ioctl.fs_info(self.fd)
+
     def space_info(self):
         return btrfs.ioctl.space_info(self.fd)
 
