@@ -7,3 +7,5 @@ import sys
 fs = btrfs.FileSystem(sys.argv[1])
 fs_info = fs.fs_info()
 print(fs_info)
+for device in fs.devices():
+    print(fs.dev_info(device.devid))

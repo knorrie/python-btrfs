@@ -65,6 +65,9 @@ def _IOWR(_type, nr, _struct):
     return _IOC(_IOC_READ | _IOC_WRITE, _type, nr, _struct.size)
 
 
+DEVICE_PATH_NAME_MAX = 1024
+
+
 def create_buf(size=4096):
     return array.array("B", itertools.repeat(0, size))
 
@@ -90,6 +93,29 @@ def fs_info(fd):
     buf = create_buf(ioctl_fs_info_args.size)
     fcntl.ioctl(fd, IOC_FS_INFO, buf)
     return FsInfo(buf)
+
+
+ioctl_dev_info_args = struct.Struct("=Q16sQQ3032x{0}s".format(DEVICE_PATH_NAME_MAX))
+
+IOC_DEV_INFO = _IOWR(BTRFS_IOCTL_MAGIC, 30, ioctl_dev_info_args)
+
+
+class DevInfo(object):
+    def __init__(self, buf):
+        self.devid, uuid_bytes, self.bytes_used, self.total_bytes, self.path = \
+            ioctl_dev_info_args.unpack(buf)
+        self.uuid = uuid.UUID(bytes=uuid_bytes)
+
+    def __str__(self):
+        return "devid {0} uuid {1} bytes_used {2} total_bytes {3} path {4}".format(
+            self.devid, self.uuid, self.bytes_used, self.total_bytes, self.path)
+
+
+def dev_info(fd, devid):
+    buf = create_buf(ioctl_dev_info_args.size)
+    ioctl_dev_info_args.pack_into(buf, 0, devid, "", 0, 0, "")
+    fcntl.ioctl(fd, IOC_DEV_INFO, buf)
+    return DevInfo(buf)
 
 
 ioctl_space_args = struct.Struct("=2Q")

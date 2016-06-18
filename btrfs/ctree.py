@@ -169,6 +169,9 @@ class FileSystem(object):
     def fs_info(self):
         return btrfs.ioctl.fs_info(self.fd)
 
+    def dev_info(self, devid):
+        return btrfs.ioctl.dev_info(self.fd, devid)
+
     def space_info(self):
         return btrfs.ioctl.space_info(self.fd)
 
