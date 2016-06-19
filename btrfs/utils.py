@@ -16,7 +16,7 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 021110-1307, USA.
 
-
+import btrfs.ctree
 from btrfs.ctree import (
     BLOCK_GROUP_DATA, BLOCK_GROUP_SYSTEM, BLOCK_GROUP_METADATA,
     SPACE_INFO_GLOBAL_RSV, BLOCK_GROUP_TYPE_MASK,
@@ -26,6 +26,15 @@ from btrfs.ctree import (
     BLOCK_GROUP_PROFILE_MASK,
     EXTENT_FLAG_DATA, EXTENT_FLAG_TREE_BLOCK, BLOCK_FLAG_FULL_BACKREF,
 )
+
+
+def mounted_filesystems():
+    filesystems = {}
+    mounts = [line.split() for line in open('/proc/self/mounts', 'r').read().splitlines()]
+    for path in [mount[1] for mount in mounts if mount[2] == 'btrfs']:
+        fs = btrfs.ctree.FileSystem(path)
+        filesystems.setdefault(fs.fsid, fs)
+    return filesystems.values()
 
 _block_group_type_str_map = {
     BLOCK_GROUP_DATA: 'Data',
