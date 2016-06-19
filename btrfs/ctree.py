@@ -166,6 +166,7 @@ class FileSystem(object):
     def __init__(self, path):
         self.path = path
         self.fd = os.open(path, os.O_RDONLY)
+        self.fsid = self.fs_info().fsid
 
     def fs_info(self):
         return btrfs.ioctl.FsInfo(self.fd)
