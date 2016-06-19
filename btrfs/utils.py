@@ -150,3 +150,19 @@ def block_group_profile_ratio(flags):
     return _block_group_profile_ratio_map.get(
         flags & BLOCK_GROUP_PROFILE_MASK
     )
+
+
+def wasted_space_raid1(sizes, chunk_size=1024**3):
+    while len(sizes) > 1:
+        sizes = sorted(sizes)
+        if sizes[-2] < chunk_size:
+            sizes[-1] = sizes[-1] - sizes[-2]
+            sizes[-2] = 0
+        else:
+            sizes[-1] = sizes[-1] - chunk_size
+            sizes[-2] = sizes[-2] - chunk_size
+        sizes = filter(lambda x: x > 0, sizes)
+
+    if len(sizes) == 0:
+        return 0
+    return sizes[0]
