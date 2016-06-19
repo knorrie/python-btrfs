@@ -167,10 +167,10 @@ class FileSystem(object):
         self.fd = os.open(path, os.O_RDONLY)
 
     def fs_info(self):
-        return btrfs.ioctl.fs_info(self.fd)
+        return btrfs.ioctl.FsInfo(self.fd)
 
     def dev_info(self, devid):
-        return btrfs.ioctl.dev_info(self.fd, devid)
+        return btrfs.ioctl.DevInfo(self.fd, devid)
 
     def space_info(self):
         return btrfs.ioctl.space_info(self.fd)

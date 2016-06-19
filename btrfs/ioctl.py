@@ -77,7 +77,9 @@ IOC_FS_INFO = _IOR(BTRFS_IOCTL_MAGIC, 31, ioctl_fs_info_args)
 
 
 class FsInfo(object):
-    def __init__(self, buf):
+    def __init__(self, fd):
+        buf = create_buf(ioctl_fs_info_args.size)
+        fcntl.ioctl(fd, IOC_FS_INFO, buf)
         self.max_id, self.num_devices, fsid_bytes, self.nodesize, self.sectorsize, \
             self.clone_alignment = ioctl_fs_info_args.unpack(buf)
         self.fsid = uuid.UUID(bytes=fsid_bytes)
@@ -88,18 +90,15 @@ class FsInfo(object):
                                          self.sectorsize, self.clone_alignment)
 
 
-def fs_info(fd):
-    buf = create_buf(ioctl_fs_info_args.size)
-    fcntl.ioctl(fd, IOC_FS_INFO, buf)
-    return FsInfo(buf)
-
-
 ioctl_dev_info_args = struct.Struct("=Q16sQQ3032x{0}s".format(DEVICE_PATH_NAME_MAX))
 IOC_DEV_INFO = _IOWR(BTRFS_IOCTL_MAGIC, 30, ioctl_dev_info_args)
 
 
 class DevInfo(object):
-    def __init__(self, buf):
+    def __init__(self, fd, devid):
+        buf = create_buf(ioctl_dev_info_args.size)
+        ioctl_dev_info_args.pack_into(buf, 0, devid, "", 0, 0, "")
+        fcntl.ioctl(fd, IOC_DEV_INFO, buf)
         self.devid, uuid_bytes, self.bytes_used, self.total_bytes, self.path = \
             ioctl_dev_info_args.unpack(buf)
         self.uuid = uuid.UUID(bytes=uuid_bytes)
@@ -107,13 +106,6 @@ class DevInfo(object):
     def __str__(self):
         return "devid {0} uuid {1} bytes_used {2} total_bytes {3} path {4}".format(
             self.devid, self.uuid, self.bytes_used, self.total_bytes, self.path)
-
-
-def dev_info(fd, devid):
-    buf = create_buf(ioctl_dev_info_args.size)
-    ioctl_dev_info_args.pack_into(buf, 0, devid, "", 0, 0, "")
-    fcntl.ioctl(fd, IOC_DEV_INFO, buf)
-    return DevInfo(buf)
 
 
 ioctl_space_args = struct.Struct("=2Q")
