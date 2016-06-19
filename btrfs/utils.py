@@ -132,3 +132,21 @@ def extent_flags_str(flags):
     if flags & BLOCK_FLAG_FULL_BACKREF:
         ret.append("FULL_BACKREF")
     return '|'.join(ret)
+
+
+_block_group_profile_ratio_map = {
+    BLOCK_GROUP_SINGLE: 1,
+    BLOCK_GROUP_RAID0: 1,
+    BLOCK_GROUP_RAID1: 2,
+    BLOCK_GROUP_DUP: 2,
+    BLOCK_GROUP_RAID10: 2,
+    BLOCK_GROUP_RAID5: 0,
+    BLOCK_GROUP_RAID6: 0,
+    SPACE_INFO_GLOBAL_RSV: 0,
+}
+
+
+def block_group_profile_ratio(flags):
+    return _block_group_profile_ratio_map.get(
+        flags & BLOCK_GROUP_PROFILE_MASK
+    )
