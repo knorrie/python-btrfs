@@ -120,7 +120,18 @@ ioctl_space_args = struct.Struct("=2Q")
 ioctl_space_info = struct.Struct("=3Q")
 IOC_SPACE_INFO = _IOWR(BTRFS_IOCTL_MAGIC, 20, ioctl_space_args)
 SpaceArgs = namedtuple('SpaceArgs', ['space_slots', 'total_spaces'])
-SpaceInfo = namedtuple('SpaceInfo', ['flags', 'total_bytes', 'used_bytes'])
+
+
+class SpaceInfo(object):
+    def __init__(self, buf, pos):
+        self.flags, self.total_bytes, self.used_bytes = ioctl_space_info.unpack_from(buf, pos)
+
+    def __str__(self):
+        return "{0}, {1}: total={2}, used={3}".format(
+            btrfs.utils.block_group_type_str(self.flags),
+            btrfs.utils.block_group_profile_str(self.flags),
+            btrfs.utils.pretty_size(self.total_bytes),
+            btrfs.utils.pretty_size(self.used_bytes))
 
 
 def space_args(fd):
@@ -135,7 +146,7 @@ def space_info(fd):
     buf = create_buf(buf_size)
     ioctl_space_args.pack_into(buf, 0, args.total_spaces, 0)
     fcntl.ioctl(fd, IOC_SPACE_INFO, buf)
-    return [SpaceInfo(*ioctl_space_info.unpack_from(buf, pos))
+    return [SpaceInfo(buf, pos)
             for pos in xrange(ioctl_space_args.size, buf_size, ioctl_space_info.size)]
 
 
