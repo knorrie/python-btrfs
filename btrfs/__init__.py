@@ -17,6 +17,13 @@
 # Boston, MA 021110-1307, USA.
 
 from btrfs.ctree import FileSystem  # noqa
+from btrfs.ctree import (  # noqa
+    BLOCK_GROUP_DATA, BLOCK_GROUP_SYSTEM, BLOCK_GROUP_METADATA,
+    SPACE_INFO_GLOBAL_RSV, BLOCK_GROUP_TYPE_MASK,
+    BLOCK_GROUP_RAID0, BLOCK_GROUP_RAID1, BLOCK_GROUP_RAID5,
+    BLOCK_GROUP_RAID6, BLOCK_GROUP_DUP, BLOCK_GROUP_RAID10,
+    BLOCK_GROUP_SINGLE, BLOCK_GROUP_PROFILE_MASK,
+)
 import btrfs.ctree  # noqa
 import btrfs.ioctl  # noqa
 import btrfs.utils  # noqa
