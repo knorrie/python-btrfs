@@ -234,6 +234,7 @@ class Device(object):
     dev_item = struct.Struct("<3Q3L3QL2B16s16s")
 
     def __init__(self, header, data):
+        self.key = Key(header.objectid, header.type, header.offset)
         self.devid, self.total_bytes, self.bytes_used, self.io_align, self.io_width, \
             self.sector_size, self.type, self.generation, self.start_offset, self.dev_group, \
             self.seek_speed, self.bandwidth, uuid_bytes, fsid_bytes = \
@@ -246,6 +247,7 @@ class Chunk(object):
     chunk = struct.Struct("<4Q3L2H")
 
     def __init__(self, header, data):
+        self.key = Key(header.objectid, header.type, header.offset)
         self.vaddr = header.offset
         self.length, self.owner, self.stripe_len, self.type, self.io_align, \
             self.io_width, self.sector_size, self.num_stripes, self.sub_stripes = \
@@ -269,6 +271,7 @@ class BlockGroup(object):
     block_group_item = struct.Struct("<3Q")
 
     def __init__(self, header, data):
+        self.key = Key(header.objectid, header.type, header.offset)
         self.vaddr = header.objectid
         self.length = header.offset
         self.used, self.chunk_objectid, self.flags = \
@@ -280,6 +283,7 @@ class Extent(object):
     extent_inline_ref = struct.Struct("<BQ")
 
     def __init__(self, header, data):
+        self.key = Key(header.objectid, header.type, header.offset)
         self.vaddr = header.objectid
         self.length = header.offset
         self.refs, self.generation, self.flags = Extent.extent_item.unpack_from(data, 0)
