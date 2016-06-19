@@ -16,15 +16,25 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 021110-1307, USA.
 
-
+import btrfs.ctree
 from btrfs.ctree import (
     BLOCK_GROUP_DATA, BLOCK_GROUP_SYSTEM, BLOCK_GROUP_METADATA,
     SPACE_INFO_GLOBAL_RSV, BLOCK_GROUP_TYPE_MASK,
     BLOCK_GROUP_RAID0, BLOCK_GROUP_RAID1, BLOCK_GROUP_RAID5,
     BLOCK_GROUP_RAID6, BLOCK_GROUP_DUP, BLOCK_GROUP_RAID10,
+    BLOCK_GROUP_SINGLE,
     BLOCK_GROUP_PROFILE_MASK,
     EXTENT_FLAG_DATA, EXTENT_FLAG_TREE_BLOCK, BLOCK_FLAG_FULL_BACKREF,
 )
+
+
+def mounted_filesystems():
+    filesystems = {}
+    mounts = [line.split() for line in open('/proc/self/mounts', 'r').read().splitlines()]
+    for path in [mount[1] for mount in mounts if mount[2] == 'btrfs']:
+        fs = btrfs.ctree.FileSystem(path)
+        filesystems.setdefault(fs.fsid, fs)
+    return filesystems.values()
 
 _block_group_type_str_map = {
     BLOCK_GROUP_DATA: 'Data',
@@ -43,7 +53,7 @@ def block_group_type_str(flags):
 
 
 _block_group_profile_str_map = {
-    0: 'single',
+    BLOCK_GROUP_SINGLE: 'single',
     BLOCK_GROUP_RAID0: 'RAID0',
     BLOCK_GROUP_RAID1: 'RAID1',
     BLOCK_GROUP_RAID5: 'RAID5',
@@ -122,3 +132,37 @@ def extent_flags_str(flags):
     if flags & BLOCK_FLAG_FULL_BACKREF:
         ret.append("FULL_BACKREF")
     return '|'.join(ret)
+
+
+_block_group_profile_ratio_map = {
+    BLOCK_GROUP_SINGLE: 1,
+    BLOCK_GROUP_RAID0: 1,
+    BLOCK_GROUP_RAID1: 2,
+    BLOCK_GROUP_DUP: 2,
+    BLOCK_GROUP_RAID10: 2,
+    BLOCK_GROUP_RAID5: 0,
+    BLOCK_GROUP_RAID6: 0,
+    SPACE_INFO_GLOBAL_RSV: 0,
+}
+
+
+def block_group_profile_ratio(flags):
+    return _block_group_profile_ratio_map.get(
+        flags & BLOCK_GROUP_PROFILE_MASK
+    )
+
+
+def wasted_space_raid1(sizes, chunk_size=1024**3):
+    while len(sizes) > 1:
+        sizes = sorted(sizes)
+        if sizes[-2] < chunk_size:
+            sizes[-1] = sizes[-1] - sizes[-2]
+            sizes[-2] = 0
+        else:
+            sizes[-1] = sizes[-1] - chunk_size
+            sizes[-2] = sizes[-2] - chunk_size
+        sizes = filter(lambda x: x > 0, sizes)
+
+    if len(sizes) == 0:
+        return 0
+    return sizes[0]

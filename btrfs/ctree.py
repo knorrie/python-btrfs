@@ -16,8 +16,6 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 021110-1307, USA.
 
-from btrfs.ioctl import ULLONG_MAX
-import btrfs.ioctl
 import copy
 import os
 import struct
@@ -45,6 +43,7 @@ BLOCK_GROUP_ITEM_KEY = 192
 DEV_ITEM_KEY = 216
 CHUNK_ITEM_KEY = 228
 
+BLOCK_GROUP_SINGLE = 0
 BLOCK_GROUP_DATA = 1 << 0
 BLOCK_GROUP_SYSTEM = 1 << 1
 BLOCK_GROUP_METADATA = 1 << 2
@@ -74,6 +73,9 @@ SPACE_INFO_GLOBAL_RSV = 1 << 49
 EXTENT_FLAG_DATA = 1 << 0
 EXTENT_FLAG_TREE_BLOCK = 1 << 1
 BLOCK_FLAG_FULL_BACKREF = 1 << 1
+
+from btrfs.ioctl import ULLONG_MAX
+import btrfs.ioctl
 
 
 class Key(object):
@@ -165,6 +167,7 @@ class FileSystem(object):
     def __init__(self, path):
         self.path = path
         self.fd = os.open(path, os.O_RDONLY)
+        self.fsid = self.fs_info().fsid
 
     def fs_info(self):
         return btrfs.ioctl.FsInfo(self.fd)
