@@ -18,7 +18,6 @@
 
 from collections import namedtuple
 import array
-import btrfs.ctree
 import fcntl
 import itertools
 import struct
@@ -68,6 +67,7 @@ def _IOWR(_type, nr, _struct):
 DEVICE_PATH_NAME_MAX = 1024
 
 from btrfs.ctree import BLOCK_GROUP_TYPE_MASK, SPACE_INFO_GLOBAL_RSV, BLOCK_GROUP_PROFILE_MASK
+import btrfs.ctree
 
 
 def create_buf(size=4096):

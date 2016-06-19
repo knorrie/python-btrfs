@@ -16,8 +16,6 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 021110-1307, USA.
 
-from btrfs.ioctl import ULLONG_MAX
-import btrfs.ioctl
 import copy
 import os
 import struct
@@ -75,6 +73,9 @@ SPACE_INFO_GLOBAL_RSV = 1 << 49
 EXTENT_FLAG_DATA = 1 << 0
 EXTENT_FLAG_TREE_BLOCK = 1 << 1
 BLOCK_FLAG_FULL_BACKREF = 1 << 1
+
+from btrfs.ioctl import ULLONG_MAX
+import btrfs.ioctl
 
 
 class Key(object):
