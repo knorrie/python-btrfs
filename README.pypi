@@ -1,0 +1,13 @@
+python-btrfs
+============
+
+Btrfs is a copy on write (COW) filesystem for Linux aimed at implementing
+advanced features while focusing on fault tolerance, repair and easy
+administration.
+
+The python module acts as a wrapper around the low level kernel calls and btrfs
+data structures, presenting them as python objects with interesting attributes
+and references to other objects.
+
+The module is in very early development, support for filesystem structures will
+be added one after another.
