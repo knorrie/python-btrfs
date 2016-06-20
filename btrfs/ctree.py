@@ -21,6 +21,8 @@ import os
 import struct
 import uuid
 
+ULLONG_MAX = (1 << 64) - 1
+
 
 def ULL(n):
     if n < 0:
@@ -74,7 +76,40 @@ EXTENT_FLAG_DATA = 1 << 0
 EXTENT_FLAG_TREE_BLOCK = 1 << 1
 BLOCK_FLAG_FULL_BACKREF = 1 << 1
 
-from btrfs.ioctl import ULLONG_MAX
+_key_objectid_str_map = {
+    DEV_ITEMS_OBJECTID: 'DEV_ITEMS',
+    EXTENT_TREE_OBJECTID: 'EXTENT_TREE',
+    CHUNK_TREE_OBJECTID: 'CHUNK_TREE',
+    ORPHAN_OBJECTID: 'ORPHAN',
+}
+
+
+def key_objectid_str(objectid, _type):
+    if objectid == ROOT_TREE_OBJECTID and _type != DEV_ITEM_KEY:
+        return 'ROOT_TREE'
+    elif objectid == FIRST_CHUNK_TREE_OBJECTID and _type == CHUNK_ITEM_KEY:
+        return 'FIRST_CHUNK_TREE'
+    elif objectid == ULLONG_MAX:
+        return '-1'
+    else:
+        return _key_objectid_str_map.get(objectid, objectid)
+
+
+_key_type_str_map = {
+    ORPHAN_ITEM_KEY: 'ORPHAN_ITEM',
+    EXTENT_ITEM_KEY: 'EXTENT_ITEM',
+    EXTENT_DATA_REF_KEY: 'EXTENT_DATA_REF',
+    SHARED_DATA_REF_KEY: 'SHARED_DATA_REF',
+    BLOCK_GROUP_ITEM_KEY: 'BLOCK_GROUP_ITEM',
+    DEV_ITEM_KEY: 'DEV_ITEM',
+    CHUNK_ITEM_KEY: 'CHUNK_ITEM',
+}
+
+
+def key_type_str(_type):
+    return _key_type_str_map.get(_type, _type)
+
+
 import btrfs.ioctl
 
 
@@ -155,7 +190,11 @@ class Key(object):
         return self._key > other
 
     def __str__(self):
-        return "({0} {1} {2})".format(self._objectid, self._type, self._offset)
+        return "({0} {1} {2})".format(
+            key_objectid_str(self._objectid, self._type),
+            key_type_str(self._type),
+            self._offset,
+        )
 
     def __add__(self, amount):
         new_key = copy.copy(self)
