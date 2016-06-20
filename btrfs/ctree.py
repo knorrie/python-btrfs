@@ -281,6 +281,10 @@ class Device(object):
         self.uuid = uuid.UUID(bytes=uuid_bytes)
         self.fsid = uuid.UUID(bytes=fsid_bytes)
 
+    def __str__(self):
+        return "dev item devid {0} total bytes {1} bytes used {2}".format(
+            self.devid, self.total_bytes, self.bytes_used)
+
 
 class Chunk(object):
     chunk = struct.Struct("<4Q3L2H")
@@ -297,6 +301,11 @@ class Chunk(object):
                                                  pos + Stripe.stripe.size * self.num_stripes,
                                                  Stripe.stripe.size)]
 
+    def __str__(self):
+        return "chunk vaddr {0} type {1} length {2} num_stripes {3}".format(
+            self.vaddr, btrfs.utils.block_group_flags_str(self.type),
+            self.length, self.num_stripes)
+
 
 class Stripe(object):
     stripe = struct.Struct("<2Q16s")
@@ -304,6 +313,9 @@ class Stripe(object):
     def __init__(self, data, pos=0):
         self.devid, self.offset, uuid_bytes = Stripe.stripe.unpack_from(data, pos)
         self.uuid = uuid.UUID(bytes=uuid_bytes)
+
+    def __str__(self):
+        return "stripe devid {0} offset {1}".format(self.devid, self.offset)
 
 
 class BlockGroup(object):
@@ -315,6 +327,11 @@ class BlockGroup(object):
         self.length = header.offset
         self.used, self.chunk_objectid, self.flags = \
             BlockGroup.block_group_item.unpack_from(data, 0)
+
+    def __str__(self):
+        return "block group vaddr {0} length {1} flags {2} used {3} used_pct {4}".format(
+            self.vaddr, self.length, btrfs.utils.block_group_flags_str(self.flags),
+            self.used, (self.used * 100) / self.length)
 
 
 class Extent(object):
@@ -347,6 +364,11 @@ class Extent(object):
     def append_shared_data_ref(self, header, data):
         self.shared_data_refs.append(SharedDataRef(data, 0))
 
+    def __str__(self):
+        return "extent vaddr {0} length {1} refs {2} gen {3} flags {4}".format(
+            self.vaddr, self.length, self.refs, self.generation,
+            btrfs.utils.extent_flags_str(self.flags))
+
 
 class ExtentDataRef(object):
     extent_data_ref = struct.Struct("<3QL")
@@ -355,9 +377,16 @@ class ExtentDataRef(object):
         self.root, self.objectid, self.offset, self.count = \
             ExtentDataRef.extent_data_ref.unpack_from(data, pos)
 
+    def __str__(self):
+        return "extent data backref root {0} objectid {1} offset {2} count {3}".format(
+            self.root, self.objectid, self.offset, self.count)
+
 
 class SharedDataRef(object):
     shared_data_ref = struct.Struct("<QL")
 
     def __init__(self, data, pos):
         self.parent, self.count = SharedDataRef.shared_data_ref.unpack_from(data, pos)
+
+    def __str__(self):
+        return "shared data backref parent {0} count {1}".format(self.parent, self.count)
