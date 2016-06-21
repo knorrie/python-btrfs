@@ -49,15 +49,14 @@ def munin_config(fs, spaces, used_types, check_wasted):
     print("unallocated.draw STACK")
     print("unallocated.info Not allocated raw space")
     print("unallocated.colour FFFFFF")
-    if check_wasted:
-        print("wasted_soft.label Reclaimable non-alloc")
-        print("wasted_soft.draw STACK")
-        print("wasted_soft.info Reclaimable not allocatable")
-        print("wasted_soft.colour BBBBBB")
-        print("wasted_hard.label Non-allocatable")
-        print("wasted_hard.draw STACK")
-        print("wasted_hard.info Non-allocatable")
-        print("wasted_hard.colour 888888")
+    print("wasted_soft.label Reclaimable non-alloc")
+    print("wasted_soft.draw STACK")
+    print("wasted_soft.info Reclaimable not allocatable")
+    print("wasted_soft.colour BBBBBB")
+    print("wasted_hard.label Non-allocatable")
+    print("wasted_hard.draw STACK")
+    print("wasted_hard.info Non-allocatable")
+    print("wasted_hard.colour 888888")
     print("total.label Total")
     print("total.draw LINE2")
     print("total.info Total raw space")
@@ -81,8 +80,8 @@ def munin_values(fs, spaces, used_types, check_wasted):
     device_total = [device.total_bytes for device in devices]
     device_unallocated = [device.total_bytes - device.bytes_used for device in devices]
     if check_wasted:
-        wasted_total = btrfs.utils.wasted_space_raid1(device_unallocated)
-        wasted_hard = btrfs.utils.wasted_space_raid1(device_total)
+        wasted_total = btrfs.utils.wasted_space_raid0_raid1(device_unallocated)
+        wasted_hard = btrfs.utils.wasted_space_raid0_raid1(device_total)
         wasted_soft = wasted_total - wasted_hard
         unallocated = sum(device_unallocated) - wasted_total
         print("unallocated.value {0}".format(unallocated))
@@ -91,6 +90,8 @@ def munin_values(fs, spaces, used_types, check_wasted):
     else:
         unallocated = sum(device_unallocated)
         print("unallocated.value {0}".format(unallocated))
+        print("wasted_soft.value 0")
+        print("wasted_hard.value 0")
     total = sum(device_total)
     print("total.value {0}".format(total))
     print("")
