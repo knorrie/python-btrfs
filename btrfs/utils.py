@@ -152,7 +152,7 @@ def block_group_profile_ratio(flags):
     )
 
 
-def wasted_space_raid1(sizes, chunk_size=1024**3):
+def wasted_space_raid0_raid1(sizes, chunk_size=1024**3):
     while len(sizes) > 1:
         sizes = sorted(sizes)
         if sizes[-2] < chunk_size:

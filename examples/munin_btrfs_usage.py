@@ -103,8 +103,10 @@ def main():
         for space in spaces:
             if space.type not in used_types and space.type != btrfs.SPACE_INFO_GLOBAL_RSV:
                 used_types.append(space.type)
+        flags_raid0_data = (btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_RAID0)
         flags_raid1_data = (btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_RAID1)
-        check_wasted = any([space.flags & flags_raid1_data == flags_raid1_data
+        check_wasted = any([space.flags & flags_raid0_data == flags_raid0_data
+                           or space.flags & flags_raid1_data == flags_raid1_data
                            for space in spaces])
 
         if len(sys.argv) > 1 and sys.argv[1] == "config":
