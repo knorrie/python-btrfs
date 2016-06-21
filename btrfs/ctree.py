@@ -231,10 +231,12 @@ class FileSystem(object):
         for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
             yield Chunk(header, data)
 
-    def block_group(self, vaddr):
+    def block_group(self, vaddr, length=None):
         tree = EXTENT_TREE_OBJECTID
-        min_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, 0)
-        max_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, ULLONG_MAX)
+        min_offset = length if length is not None else 0
+        max_offset = length if length is not None else ULLONG_MAX
+        min_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, min_offset)
+        max_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, max_offset)
         block_groups = [BlockGroup(header, data)
                         for header, data in
                         btrfs.ioctl.search(self.fd, tree, min_key, max_key, nr_items=1)]
