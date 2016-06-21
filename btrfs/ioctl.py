@@ -162,15 +162,16 @@ def search(fd, tree, min_key, max_key=None,
            nr_items=ULONG_MAX):
     if max_key is None:
         max_key = btrfs.ctree.Key(ULLONG_MAX, 255, ULLONG_MAX)
+    wanted_nr_items = nr_items
     result_nr_items = -1
     buf = create_buf(4096)
-    while min_key <= max_key and result_nr_items != 0:
+    while min_key <= max_key and result_nr_items != 0 and wanted_nr_items > 0:
         ioctl_search_key.pack_into(buf, 0, tree,
                                    min_key.objectid, max_key.objectid,
                                    min_key.offset, max_key.offset,
                                    transid_min, transid_max,
                                    min_key.type, max_key.type,
-                                   nr_items)
+                                   wanted_nr_items)
         fcntl.ioctl(fd, IOC_TREE_SEARCH, buf)
         result_nr_items = ioctl_search_key.unpack_from(buf, 0)[9]
         if result_nr_items > 0:
@@ -181,5 +182,8 @@ def search(fd, tree, min_key, max_key=None,
                 data = buf[pos:pos+header.len]
                 yield((header, data))
                 pos += header.len
+                wanted_nr_items -= 1
+                if wanted_nr_items == 0:
+                    break
             min_key = btrfs.ctree.Key(header.objectid, header.type, header.offset)
             min_key += 1
