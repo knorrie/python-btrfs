@@ -22,6 +22,7 @@ import struct
 import uuid
 
 ULLONG_MAX = (1 << 64) - 1
+ULONG_MAX = (1 << 32) - 1
 
 
 def ULL(n):
@@ -224,11 +225,12 @@ class FileSystem(object):
         for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
             yield Device(header, data)
 
-    def chunks(self):
+    def chunks(self, min_vaddr=0, max_vaddr=ULLONG_MAX, nr_items=ULONG_MAX):
         tree = CHUNK_TREE_OBJECTID
-        min_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, 0)
-        max_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, ULLONG_MAX)
-        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+        min_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, min_vaddr)
+        max_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, max_vaddr)
+        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key,
+                                               nr_items=nr_items):
             yield Chunk(header, data)
 
     def block_group(self, vaddr, length=None):
