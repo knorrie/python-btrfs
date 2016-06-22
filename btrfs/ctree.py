@@ -301,7 +301,7 @@ class Chunk(object):
             self.io_width, self.sector_size, self.num_stripes, self.sub_stripes = \
             Chunk.chunk.unpack_from(data, 0)
         pos = Chunk.chunk.size
-        self.stripes = [Stripe(data, stripe_pos)
+        self.stripes = [Stripe(self, data, stripe_pos)
                         for stripe_pos in xrange(pos,
                                                  pos + Stripe.stripe.size * self.num_stripes,
                                                  Stripe.stripe.size)]
@@ -315,7 +315,8 @@ class Chunk(object):
 class Stripe(object):
     stripe = struct.Struct("<2Q16s")
 
-    def __init__(self, data, pos=0):
+    def __init__(self, chunk, data, pos=0):
+        self.chunk = chunk
         self.devid, self.offset, uuid_bytes = Stripe.stripe.unpack_from(data, pos)
         self.uuid = uuid.UUID(bytes=uuid_bytes)
 
