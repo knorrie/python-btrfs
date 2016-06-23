@@ -157,9 +157,11 @@ IOC_TREE_SEARCH = _IOWR(BTRFS_IOCTL_MAGIC, 17, ioctl_search_args)
 SearchHeader = namedtuple('SearchHeader', ['transid', 'objectid', 'offset', 'type', 'len'])
 
 
-def search(fd, tree, min_key, max_key=None,
+def search(fd, tree, min_key=None, max_key=None,
            transid_min=0, transid_max=ULLONG_MAX,
            nr_items=ULONG_MAX):
+    if min_key is None:
+        min_key = btrfs.ctree.Key(0, 0, 0)
     if max_key is None:
         max_key = btrfs.ctree.Key(ULLONG_MAX, 255, ULLONG_MAX)
     wanted_nr_items = nr_items
