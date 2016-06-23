@@ -35,6 +35,7 @@ DEV_ITEMS_OBJECTID = 1
 ROOT_TREE_OBJECTID = 1
 EXTENT_TREE_OBJECTID = 2
 CHUNK_TREE_OBJECTID = 3
+DEV_TREE_OBJECTID = 4
 FIRST_CHUNK_TREE_OBJECTID = 256
 ORPHAN_OBJECTID = ULL(-5)
 
@@ -43,6 +44,7 @@ EXTENT_ITEM_KEY = 168
 EXTENT_DATA_REF_KEY = 178
 SHARED_DATA_REF_KEY = 184
 BLOCK_GROUP_ITEM_KEY = 192
+DEV_EXTENT_KEY = 204
 DEV_ITEM_KEY = 216
 CHUNK_ITEM_KEY = 228
 
@@ -103,6 +105,7 @@ _key_type_str_map = {
     EXTENT_DATA_REF_KEY: 'EXTENT_DATA_REF',
     SHARED_DATA_REF_KEY: 'SHARED_DATA_REF',
     BLOCK_GROUP_ITEM_KEY: 'BLOCK_GROUP_ITEM',
+    DEV_EXTENT_KEY: 'DEV_EXTENT',
     DEV_ITEM_KEY: 'DEV_ITEM',
     CHUNK_ITEM_KEY: 'CHUNK_ITEM',
 }
@@ -234,6 +237,12 @@ class FileSystem(object):
                                                nr_items=nr_items):
             yield Chunk(header, data)
 
+    def dev_extents(self):
+        tree = DEV_TREE_OBJECTID
+        for header, data in btrfs.ioctl.search(self.fd, tree):
+            if header.type == DEV_EXTENT_KEY:
+                yield DevExtent(header, data)
+
     def block_group(self, vaddr, length=None):
         tree = EXTENT_TREE_OBJECTID
         min_offset = length if length is not None else 0
@@ -322,6 +331,23 @@ class Stripe(object):
 
     def __str__(self):
         return "stripe devid {0} offset {1}".format(self.devid, self.offset)
+
+
+class DevExtent(object):
+    dev_extent = struct.Struct("<4Q16s")
+
+    def __init__(self, header, data):
+        self.key = Key(header.objectid, header.type, header.offset)
+        self.devid = header.objectid
+        self.paddr = header.offset
+        self.chunk_tree, self.chunk_objectid, self.chunk_offset, self.length, uuid_bytes = \
+            DevExtent.dev_extent.unpack_from(data, 0)
+        self.vaddr = self.chunk_offset
+        self.uuid = uuid.UUID(bytes=uuid_bytes)
+
+    def __str__(self):
+        return "dev extent devid {0} paddr {1} length {2} chunk {3}".format(
+            self.devid, self.paddr, self.length, self.chunk_offset)
 
 
 class BlockGroup(object):
