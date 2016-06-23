@@ -34,7 +34,7 @@ def mounted_filesystems():
     for path in [mount[1] for mount in mounts if mount[2] == 'btrfs']:
         fs = btrfs.ctree.FileSystem(path)
         filesystems.setdefault(fs.fsid, fs)
-    return filesystems.values()
+    return list(filesystems.values())
 
 _block_group_type_str_map = {
     BLOCK_GROUP_DATA: 'Data',
@@ -161,7 +161,7 @@ def wasted_space_raid0_raid1(sizes, chunk_size=1024**3):
         else:
             sizes[-1] = sizes[-1] - chunk_size
             sizes[-2] = sizes[-2] - chunk_size
-        sizes = filter(lambda x: x > 0, sizes)
+        sizes = [x for x in sizes if x > 0]
 
     if len(sizes) == 0:
         return 0
