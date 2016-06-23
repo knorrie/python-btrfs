@@ -311,7 +311,7 @@ class Chunk(object):
             Chunk.chunk.unpack_from(data, 0)
         pos = Chunk.chunk.size
         self.stripes = [Stripe(self, data, stripe_pos)
-                        for stripe_pos in xrange(pos,
+                        for stripe_pos in range(pos,
                                                  pos + Stripe.stripe.size * self.num_stripes,
                                                  Stripe.stripe.size)]
 
