@@ -16,6 +16,7 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 021110-1307, USA.
 
+from __future__ import division, print_function, absolute_import, unicode_literals
 import copy
 import os
 import struct
@@ -311,9 +312,9 @@ class Chunk(object):
             Chunk.chunk.unpack_from(data, 0)
         pos = Chunk.chunk.size
         self.stripes = [Stripe(self, data, stripe_pos)
-                        for stripe_pos in xrange(pos,
-                                                 pos + Stripe.stripe.size * self.num_stripes,
-                                                 Stripe.stripe.size)]
+                        for stripe_pos in range(pos,
+                                                pos + Stripe.stripe.size * self.num_stripes,
+                                                Stripe.stripe.size)]
 
     def __str__(self):
         return "chunk vaddr {0} type {1} length {2} num_stripes {3}".format(

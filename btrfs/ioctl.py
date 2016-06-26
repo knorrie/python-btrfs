@@ -16,6 +16,7 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 021110-1307, USA.
 
+from __future__ import division, print_function, absolute_import, unicode_literals
 from collections import namedtuple
 import array
 import fcntl
@@ -99,10 +100,11 @@ IOC_DEV_INFO = _IOWR(BTRFS_IOCTL_MAGIC, 30, ioctl_dev_info_args)
 class DevInfo(object):
     def __init__(self, fd, devid):
         buf = create_buf(ioctl_dev_info_args.size)
-        ioctl_dev_info_args.pack_into(buf, 0, devid, "", 0, 0, "")
+        ioctl_dev_info_args.pack_into(buf, 0, devid, b'', 0, 0, b'')
         fcntl.ioctl(fd, IOC_DEV_INFO, buf)
-        self.devid, uuid_bytes, self.bytes_used, self.total_bytes, self.path = \
+        self.devid, uuid_bytes, self.bytes_used, self.total_bytes, path_bytes = \
             ioctl_dev_info_args.unpack(buf)
+        self.path = path_bytes.decode()
         self.uuid = uuid.UUID(bytes=uuid_bytes)
 
     def __str__(self):
@@ -146,12 +148,12 @@ def space_info(fd):
     ioctl_space_args.pack_into(buf, 0, args.total_spaces, 0)
     fcntl.ioctl(fd, IOC_SPACE_INFO, buf)
     return [SpaceInfo(buf, pos)
-            for pos in xrange(ioctl_space_args.size, buf_size, ioctl_space_info.size)]
+            for pos in range(ioctl_space_args.size, buf_size, ioctl_space_info.size)]
 
 
 ioctl_search_key = struct.Struct("=Q6QLLL4x32x")
 ioctl_search_args = struct.Struct("{0}{1}x".format(
-    ioctl_search_key.format, 4096 - ioctl_search_key.size))
+    ioctl_search_key.format.decode(), 4096 - ioctl_search_key.size))
 ioctl_search_header = struct.Struct("=3Q2L")
 IOC_TREE_SEARCH = _IOWR(BTRFS_IOCTL_MAGIC, 17, ioctl_search_args)
 SearchHeader = namedtuple('SearchHeader', ['transid', 'objectid', 'offset', 'type', 'len'])
@@ -178,7 +180,7 @@ def search(fd, tree, min_key=None, max_key=None,
         result_nr_items = ioctl_search_key.unpack_from(buf, 0)[9]
         if result_nr_items > 0:
             pos = ioctl_search_key.size
-            for i in xrange(result_nr_items):
+            for i in range(result_nr_items):
                 header = SearchHeader(*ioctl_search_header.unpack_from(buf, pos))
                 pos += ioctl_search_header.size
                 data = buf[pos:pos+header.len]

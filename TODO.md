@@ -8,7 +8,6 @@ python-btrfs roadmap
 
 ### v0.2 - The Heatmap
 
-* make the lib run with both python 2 and 3
 * convert the existing nagios plugin to use this lib
 * changelog
 

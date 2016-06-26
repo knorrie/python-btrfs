@@ -16,6 +16,7 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 021110-1307, USA.
 
+from __future__ import division, print_function, absolute_import, unicode_literals
 import btrfs.ctree
 from btrfs.ctree import (
     BLOCK_GROUP_DATA, BLOCK_GROUP_SYSTEM, BLOCK_GROUP_METADATA,
@@ -34,7 +35,7 @@ def mounted_filesystems():
     for path in [mount[1] for mount in mounts if mount[2] == 'btrfs']:
         fs = btrfs.ctree.FileSystem(path)
         filesystems.setdefault(fs.fsid, fs)
-    return filesystems.values()
+    return list(filesystems.values())
 
 _block_group_type_str_map = {
     BLOCK_GROUP_DATA: 'Data',
@@ -96,7 +97,7 @@ def pretty_size(size, unit=None, binary=True):
             unit = 'k'
     divide_by = base ** unit_offset
     if divide_by > 0:
-        size = float(size) / divide_by
+        size = size / divide_by
     return "{0:.2f}{1}{2}B".format(size, unit, 'i' if base == 1024 and unit != '' else '')
 
 
@@ -161,7 +162,7 @@ def wasted_space_raid0_raid1(sizes, chunk_size=1024**3):
         else:
             sizes[-1] = sizes[-1] - chunk_size
             sizes[-2] = sizes[-2] - chunk_size
-        sizes = filter(lambda x: x > 0, sizes)
+        sizes = [size for size in sizes if size > 0]
 
     if len(sizes) == 0:
         return 0
