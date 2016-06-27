@@ -364,7 +364,7 @@ class BlockGroup(object):
     def __str__(self):
         return "block group vaddr {0} length {1} flags {2} used {3} used_pct {4}".format(
             self.vaddr, self.length, btrfs.utils.block_group_flags_str(self.flags),
-            self.used, (self.used * 100) / self.length)
+            self.used, int(round((self.used * 100) / self.length)))
 
 
 class Extent(object):
