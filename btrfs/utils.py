@@ -167,3 +167,31 @@ def wasted_space_raid0_raid1(sizes, chunk_size=1024**3):
     if len(sizes) == 0:
         return 0
     return sizes[0]
+
+
+def fs_usage(fs):
+    spaces = [space for space in fs.space_info()
+              if space.type != btrfs.SPACE_INFO_GLOBAL_RSV]
+    used = sum([space.raw_used_bytes for space in spaces])
+
+    flags_raid0_data = (btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_RAID0)
+    flags_raid1_data = (btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_RAID1)
+    check_wasted = any([space.flags & flags_raid0_data == flags_raid0_data
+                       or space.flags & flags_raid1_data == flags_raid1_data
+                       for space in spaces])
+
+    devices = list(fs.devices())
+
+    if check_wasted:
+        wasted_total = btrfs.utils.wasted_space_raid0_raid1(
+            [device.total_bytes - device.bytes_used for device in devices])
+        wasted_hard = btrfs.utils.wasted_space_raid0_raid1(
+            [device.total_bytes for device in devices])
+        wasted_soft = wasted_total - wasted_hard
+    else:
+        wasted_hard = wasted_soft = 0
+
+    total = sum([device.total_bytes for device in devices])
+    allocated = sum([device.bytes_used for device in devices])
+
+    return total, allocated, used, wasted_hard, wasted_soft
