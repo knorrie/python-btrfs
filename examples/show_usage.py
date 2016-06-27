@@ -5,7 +5,9 @@ import btrfs
 import sys
 
 fs = btrfs.FileSystem(sys.argv[1])
-map(print, fs.devices())
+
+for device in fs.devices():
+    print(device)
 
 for chunk in fs.chunks():
     print(fs.block_group(chunk.vaddr, chunk.length))
