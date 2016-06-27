@@ -25,7 +25,7 @@ def draw_type():
         yield 'STACK'
 
 
-def munin_config(fs, spaces, used_types, check_wasted):
+def munin_config(fs, spaces, used_types):
     print("multigraph btrfs_usage_{0}".format(str(fs.fsid).replace('-', '_')))
     print("graph_args --base 1024 -l 0")
     print("graph_vlabel bytes")
@@ -64,7 +64,7 @@ def munin_config(fs, spaces, used_types, check_wasted):
     print("")
 
 
-def munin_values(fs, spaces, used_types, check_wasted):
+def munin_values(fs, spaces, used_types):
     print("multigraph btrfs_usage_{0}".format(str(fs.fsid).replace('-', '_')))
     for _type in used_types:
         label = btrfs.utils.block_group_flags_str(_type).lower().replace('|', '_')
@@ -76,23 +76,12 @@ def munin_values(fs, spaces, used_types, check_wasted):
                 allocated += space.raw_total_bytes
         print("{0}_used.value {1}".format(label, used))
         print("{0}_unused.value {1}".format(label, allocated - used))
-    devices = list(fs.devices())
-    device_total = [device.total_bytes for device in devices]
-    device_unallocated = [device.total_bytes - device.bytes_used for device in devices]
-    if check_wasted:
-        wasted_total = btrfs.utils.wasted_space_raid0_raid1(device_unallocated)
-        wasted_hard = btrfs.utils.wasted_space_raid0_raid1(device_total)
-        wasted_soft = wasted_total - wasted_hard
-        unallocated = sum(device_unallocated) - wasted_total
-        print("unallocated.value {0}".format(unallocated))
-        print("wasted_soft.value {0}".format(wasted_soft))
-        print("wasted_hard.value {0}".format(wasted_hard))
-    else:
-        unallocated = sum(device_unallocated)
-        print("unallocated.value {0}".format(unallocated))
-        print("wasted_soft.value 0")
-        print("wasted_hard.value 0")
-    total = sum(device_total)
+
+    total, allocated, used, wasted_hard, wasted_soft = btrfs.utils.fs_usage(fs)
+    unallocated = total - allocated - wasted_soft - wasted_hard
+    print("unallocated.value {0}".format(unallocated))
+    print("wasted_soft.value {0}".format(wasted_soft))
+    print("wasted_hard.value {0}".format(wasted_hard))
     print("total.value {0}".format(total))
     print("")
 
@@ -104,16 +93,11 @@ def main():
         for space in spaces:
             if space.type not in used_types and space.type != btrfs.SPACE_INFO_GLOBAL_RSV:
                 used_types.append(space.type)
-        flags_raid0_data = (btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_RAID0)
-        flags_raid1_data = (btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_RAID1)
-        check_wasted = any([space.flags & flags_raid0_data == flags_raid0_data
-                           or space.flags & flags_raid1_data == flags_raid1_data
-                           for space in spaces])
 
         if len(sys.argv) > 1 and sys.argv[1] == "config":
-            munin_config(fs, spaces, used_types, check_wasted)
+            munin_config(fs, spaces, used_types)
         else:
-            munin_values(fs, spaces, used_types, check_wasted)
+            munin_values(fs, spaces, used_types)
 
 if __name__ == "__main__":
     main()
