@@ -72,7 +72,7 @@ import btrfs.ctree
 
 
 def create_buf(size=4096):
-    return array.array("B", itertools.repeat(0, size))
+    return array.array(b'B', itertools.repeat(0, size))
 
 
 ioctl_fs_info_args = struct.Struct("=QQ16sLLL980x")
