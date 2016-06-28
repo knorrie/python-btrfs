@@ -6,11 +6,6 @@ python-btrfs roadmap
 * reimplement heatmap (examples) for the whole filesystem
 * "walking" heatmap for block group details (free space fragmentation)
 
-### v0.2 - The Heatmap
-
-* convert the existing nagios plugin to use this lib
-* changelog
-
 ### v0.3 - More data structures
 
 * finish listing the extent tree: metadata

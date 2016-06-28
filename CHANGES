@@ -1,0 +1,19 @@
+python-btrfs 0.2, Jun 28 2016
+  * Datastructures: DevExtent
+  * Python 3 compatibility
+  * Utils: lookup total filesystem usage (incl. unallocatable space)
+  * Example nagios nrpe monitoring plugin
+  * Fixes:
+    - Optimize block group search
+
+python-btrfs 0.1, Jun 21 2016
+  * IOCTLs: IOC_SPACE_INFO, IOC_TREE_SEARCH, IOC_FS_INFO, IOC_DEV_INFO
+  * Datastructures: Device (dev_item), Chunk, Stripe, BlockGroup,
+    Extent, ExtentDataRef, SharedDataRef
+  * btrfs.FileSystem main entry point for usage
+  * Handing of the search Key (objectid, type, offset)
+  * Utils: pretty printing amounts of bytes and block group /
+    chunk types and profiles (like, MetaData, RAID1 etc...),
+    determine wasted (unallocatable) space for RAID0, RAID1
+  * Example snippets using all functionality
+  * Example munin monitoring plugin
