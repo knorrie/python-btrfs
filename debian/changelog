@@ -1,3 +1,10 @@
+python-btrfs (0.2.1-1) unstable; urgency=medium
+
+  * New "upstream" version
+  * Build for python2 and python3 now
+
+ -- Hans van Kranenburg <hans.van.kranenburg@mendix.com>  Wed, 29 Jun 2016 02:17:17 +0200
+
 python-btrfs (0.1-1) unstable; urgency=medium
 
   * Initial release

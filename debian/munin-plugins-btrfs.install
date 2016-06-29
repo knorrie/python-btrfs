@@ -1,0 +1,2 @@
+examples/munin/plugins/btrfs_usage usr/share/munin-btrfs/plugins
+examples/munin/plugin-conf.d/btrfs_usage etc/munin/plugin-conf.d

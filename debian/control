@@ -1,11 +1,51 @@
 Source: python-btrfs
-Section: admin
+Section: libs
 Priority: extra
 Maintainer: Hans van Kranenburg <hans.van.kranenburg@mendix.com>
-Build-Depends: debhelper (>= 8~), dh-python, python (>= 2.6.6-3~), python-setuptools
+Build-Depends: debhelper (>= 9),
+               dh-python,
+               python-all,
+               python-setuptools,
+               python3-all,
+               python3-setuptools,
 Standards-Version: 3.9.4
 
 Package: python-btrfs
 Architecture: amd64
 Depends: ${python:Depends}, ${misc:Depends}
 Description: Python module to inspect btrfs filesystems.
+ The primary goal of this module is to be able to inspect the internals of an
+ existing filesystem for educational purposes.
+ .
+ The python module acts as a wrapper around the low level kernel calls and
+ btrfs data structures, presenting them as python objects with interesting
+ attributes and references to other objects.
+ .
+ This package installs the library for Python 2.
+
+Package: python3-btrfs
+Architecture: amd64
+Depends: ${python3:Depends}, ${misc:Depends}
+Description: Python module to inspect btrfs filesystems. (Python 3)
+ The primary goal of this module is to be able to inspect the internals of an
+ existing filesystem for educational purposes.
+ .
+ The python module acts as a wrapper around the low level kernel calls and
+ btrfs data structures, presenting them as python objects with interesting
+ attributes and references to other objects.
+ .
+ This package installs the library for Python 3.
+
+Package: munin-plugins-btrfs
+Architecture: all
+Depends: munin-node, python-btrfs
+Priority: extra
+Section: net
+Description: Munin plugin to graph space usage of Btrfs filesystems.
+
+Package: nagios-plugins-btrfs
+Architecture: all
+Depends: python-btrfs
+Priority: extra
+Section: net
+Description: Nagios plugin to check space usage of Btrfs filesystems.
