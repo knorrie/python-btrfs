@@ -16,12 +16,14 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 021110-1307, USA.
 
+from __future__ import division, print_function, absolute_import, unicode_literals
 import copy
 import os
 import struct
 import uuid
 
 ULLONG_MAX = (1 << 64) - 1
+ULONG_MAX = (1 << 32) - 1
 
 
 def ULL(n):
@@ -34,6 +36,7 @@ DEV_ITEMS_OBJECTID = 1
 ROOT_TREE_OBJECTID = 1
 EXTENT_TREE_OBJECTID = 2
 CHUNK_TREE_OBJECTID = 3
+DEV_TREE_OBJECTID = 4
 FIRST_CHUNK_TREE_OBJECTID = 256
 ORPHAN_OBJECTID = ULL(-5)
 
@@ -42,6 +45,7 @@ EXTENT_ITEM_KEY = 168
 EXTENT_DATA_REF_KEY = 178
 SHARED_DATA_REF_KEY = 184
 BLOCK_GROUP_ITEM_KEY = 192
+DEV_EXTENT_KEY = 204
 DEV_ITEM_KEY = 216
 CHUNK_ITEM_KEY = 228
 
@@ -63,6 +67,7 @@ BLOCK_GROUP_TYPE_MASK = (
 )
 
 BLOCK_GROUP_PROFILE_MASK = (
+    BLOCK_GROUP_RAID0 |
     BLOCK_GROUP_RAID1 |
     BLOCK_GROUP_RAID5 |
     BLOCK_GROUP_RAID6 |
@@ -101,6 +106,7 @@ _key_type_str_map = {
     EXTENT_DATA_REF_KEY: 'EXTENT_DATA_REF',
     SHARED_DATA_REF_KEY: 'SHARED_DATA_REF',
     BLOCK_GROUP_ITEM_KEY: 'BLOCK_GROUP_ITEM',
+    DEV_EXTENT_KEY: 'DEV_EXTENT',
     DEV_ITEM_KEY: 'DEV_ITEM',
     CHUNK_ITEM_KEY: 'CHUNK_ITEM',
 }
@@ -224,17 +230,26 @@ class FileSystem(object):
         for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
             yield Device(header, data)
 
-    def chunks(self):
+    def chunks(self, min_vaddr=0, max_vaddr=ULLONG_MAX, nr_items=ULONG_MAX):
         tree = CHUNK_TREE_OBJECTID
-        min_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, 0)
-        max_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, ULLONG_MAX)
-        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+        min_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, min_vaddr)
+        max_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, max_vaddr)
+        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key,
+                                               nr_items=nr_items):
             yield Chunk(header, data)
 
-    def block_group(self, vaddr):
+    def dev_extents(self):
+        tree = DEV_TREE_OBJECTID
+        for header, data in btrfs.ioctl.search(self.fd, tree):
+            if header.type == DEV_EXTENT_KEY:
+                yield DevExtent(header, data)
+
+    def block_group(self, vaddr, length=None):
         tree = EXTENT_TREE_OBJECTID
-        min_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, 0)
-        max_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, ULLONG_MAX)
+        min_offset = length if length is not None else 0
+        max_offset = length if length is not None else ULLONG_MAX
+        min_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, min_offset)
+        max_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, max_offset)
         block_groups = [BlockGroup(header, data)
                         for header, data in
                         btrfs.ioctl.search(self.fd, tree, min_key, max_key, nr_items=1)]
@@ -296,10 +311,10 @@ class Chunk(object):
             self.io_width, self.sector_size, self.num_stripes, self.sub_stripes = \
             Chunk.chunk.unpack_from(data, 0)
         pos = Chunk.chunk.size
-        self.stripes = [Stripe(data, stripe_pos)
-                        for stripe_pos in xrange(pos,
-                                                 pos + Stripe.stripe.size * self.num_stripes,
-                                                 Stripe.stripe.size)]
+        self.stripes = [Stripe(self, data, stripe_pos)
+                        for stripe_pos in range(pos,
+                                                pos + Stripe.stripe.size * self.num_stripes,
+                                                Stripe.stripe.size)]
 
     def __str__(self):
         return "chunk vaddr {0} type {1} length {2} num_stripes {3}".format(
@@ -310,12 +325,30 @@ class Chunk(object):
 class Stripe(object):
     stripe = struct.Struct("<2Q16s")
 
-    def __init__(self, data, pos=0):
+    def __init__(self, chunk, data, pos=0):
+        self.chunk = chunk
         self.devid, self.offset, uuid_bytes = Stripe.stripe.unpack_from(data, pos)
         self.uuid = uuid.UUID(bytes=uuid_bytes)
 
     def __str__(self):
         return "stripe devid {0} offset {1}".format(self.devid, self.offset)
+
+
+class DevExtent(object):
+    dev_extent = struct.Struct("<4Q16s")
+
+    def __init__(self, header, data):
+        self.key = Key(header.objectid, header.type, header.offset)
+        self.devid = header.objectid
+        self.paddr = header.offset
+        self.chunk_tree, self.chunk_objectid, self.chunk_offset, self.length, uuid_bytes = \
+            DevExtent.dev_extent.unpack_from(data, 0)
+        self.vaddr = self.chunk_offset
+        self.uuid = uuid.UUID(bytes=uuid_bytes)
+
+    def __str__(self):
+        return "dev extent devid {0} paddr {1} length {2} chunk {3}".format(
+            self.devid, self.paddr, self.length, self.chunk_offset)
 
 
 class BlockGroup(object):
@@ -331,7 +364,7 @@ class BlockGroup(object):
     def __str__(self):
         return "block group vaddr {0} length {1} flags {2} used {3} used_pct {4}".format(
             self.vaddr, self.length, btrfs.utils.block_group_flags_str(self.flags),
-            self.used, (self.used * 100) / self.length)
+            self.used, int(round((self.used * 100) / self.length)))
 
 
 class Extent(object):
