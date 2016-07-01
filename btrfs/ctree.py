@@ -228,7 +228,7 @@ class FileSystem(object):
         min_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, 0)
         max_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, ULLONG_MAX)
         for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
-            yield Device(header, data)
+            yield DevItem(header, data)
 
     def chunks(self, min_vaddr=0, max_vaddr=ULLONG_MAX, nr_items=ULONG_MAX):
         tree = CHUNK_TREE_OBJECTID
@@ -250,7 +250,7 @@ class FileSystem(object):
         max_offset = length if length is not None else ULLONG_MAX
         min_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, min_offset)
         max_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, max_offset)
-        block_groups = [BlockGroup(header, data)
+        block_groups = [BlockGroupItem(header, data)
                         for header, data in
                         btrfs.ioctl.search(self.fd, tree, min_key, max_key, nr_items=1)]
         return block_groups[0]
@@ -266,7 +266,7 @@ class FileSystem(object):
             elif header.type == EXTENT_ITEM_KEY:
                 if extent is not None:
                     yield extent
-                extent = Extent(header, data)
+                extent = ExtentItem(header, data)
             elif header.type == EXTENT_DATA_REF_KEY:
                 extent.append_extent_data_ref(header, data)
             elif header.type == SHARED_DATA_REF_KEY:
@@ -284,7 +284,7 @@ class FileSystem(object):
         return subvol_ids
 
 
-class Device(object):
+class DevItem(object):
     dev_item = struct.Struct("<3Q3L3QL2B16s16s")
 
     def __init__(self, header, data):
@@ -292,7 +292,7 @@ class Device(object):
         self.devid, self.total_bytes, self.bytes_used, self.io_align, self.io_width, \
             self.sector_size, self.type, self.generation, self.start_offset, self.dev_group, \
             self.seek_speed, self.bandwidth, uuid_bytes, fsid_bytes = \
-            Device.dev_item.unpack_from(data, 0)
+            DevItem.dev_item.unpack_from(data, 0)
         self.uuid = uuid.UUID(bytes=uuid_bytes)
         self.fsid = uuid.UUID(bytes=fsid_bytes)
 
@@ -351,7 +351,7 @@ class DevExtent(object):
             self.devid, self.paddr, self.length, self.chunk_offset)
 
 
-class BlockGroup(object):
+class BlockGroupItem(object):
     block_group_item = struct.Struct("<3Q")
 
     def __init__(self, header, data):
@@ -359,7 +359,7 @@ class BlockGroup(object):
         self.vaddr = header.objectid
         self.length = header.offset
         self.used, self.chunk_objectid, self.flags = \
-            BlockGroup.block_group_item.unpack_from(data, 0)
+            BlockGroupItem.block_group_item.unpack_from(data, 0)
 
     def __str__(self):
         return "block group vaddr {0} length {1} flags {2} used {3} used_pct {4}".format(
@@ -367,7 +367,7 @@ class BlockGroup(object):
             self.used, int(round((self.used * 100) / self.length)))
 
 
-class Extent(object):
+class ExtentItem(object):
     extent_item = struct.Struct("<3Q")
     extent_inline_ref = struct.Struct("<BQ")
 
@@ -375,12 +375,13 @@ class Extent(object):
         self.key = Key(header.objectid, header.type, header.offset)
         self.vaddr = header.objectid
         self.length = header.offset
-        self.refs, self.generation, self.flags = Extent.extent_item.unpack_from(data, 0)
+        self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(data, 0)
         self.extent_data_refs = []
         self.shared_data_refs = []
-        pos = Extent.extent_item.size
+        pos = ExtentItem.extent_item.size
         while pos < len(data):
-            inline_ref_type, inline_ref_offset = Extent.extent_inline_ref.unpack_from(data, pos)
+            inline_ref_type, inline_ref_offset = \
+                ExtentItem.extent_inline_ref.unpack_from(data, pos)
             if self.flags == EXTENT_FLAG_DATA:
                 if inline_ref_type == EXTENT_DATA_REF_KEY:
                     pos += 1

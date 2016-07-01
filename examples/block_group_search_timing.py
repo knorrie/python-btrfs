@@ -38,7 +38,7 @@ def time_bg_search(vaddr, length, nr_items):
     print("\nmin {0}\nmax {1}\nnr_items {2}".format(min_key, max_key, nr_items))
     start = time.time()
     for header, data in btrfs.ioctl.search(fs.fd, tree, min_key, max_key, nr_items=nr_items):
-        bg = btrfs.ctree.BlockGroup(header, data)
+        bg = btrfs.ctree.BlockGroupItem(header, data)
         now = time.time()
         print("    {0:.6f} sec result {1}".format(now-start, bg.key))
         start = now
