@@ -22,7 +22,10 @@ import array
 import fcntl
 import itertools
 import struct
+import sys
 import uuid
+
+_python2 = sys.version_info[0] == 2
 
 ULLONG_MAX = (1 << 64) - 1
 ULONG_MAX = (1 << 32) - 1
@@ -72,7 +75,11 @@ import btrfs.ctree
 
 
 def create_buf(size=4096):
-    return array.array(b'B', itertools.repeat(0, size))
+    if _python2:
+        typecode = b'B'
+    else:
+        typecode = u'B'
+    return array.array(typecode, itertools.repeat(0, size))
 
 
 ioctl_fs_info_args = struct.Struct("=QQ16sLLL980x")
