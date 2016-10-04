@@ -280,6 +280,9 @@ class FileSystem(object):
     def dev_info(self, devid):
         return btrfs.ioctl.DevInfo(self.fd, devid)
 
+    def dev_stats(self, devid, reset=False):
+        return btrfs.ioctl.dev_stats(self.fd, devid, reset)
+
     def space_info(self):
         return btrfs.ioctl.space_info(self.fd)
 

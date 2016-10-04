@@ -119,6 +119,30 @@ class DevInfo(object):
             self.devid, self.uuid, self.bytes_used, self.total_bytes, self.path)
 
 
+ioctl_get_dev_stats = struct.Struct("=QQQ5Q968x")
+IOC_GET_DEV_STATS = _IOWR(BTRFS_IOCTL_MAGIC, 52, ioctl_get_dev_stats)
+
+
+class DevStats(object):
+    def __init__(self, buf):
+        self.devid, self.nr_items, self.flags, self.write_errs, self.read_errs, \
+            self.flush_errs, self.generation_errs, self.corruption_errs = \
+            ioctl_get_dev_stats.unpack_from(buf)
+
+    def __str__(self):
+        return "devid {0} write_errs {1} read_errs {2} flush_errs {3} generation_errs {4} " \
+            "corruption_errs {5}".format(self.devid, self.write_errs, self.read_errs,
+                                         self.flush_errs, self.generation_errs,
+                                         self.corruption_errs)
+
+
+def dev_stats(fd, devid, reset=False):
+    buf = create_buf(ioctl_get_dev_stats.size)
+    ioctl_get_dev_stats.pack_into(buf, 0, devid, 5, int(reset), 0, 0, 0, 0, 0)
+    fcntl.ioctl(fd, IOC_GET_DEV_STATS, buf)
+    return DevStats(buf)
+
+
 ioctl_space_args = struct.Struct("=2Q")
 ioctl_space_info = struct.Struct("=3Q")
 IOC_SPACE_INFO = _IOWR(BTRFS_IOCTL_MAGIC, 20, ioctl_space_args)
