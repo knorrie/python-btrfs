@@ -275,10 +275,10 @@ class FileSystem(object):
         self.fsid = self.fs_info().fsid
 
     def fs_info(self):
-        return btrfs.ioctl.FsInfo(self.fd)
+        return btrfs.ioctl.fs_info(self.fd)
 
     def dev_info(self, devid):
-        return btrfs.ioctl.DevInfo(self.fd, devid)
+        return btrfs.ioctl.dev_info(self.fd, devid)
 
     def dev_stats(self, devid, reset=False):
         return btrfs.ioctl.dev_stats(self.fd, devid, reset)
