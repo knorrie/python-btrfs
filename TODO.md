@@ -1,15 +1,11 @@
 python-btrfs roadmap
 ====================
 
-### Intermezzo - btrfs-heatmap
-
-* reimplement heatmap (examples) for the whole filesystem
-* "walking" heatmap for block group details (free space fragmentation)
-
 ### v0.3 - More data structures
 
-* finish listing the extent tree: metadata
 * based on extents, list files that use them (fs tree, inodes) (with full path)
+* subvolumes and the fs tree, directories, files, inodes, etc
+* Fix ioctl handling so it doesn't generate garbage for != amd64 see ba03a99a9
 
 ### v0.4 - Documentation
 
