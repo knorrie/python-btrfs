@@ -135,6 +135,16 @@ def extent_flags_str(flags):
     return '|'.join(ret)
 
 
+def flags_str(flags, flags_str_map):
+    ret = []
+    for flag in sorted(flags_str_map.keys()):
+        if flags & flag:
+            ret.append(flags_str_map[flag])
+    if len(ret) == 0:
+        ret.append("none")
+    return '|'.join(ret)
+
+
 _block_group_profile_ratio_map = {
     BLOCK_GROUP_SINGLE: 1,
     BLOCK_GROUP_RAID0: 1,

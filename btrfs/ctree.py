@@ -37,6 +37,9 @@ ROOT_TREE_OBJECTID = 1
 EXTENT_TREE_OBJECTID = 2
 CHUNK_TREE_OBJECTID = 3
 DEV_TREE_OBJECTID = 4
+FS_TREE_OBJECTID = 5
+FIRST_FREE_OBJECTID = 256
+LAST_FREE_OBJECTID = ULL(-256)
 FIRST_CHUNK_TREE_OBJECTID = 256
 ORPHAN_OBJECTID = ULL(-5)
 
@@ -110,6 +113,39 @@ SPACE_INFO_GLOBAL_RSV = 1 << 49
 EXTENT_FLAG_DATA = 1 << 0
 EXTENT_FLAG_TREE_BLOCK = 1 << 1
 BLOCK_FLAG_FULL_BACKREF = 1 << 8
+
+INODE_NODATASUM = 1 << 0
+INODE_NODATACOW = 1 << 1
+INODE_READONLY = 1 << 2
+INODE_NOCOMPRESS = 1 << 3
+INODE_PREALLOC = 1 << 4
+INODE_SYNC = 1 << 5
+INODE_IMMUTABLE = 1 << 6
+INODE_APPEND = 1 << 7
+INODE_NODUMP = 1 << 8
+INODE_NOATIME = 1 << 9
+INODE_DIRSYNC = 1 << 10
+INODE_COMPRESS = 1 << 11
+
+_inode_flags_str_map = {
+    INODE_NODATASUM: 'NODATASUM',
+    INODE_READONLY: 'READONLY',
+    INODE_NOCOMPRESS: 'NOCOMPRESS',
+    INODE_PREALLOC: 'PREALLOC',
+    INODE_SYNC: 'SYNC',
+    INODE_IMMUTABLE: 'IMMUTABLE',
+    INODE_APPEND: 'APPEND',
+    INODE_NODUMP: 'NODUMP',
+    INODE_NOATIME: 'NOATIME',
+    INODE_DIRSYNC: 'DIRSYNC',
+    INODE_COMPRESS: 'COMPRESS',
+}
+
+ROOT_SUBVOL_RDONLY = 1 << 0
+
+_root_flags_str_map = {
+    ROOT_SUBVOL_RDONLY: 'RDONLY',
+}
 
 _key_objectid_str_map = {
     DEV_ITEMS_OBJECTID: 'DEV_ITEMS',
@@ -273,6 +309,13 @@ class Key(object):
         return new_key
 
 
+class DiskKey(Key):
+    disk_key = struct.Struct("<QBQ")
+
+    def __init__(self, data, pos):
+        super(DiskKey, self).__init__(*DiskKey.disk_key.unpack_from(data, pos))
+
+
 class FileSystem(object):
     def __init__(self, path):
         self.path = path
@@ -344,6 +387,32 @@ class FileSystem(object):
 
         if extent is not None:
             yield extent
+
+    def top_level(self):
+        return list(self.subvolumes(min_id=FS_TREE_OBJECTID, max_id=FS_TREE_OBJECTID))[0]
+
+    def subvolumes(self, min_id=FIRST_FREE_OBJECTID, max_id=LAST_FREE_OBJECTID):
+        tree = ROOT_TREE_OBJECTID
+        if min_id == max_id:
+            min_type = ROOT_ITEM_KEY
+            max_type = ROOT_ITEM_KEY
+        else:
+            min_type = 0
+            max_type = 255
+        min_key = Key(min_id, min_type, 0)
+        max_key = Key(max_id, max_type, ULLONG_MAX)
+        cur_header = None
+        cur_data = None
+        for next_header, next_data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+            if next_header.type != ROOT_ITEM_KEY:
+                continue
+            if cur_header is not None and next_header.objectid > cur_header.objectid:
+                yield RootItem(cur_header, cur_data)
+            cur_header = next_header
+            cur_data = next_data
+
+        if cur_header is not None:
+            yield RootItem(cur_header, cur_data)
 
     def orphan_subvol_ids(self):
         tree = ROOT_TREE_OBJECTID
@@ -566,3 +635,91 @@ class SharedBlockRef(object):
 
     def __str__(self):
         return "shared block backref parent {0}".format(self.parent)
+
+
+class TimeSpec(object):
+    timespec = struct.Struct("<QL")
+
+    def __init__(self, data, pos):
+        self.sec, self.nsec = TimeSpec.timespec.unpack_from(data, pos)
+
+
+class InodeItem(object):
+    _inode_item = [
+        struct.Struct("<5Q4L3Q32x"),
+        TimeSpec.timespec,
+        TimeSpec.timespec,
+        TimeSpec.timespec,
+        TimeSpec.timespec,
+    ]
+    inode_item = struct.Struct("<" + ''.join([s.format[1:].decode() for s in _inode_item]))
+
+    def __init__(self, header, data, pos=0):
+        if header is not None:
+            self.key = Key(header.objectid, header.type, header.offset)
+        else:
+            self.key = None
+        self.generation, self.transid, self.size, self.nbytes, self.block_group, \
+            self.nlink, self.uid, self.gid, self.mode, self.rdev, self.flags, self.sequence = \
+            InodeItem._inode_item[0].unpack_from(data, pos)
+        pos += InodeItem._inode_item[0].size
+        self.atime = TimeSpec(data, pos)
+        pos += TimeSpec.timespec.size
+        self.ctime = TimeSpec(data, pos)
+        pos += TimeSpec.timespec.size
+        self.mtime = TimeSpec(data, pos)
+        pos += TimeSpec.timespec.size
+        self.otime = TimeSpec(data, pos)
+        pos += TimeSpec.timespec.size
+
+    def __str__(self):
+        return "inode generation {0} transid {1} size {2} nbytes {3} block_group {4} mode {5} " \
+            "links {6} uid {7} gid {8} rdev {9} flags {10}({11})".format(
+                self.generation, self.transid, self.size, self.nbytes, self.block_group,
+                oct(self.mode), self.nlink, self.uid, self.gid, self.rdev, hex(self.flags),
+                btrfs.utils.flags_str(self.flags, _inode_flags_str_map))
+
+
+class RootItem(object):
+    _root_item = [
+        InodeItem.inode_item,
+        struct.Struct("<7QL"),
+        DiskKey.disk_key,
+        struct.Struct("<BBQ16s16s16s4Q"),
+        TimeSpec.timespec,
+        TimeSpec.timespec,
+        TimeSpec.timespec,
+        TimeSpec.timespec,
+    ]
+    root_item = struct.Struct("<" + ''.join([s.format[1:].decode() for s in _root_item]))
+
+    def __init__(self, header, data):
+        self.key = Key(header.objectid, header.type, header.offset)
+        self.inode = InodeItem(None, data)
+        pos = InodeItem.inode_item.size
+        self.generation, self.dirid, self.bytenr, self.byte_limit, self.bytes_used, \
+            self.last_snapshot, self.flags, self.refs = \
+            RootItem._root_item[1].unpack_from(data, pos)
+        pos += RootItem._root_item[1].size
+        self.drop_progress = DiskKey(data, pos)
+        pos += DiskKey.disk_key.size
+        self.drop_level, self.level, self.generation_v2, uuid_bytes, parent_uuid_bytes, \
+            received_uuid_bytes, self.ctransid, self.otransid, self.stransid, self.rtransid = \
+            RootItem._root_item[3].unpack_from(data, pos)
+        pos += RootItem._root_item[3].size
+        self.uuid = uuid.UUID(bytes=uuid_bytes)
+        self.parent_uuid = uuid.UUID(bytes=parent_uuid_bytes)
+        self.received_uuid = uuid.UUID(bytes=received_uuid_bytes)
+        self.ctime = TimeSpec(data, pos)
+        pos += TimeSpec.timespec.size
+        self.otime = TimeSpec(data, pos)
+        pos += TimeSpec.timespec.size
+        self.stime = TimeSpec(data, pos)
+        pos += TimeSpec.timespec.size
+        self.rtime = TimeSpec(data, pos)
+        pos += TimeSpec.timespec.size
+
+    def __str__(self):
+        return "root uuid {0} dirid {1} gen {2} last_snapshot {3} flags {4}({5})".format(
+            self.uuid, self.dirid, self.generation, self.last_snapshot,
+            hex(self.flags), btrfs.utils.flags_str(self.flags, _root_flags_str_map))
