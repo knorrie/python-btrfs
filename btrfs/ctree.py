@@ -267,6 +267,11 @@ class Key(object):
         new_key.key += amount
         return new_key
 
+    def __sub__(self, amount):
+        new_key = copy.copy(self)
+        new_key.key -= amount
+        return new_key
+
 
 class FileSystem(object):
     def __init__(self, path):
