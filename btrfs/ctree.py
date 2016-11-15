@@ -13,8 +13,8 @@
 #
 # You should have received a copy of the GNU General Public
 # License along with this program; if not, write to the
-# Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-# Boston, MA 021110-1307, USA.
+# Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+# Boston, MA 02110-1301 USA
 
 from __future__ import division, print_function, absolute_import, unicode_literals
 import copy
@@ -40,14 +40,44 @@ DEV_TREE_OBJECTID = 4
 FIRST_CHUNK_TREE_OBJECTID = 256
 ORPHAN_OBJECTID = ULL(-5)
 
+INODE_ITEM_KEY = 1
+INODE_REF_KEY = 12
+INODE_EXTREF_KEY = 13
+XATTR_ITEM_KEY = 24
 ORPHAN_ITEM_KEY = 48
+DIR_LOG_ITEM_KEY = 60
+DIR_LOG_INDEX_KEY = 72
+DIR_ITEM_KEY = 84
+DIR_INDEX_KEY = 96
+EXTENT_DATA_KEY = 108
+CSUM_ITEM_KEY = 120
+EXTENT_CSUM_KEY = 128
+ROOT_ITEM_KEY = 132
+ROOT_BACKREF_KEY = 144
+ROOT_REF_KEY = 156
 EXTENT_ITEM_KEY = 168
+METADATA_ITEM_KEY = 169
+TREE_BLOCK_REF_KEY = 176
 EXTENT_DATA_REF_KEY = 178
+SHARED_BLOCK_REF_KEY = 182
 SHARED_DATA_REF_KEY = 184
 BLOCK_GROUP_ITEM_KEY = 192
+FREE_SPACE_INFO_KEY = 198
+FREE_SPACE_EXTENT_KEY = 199
+FREE_SPACE_BITMAP_KEY = 200
 DEV_EXTENT_KEY = 204
 DEV_ITEM_KEY = 216
 CHUNK_ITEM_KEY = 228
+QGROUP_STATUS_KEY = 240
+QGROUP_INFO_KEY = 242
+QGROUP_LIMIT_KEY = 244
+QGROUP_RELATION_KEY = 246
+BALANCE_ITEM_KEY = 248
+DEV_STATS_KEY = 249
+DEV_REPLACE_KEY = 250
+UUID_KEY_SUBVOL = 251
+KEY_RECEIVED_SUBVOL = 252
+STRING_ITEM_KEY = 253
 
 BLOCK_GROUP_SINGLE = 0
 BLOCK_GROUP_DATA = 1 << 0
@@ -79,7 +109,7 @@ SPACE_INFO_GLOBAL_RSV = 1 << 49
 
 EXTENT_FLAG_DATA = 1 << 0
 EXTENT_FLAG_TREE_BLOCK = 1 << 1
-BLOCK_FLAG_FULL_BACKREF = 1 << 1
+BLOCK_FLAG_FULL_BACKREF = 1 << 8
 
 _key_objectid_str_map = {
     DEV_ITEMS_OBJECTID: 'DEV_ITEMS',
@@ -101,14 +131,44 @@ def key_objectid_str(objectid, _type):
 
 
 _key_type_str_map = {
+    INODE_ITEM_KEY: 'INODE_ITEM',
+    INODE_REF_KEY: 'INODE_REF',
+    INODE_EXTREF_KEY: 'INODE_EXTREF',
+    XATTR_ITEM_KEY: 'XATTR_ITEM',
     ORPHAN_ITEM_KEY: 'ORPHAN_ITEM',
+    DIR_LOG_ITEM_KEY: 'DIR_LOG_ITEM',
+    DIR_LOG_INDEX_KEY: 'DIR_LOG_INDEX',
+    DIR_ITEM_KEY: 'DIR_ITEM',
+    DIR_INDEX_KEY: 'DIR_INDEX',
+    EXTENT_DATA_KEY: 'EXTENT_DATA',
+    CSUM_ITEM_KEY: 'CSUM_ITEM',
+    EXTENT_CSUM_KEY: 'EXTENT_CSUM',
+    ROOT_ITEM_KEY: 'ROOT_ITEM',
+    ROOT_BACKREF_KEY: 'ROOT_BACKREF',
+    ROOT_REF_KEY: 'ROOT_REF',
     EXTENT_ITEM_KEY: 'EXTENT_ITEM',
+    METADATA_ITEM_KEY: 'METADATA_ITEM',
+    TREE_BLOCK_REF_KEY: 'TREE_BLOCK_REF',
     EXTENT_DATA_REF_KEY: 'EXTENT_DATA_REF',
+    SHARED_BLOCK_REF_KEY: 'SHARED_BLOCK_REF',
     SHARED_DATA_REF_KEY: 'SHARED_DATA_REF',
     BLOCK_GROUP_ITEM_KEY: 'BLOCK_GROUP_ITEM',
+    FREE_SPACE_INFO_KEY: 'FREE_SPACE_INFO',
+    FREE_SPACE_EXTENT_KEY: 'FREE_SPACE_EXTENT',
+    FREE_SPACE_BITMAP_KEY: 'FREE_SPACE_BITMAP',
     DEV_EXTENT_KEY: 'DEV_EXTENT',
     DEV_ITEM_KEY: 'DEV_ITEM',
     CHUNK_ITEM_KEY: 'CHUNK_ITEM',
+    QGROUP_STATUS_KEY: 'QGROUP_STATUS',
+    QGROUP_INFO_KEY: 'QGROUP_INFO',
+    QGROUP_LIMIT_KEY: 'QGROUP_LIMIT',
+    QGROUP_RELATION_KEY: 'QGROUP_RELATION',
+    BALANCE_ITEM_KEY: 'BALANCE_ITEM',
+    DEV_STATS_KEY: 'DEV_STATS',
+    DEV_REPLACE_KEY: 'DEV_REPLACE',
+    UUID_KEY_SUBVOL: 'UUID_SUBVOL',
+    KEY_RECEIVED_SUBVOL: 'RECEIVED_SUBVOL',
+    STRING_ITEM_KEY: 'STRING_ITEM',
 }
 
 
@@ -207,6 +267,11 @@ class Key(object):
         new_key.key += amount
         return new_key
 
+    def __sub__(self, amount):
+        new_key = copy.copy(self)
+        new_key.key -= amount
+        return new_key
+
 
 class FileSystem(object):
     def __init__(self, path):
@@ -215,10 +280,13 @@ class FileSystem(object):
         self.fsid = self.fs_info().fsid
 
     def fs_info(self):
-        return btrfs.ioctl.FsInfo(self.fd)
+        return btrfs.ioctl.fs_info(self.fd)
 
     def dev_info(self, devid):
-        return btrfs.ioctl.DevInfo(self.fd, devid)
+        return btrfs.ioctl.dev_info(self.fd, devid)
+
+    def dev_stats(self, devid, reset=False):
+        return btrfs.ioctl.dev_stats(self.fd, devid, reset)
 
     def space_info(self):
         return btrfs.ioctl.space_info(self.fd)
@@ -228,7 +296,7 @@ class FileSystem(object):
         min_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, 0)
         max_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, ULLONG_MAX)
         for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
-            yield Device(header, data)
+            yield DevItem(header, data)
 
     def chunks(self, min_vaddr=0, max_vaddr=ULLONG_MAX, nr_items=ULONG_MAX):
         tree = CHUNK_TREE_OBJECTID
@@ -250,7 +318,7 @@ class FileSystem(object):
         max_offset = length if length is not None else ULLONG_MAX
         min_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, min_offset)
         max_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, max_offset)
-        block_groups = [BlockGroup(header, data)
+        block_groups = [BlockGroupItem(header, data)
                         for header, data in
                         btrfs.ioctl.search(self.fd, tree, min_key, max_key, nr_items=1)]
         return block_groups[0]
@@ -261,12 +329,14 @@ class FileSystem(object):
         max_key = Key(max_vaddr, 255, ULLONG_MAX)
         extent = None
         for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
-            if header.type == BLOCK_GROUP_ITEM_KEY:
-                continue
-            elif header.type == EXTENT_ITEM_KEY:
+            if header.type == EXTENT_ITEM_KEY:
                 if extent is not None:
                     yield extent
-                extent = Extent(header, data)
+                extent = ExtentItem(header, data)
+            elif header.type == METADATA_ITEM_KEY:
+                if extent is not None:
+                    yield extent
+                extent = MetaDataItem(header, data)
             elif header.type == EXTENT_DATA_REF_KEY:
                 extent.append_extent_data_ref(header, data)
             elif header.type == SHARED_DATA_REF_KEY:
@@ -284,7 +354,7 @@ class FileSystem(object):
         return subvol_ids
 
 
-class Device(object):
+class DevItem(object):
     dev_item = struct.Struct("<3Q3L3QL2B16s16s")
 
     def __init__(self, header, data):
@@ -292,7 +362,7 @@ class Device(object):
         self.devid, self.total_bytes, self.bytes_used, self.io_align, self.io_width, \
             self.sector_size, self.type, self.generation, self.start_offset, self.dev_group, \
             self.seek_speed, self.bandwidth, uuid_bytes, fsid_bytes = \
-            Device.dev_item.unpack_from(data, 0)
+            DevItem.dev_item.unpack_from(data, 0)
         self.uuid = uuid.UUID(bytes=uuid_bytes)
         self.fsid = uuid.UUID(bytes=fsid_bytes)
 
@@ -351,7 +421,7 @@ class DevExtent(object):
             self.devid, self.paddr, self.length, self.chunk_offset)
 
 
-class BlockGroup(object):
+class BlockGroupItem(object):
     block_group_item = struct.Struct("<3Q")
 
     def __init__(self, header, data):
@@ -359,7 +429,7 @@ class BlockGroup(object):
         self.vaddr = header.objectid
         self.length = header.offset
         self.used, self.chunk_objectid, self.flags = \
-            BlockGroup.block_group_item.unpack_from(data, 0)
+            BlockGroupItem.block_group_item.unpack_from(data, 0)
 
     def __str__(self):
         return "block group vaddr {0} length {1} flags {2} used {3} used_pct {4}".format(
@@ -367,7 +437,7 @@ class BlockGroup(object):
             self.used, int(round((self.used * 100) / self.length)))
 
 
-class Extent(object):
+class ExtentItem(object):
     extent_item = struct.Struct("<3Q")
     extent_inline_ref = struct.Struct("<BQ")
 
@@ -375,13 +445,14 @@ class Extent(object):
         self.key = Key(header.objectid, header.type, header.offset)
         self.vaddr = header.objectid
         self.length = header.offset
-        self.refs, self.generation, self.flags = Extent.extent_item.unpack_from(data, 0)
-        self.extent_data_refs = []
-        self.shared_data_refs = []
-        pos = Extent.extent_item.size
-        while pos < len(data):
-            inline_ref_type, inline_ref_offset = Extent.extent_inline_ref.unpack_from(data, pos)
-            if self.flags == EXTENT_FLAG_DATA:
+        self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(data, 0)
+        pos = ExtentItem.extent_item.size
+        if self.flags == EXTENT_FLAG_DATA:
+            self.extent_data_refs = []
+            self.shared_data_refs = []
+            while pos < len(data):
+                inline_ref_type, inline_ref_offset = \
+                    ExtentItem.extent_inline_ref.unpack_from(data, pos)
                 if inline_ref_type == EXTENT_DATA_REF_KEY:
                     pos += 1
                     self.extent_data_refs.append(ExtentDataRef(data, pos))
@@ -390,6 +461,8 @@ class Extent(object):
                     pos += 1
                     self.shared_data_refs.append(SharedDataRef(data, pos))
                     pos += SharedDataRef.shared_data_ref.size
+        elif self.flags & EXTENT_FLAG_TREE_BLOCK:
+            self.tree_block_info = TreeBlockInfo(data, pos)
 
     def append_extent_data_ref(self, header, data):
         self.extent_data_refs.append(ExtentDataRef(data, 0))
@@ -423,3 +496,73 @@ class SharedDataRef(object):
 
     def __str__(self):
         return "shared data backref parent {0} count {1}".format(self.parent, self.count)
+
+
+class TreeBlockInfo(object):
+    tree_block_info = struct.Struct("<QBQB")
+
+    def __init__(self, data, pos):
+        tb_objectid, tb_type, tb_offset, self.level = \
+            TreeBlockInfo.tree_block_info.unpack_from(data, pos)
+        self.key = Key(tb_objectid, tb_type, tb_offset)
+        pos += TreeBlockInfo.tree_block_info.size
+        self.tree_block_backrefs = []
+        self.shared_block_backrefs = []
+        while pos < len(data):
+            inline_ref_type, inline_ref_offset = \
+                ExtentItem.extent_inline_ref.unpack_from(data, pos)
+            if inline_ref_type == TREE_BLOCK_REF_KEY:
+                self.tree_block_backrefs.append(TreeBlockRef(inline_ref_offset))
+            elif inline_ref_type == SHARED_BLOCK_REF_KEY:
+                self.shared_block_backrefs.append(SharedBlockRef(inline_ref_offset))
+            else:
+                raise Exception("BUG: expected inline TREE_BLOCK_REF or SHARED_BLOCK_REF_KEY but "
+                                "got {0}".format(str(data[pos:])))
+            pos += ExtentItem.extent_inline_ref.size
+
+    def __str__(self):
+        return "tree block key {0} level {1}".format(self.key, self.level)
+
+
+class MetaDataItem(object):
+    def __init__(self, header, data):
+        self.key = Key(header.objectid, header.type, header.offset)
+        self.vaddr = header.objectid
+        self.skinny_level = header.offset
+        self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(data, 0)
+        pos = ExtentItem.extent_item.size
+        self.tree_block_backrefs = []
+        self.shared_block_backrefs = []
+        while pos < len(data):
+            inline_ref_type, inline_ref_offset = \
+                ExtentItem.extent_inline_ref.unpack_from(data, pos)
+            if inline_ref_type == TREE_BLOCK_REF_KEY:
+                self.tree_block_backrefs.append(TreeBlockRef(inline_ref_offset))
+            elif inline_ref_type == SHARED_BLOCK_REF_KEY:
+                self.shared_block_backrefs.append(SharedBlockRef(inline_ref_offset))
+            else:
+                raise Exception("BUG: expected inline TREE_BLOCK_REF or SHARED_BLOCK_REF_KEY "
+                                "in METADATA_ITEM {0}, but got: {1}"
+                                "".format(self.key, str(data[pos:])))
+            pos += ExtentItem.extent_inline_ref.size
+
+    def __str__(self):
+        return "metadata vaddr {0} refs {1} gen {2} flags {3} skinny level {4}".format(
+            self.vaddr, self.refs, self.generation,
+            btrfs.utils.extent_flags_str(self.flags), self.skinny_level)
+
+
+class TreeBlockRef(object):
+    def __init__(self, root):
+        self.root = root
+
+    def __str__(self):
+        return "tree block backref root {0}".format(self.root)
+
+
+class SharedBlockRef(object):
+    def __init__(self, parent):
+        self.parent = parent
+
+    def __str__(self):
+        return "shared block backref parent {0}".format(self.parent)

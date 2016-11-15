@@ -1,3 +1,12 @@
+python-btrfs 0.3, Nov 15 2016
+  * Showing the contents of metadata block groups
+  * Renamed datastructures: DevItem, BlockGroupItem, ExtentItem
+  * New datastructures: TreeBlockInfo, MetaDataItem, TreeBlockRef,
+    SharedBlockRef, DevStats
+  * IOCTLs: IOC_GET_DEV_STATS
+  * Fixes:
+    - Python 3 compatibility, again
+
 python-btrfs 0.2, Jun 28 2016
   * Datastructures: DevExtent
   * Python 3 compatibility

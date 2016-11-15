@@ -13,8 +13,8 @@
 #
 # You should have received a copy of the GNU General Public
 # License along with this program; if not, write to the
-# Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-# Boston, MA 021110-1307, USA.
+# Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+# Boston, MA 02110-1301 USA
 
 from __future__ import division, print_function, absolute_import, unicode_literals
 from collections import namedtuple
@@ -22,7 +22,10 @@ import array
 import fcntl
 import itertools
 import struct
+import sys
 import uuid
+
+_python2 = sys.version_info[0] == 2
 
 ULLONG_MAX = (1 << 64) - 1
 ULONG_MAX = (1 << 32) - 1
@@ -72,7 +75,11 @@ import btrfs.ctree
 
 
 def create_buf(size=4096):
-    return array.array(b'B', itertools.repeat(0, size))
+    if _python2:
+        typecode = b'B'
+    else:
+        typecode = u'B'
+    return array.array(typecode, itertools.repeat(0, size))
 
 
 ioctl_fs_info_args = struct.Struct("=QQ16sLLL980x")
@@ -80,9 +87,7 @@ IOC_FS_INFO = _IOR(BTRFS_IOCTL_MAGIC, 31, ioctl_fs_info_args)
 
 
 class FsInfo(object):
-    def __init__(self, fd):
-        buf = create_buf(ioctl_fs_info_args.size)
-        fcntl.ioctl(fd, IOC_FS_INFO, buf)
+    def __init__(self, buf):
         self.max_id, self.num_devices, fsid_bytes, self.nodesize, self.sectorsize, \
             self.clone_alignment = ioctl_fs_info_args.unpack(buf)
         self.fsid = uuid.UUID(bytes=fsid_bytes)
@@ -93,15 +98,18 @@ class FsInfo(object):
                                          self.sectorsize, self.clone_alignment)
 
 
+def fs_info(fd):
+    buf = create_buf(ioctl_fs_info_args.size)
+    fcntl.ioctl(fd, IOC_FS_INFO, buf)
+    return FsInfo(buf)
+
+
 ioctl_dev_info_args = struct.Struct("=Q16sQQ3032x{0}s".format(DEVICE_PATH_NAME_MAX))
 IOC_DEV_INFO = _IOWR(BTRFS_IOCTL_MAGIC, 30, ioctl_dev_info_args)
 
 
 class DevInfo(object):
-    def __init__(self, fd, devid):
-        buf = create_buf(ioctl_dev_info_args.size)
-        ioctl_dev_info_args.pack_into(buf, 0, devid, b'', 0, 0, b'')
-        fcntl.ioctl(fd, IOC_DEV_INFO, buf)
+    def __init__(self, buf):
         self.devid, uuid_bytes, self.bytes_used, self.total_bytes, path_bytes = \
             ioctl_dev_info_args.unpack(buf)
         self.path = path_bytes.decode()
@@ -110,6 +118,37 @@ class DevInfo(object):
     def __str__(self):
         return "devid {0} uuid {1} bytes_used {2} total_bytes {3} path {4}".format(
             self.devid, self.uuid, self.bytes_used, self.total_bytes, self.path)
+
+
+def dev_info(fd, devid):
+    buf = create_buf(ioctl_dev_info_args.size)
+    ioctl_dev_info_args.pack_into(buf, 0, devid, b'', 0, 0, b'')
+    fcntl.ioctl(fd, IOC_DEV_INFO, buf)
+    return DevInfo(buf)
+
+
+ioctl_get_dev_stats = struct.Struct("=QQQ5Q968x")
+IOC_GET_DEV_STATS = _IOWR(BTRFS_IOCTL_MAGIC, 52, ioctl_get_dev_stats)
+
+
+class DevStats(object):
+    def __init__(self, buf):
+        self.devid, self.nr_items, self.flags, self.write_errs, self.read_errs, \
+            self.flush_errs, self.generation_errs, self.corruption_errs = \
+            ioctl_get_dev_stats.unpack_from(buf)
+
+    def __str__(self):
+        return "devid {0} write_errs {1} read_errs {2} flush_errs {3} generation_errs {4} " \
+            "corruption_errs {5}".format(self.devid, self.write_errs, self.read_errs,
+                                         self.flush_errs, self.generation_errs,
+                                         self.corruption_errs)
+
+
+def dev_stats(fd, devid, reset=False):
+    buf = create_buf(ioctl_get_dev_stats.size)
+    ioctl_get_dev_stats.pack_into(buf, 0, devid, 5, int(reset), 0, 0, 0, 0, 0)
+    fcntl.ioctl(fd, IOC_GET_DEV_STATS, buf)
+    return DevStats(buf)
 
 
 ioctl_space_args = struct.Struct("=2Q")
