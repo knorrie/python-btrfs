@@ -32,16 +32,35 @@ def ULL(n):
     return n
 
 
-DEV_ITEMS_OBJECTID = 1
 ROOT_TREE_OBJECTID = 1
 EXTENT_TREE_OBJECTID = 2
 CHUNK_TREE_OBJECTID = 3
 DEV_TREE_OBJECTID = 4
 FS_TREE_OBJECTID = 5
+ROOT_TREE_DIR_OBJECTID = 6
+CSUM_TREE_OBJECTID = 7
+QUOTA_TREE_OBJECTID = 8
+UUID_TREE_OBJECTID = 9
+FREE_SPACE_TREE_OBJECTID = 10
+
+DEV_STATS_OBJECTID = 0
+BALANCE_OBJECTID = ULL(-4)
+ORPHAN_OBJECTID = ULL(-5)
+TREE_LOG_OBJECTID = ULL(-6)
+TREE_LOG_FIXUP_OBJECTID = ULL(-7)
+TREE_RELOC_OBJECTID = ULL(-8)
+DATA_RELOC_TREE_OBJECTID = ULL(-9)
+EXTENT_CSUM_OBJECTID = ULL(-10)
+FREE_SPACE_OBJECTID = ULL(-11)
+FREE_INO_OBJECTID = ULL(-12)
+MULTIPLE_OBJECTIDS = ULL(-255)
+
 FIRST_FREE_OBJECTID = 256
 LAST_FREE_OBJECTID = ULL(-256)
 FIRST_CHUNK_TREE_OBJECTID = 256
-ORPHAN_OBJECTID = ULL(-5)
+
+DEV_ITEMS_OBJECTID = 1
+
 
 INODE_ITEM_KEY = 1
 INODE_REF_KEY = 12
@@ -79,7 +98,7 @@ BALANCE_ITEM_KEY = 248
 DEV_STATS_KEY = 249
 DEV_REPLACE_KEY = 250
 UUID_KEY_SUBVOL = 251
-KEY_RECEIVED_SUBVOL = 252
+UUID_KEY_RECEIVED_SUBVOL = 252
 STRING_ITEM_KEY = 253
 
 BLOCK_GROUP_SINGLE = 0
@@ -109,6 +128,8 @@ BLOCK_GROUP_PROFILE_MASK = (
 )
 
 SPACE_INFO_GLOBAL_RSV = 1 << 49
+
+QGROUP_LEVEL_SHIFT = 48
 
 EXTENT_FLAG_DATA = 1 << 0
 EXTENT_FLAG_TREE_BLOCK = 1 << 1
@@ -147,23 +168,57 @@ _root_flags_str_map = {
     ROOT_SUBVOL_RDONLY: 'RDONLY',
 }
 
+
+def qgroup_level(objectid):
+    return objectid >> QGROUP_LEVEL_SHIFT
+
+
+def qgroup_subvid(objectid):
+    return objectid & ((1 << QGROUP_LEVEL_SHIFT) - 1)
+
+
 _key_objectid_str_map = {
-    DEV_ITEMS_OBJECTID: 'DEV_ITEMS',
+    ROOT_TREE_OBJECTID: 'ROOT_TREE',
     EXTENT_TREE_OBJECTID: 'EXTENT_TREE',
     CHUNK_TREE_OBJECTID: 'CHUNK_TREE',
+    DEV_TREE_OBJECTID: 'DEV_TREE',
+    FS_TREE_OBJECTID: 'FS_TREE',
+    ROOT_TREE_DIR_OBJECTID: 'ROOT_TREE_DIR',
+    CSUM_TREE_OBJECTID: 'CSUM_TREE',
+    QUOTA_TREE_OBJECTID: 'QUOTA_TREE',
+    UUID_TREE_OBJECTID: 'UUID_TREE',
+    FREE_SPACE_TREE_OBJECTID: 'FREE_SPACE_TREE',
+    BALANCE_OBJECTID: 'BALANCE',
     ORPHAN_OBJECTID: 'ORPHAN',
+    TREE_LOG_OBJECTID: 'TREE_LOG',
+    TREE_LOG_FIXUP_OBJECTID: 'TREE_LOG_FIXUP',
+    TREE_RELOC_OBJECTID: 'TREE_RELOC',
+    DATA_RELOC_TREE_OBJECTID: 'DATA_RELOC_TREE',
+    EXTENT_CSUM_OBJECTID: 'EXTENT_CSUM',
+    FREE_SPACE_OBJECTID: 'FREE_SPACE',
+    FREE_INO_OBJECTID: 'FREE_INO',
+    MULTIPLE_OBJECTIDS: 'MULTIPLE',
 }
 
 
 def key_objectid_str(objectid, _type):
-    if objectid == ROOT_TREE_OBJECTID and _type != DEV_ITEM_KEY:
-        return 'ROOT_TREE'
-    elif objectid == FIRST_CHUNK_TREE_OBJECTID and _type == CHUNK_ITEM_KEY:
+    if _type == DEV_EXTENT_KEY:
+        return str(objectid)
+    if _type == QGROUP_RELATION_KEY:
+        return "{0}/{1}".format(qgroup_level(objectid), qgroup_subvid(objectid))
+    if _type == UUID_KEY_SUBVOL or _type == UUID_KEY_RECEIVED_SUBVOL:
+        return "0x{0:0>16x}".format(objectid)
+
+    if objectid == ROOT_TREE_OBJECTID and _type == DEV_ITEM_KEY:
+        return 'DEV_ITEMS'
+    if objectid == DEV_STATS_OBJECTID and _type == DEV_STATS_KEY:
+        return 'DEV_STATS'
+    if objectid == FIRST_CHUNK_TREE_OBJECTID and _type == CHUNK_ITEM_KEY:
         return 'FIRST_CHUNK_TREE'
-    elif objectid == ULLONG_MAX:
+    if objectid == ULLONG_MAX:
         return '-1'
-    else:
-        return _key_objectid_str_map.get(objectid, objectid)
+
+    return _key_objectid_str_map.get(objectid, str(objectid))
 
 
 _key_type_str_map = {
@@ -203,7 +258,7 @@ _key_type_str_map = {
     DEV_STATS_KEY: 'DEV_STATS',
     DEV_REPLACE_KEY: 'DEV_REPLACE',
     UUID_KEY_SUBVOL: 'UUID_SUBVOL',
-    KEY_RECEIVED_SUBVOL: 'RECEIVED_SUBVOL',
+    UUID_KEY_RECEIVED_SUBVOL: 'RECEIVED_SUBVOL',
     STRING_ITEM_KEY: 'STRING_ITEM',
 }
 
