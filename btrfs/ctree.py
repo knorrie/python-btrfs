@@ -267,6 +267,17 @@ def key_type_str(_type):
     return _key_type_str_map.get(_type, str(_type))
 
 
+def key_offset_str(offset, _type):
+    if _type == QGROUP_RELATION_KEY or _type == QGROUP_INFO_KEY or _type == QGROUP_LIMIT_KEY:
+        return "{0}/{1}".format(qgroup_level(offset), qgroup_subvid(offset))
+    if _type == UUID_KEY_SUBVOL or _type == UUID_KEY_RECEIVED_SUBVOL:
+        return "0x{0:0>16x}".format(offset)
+    if offset == ULLONG_MAX:
+        return '-1'
+
+    return str(offset)
+
+
 import btrfs.ioctl
 
 
@@ -350,7 +361,7 @@ class Key(object):
         return "({0} {1} {2})".format(
             key_objectid_str(self._objectid, self._type),
             key_type_str(self._type),
-            self._offset,
+            key_offset_str(self._offset, self._type),
         )
 
     def __add__(self, amount):
