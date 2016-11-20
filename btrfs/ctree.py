@@ -264,7 +264,7 @@ _key_type_str_map = {
 
 
 def key_type_str(_type):
-    return _key_type_str_map.get(_type, _type)
+    return _key_type_str_map.get(_type, str(_type))
 
 
 import btrfs.ioctl
