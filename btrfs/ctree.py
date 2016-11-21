@@ -452,6 +452,9 @@ class FileSystem(object):
                 extent.append_extent_data_ref(header, data)
             elif header.type == SHARED_DATA_REF_KEY and load_data_refs is True:
                 extent.append_shared_data_ref(header, data)
+            elif header.type != BLOCK_GROUP_ITEM_KEY:
+                raise Exception("BUG: unexpected object {0}".format(
+                    Key(header.objectid, header.type, header.offset)))
 
         if extent is not None:
             yield extent
