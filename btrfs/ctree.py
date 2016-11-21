@@ -433,7 +433,8 @@ class FileSystem(object):
                         btrfs.ioctl.search(self.fd, tree, min_key, max_key, nr_items=1)]
         return block_groups[0]
 
-    def extents(self, min_vaddr=0, max_vaddr=ULLONG_MAX):
+    def extents(self, min_vaddr=0, max_vaddr=ULLONG_MAX,
+                load_data_refs=False, load_metadata_refs=False):
         tree = EXTENT_TREE_OBJECTID
         min_key = Key(min_vaddr, 0, 0)
         max_key = Key(max_vaddr, 255, ULLONG_MAX)
@@ -442,14 +443,14 @@ class FileSystem(object):
             if header.type == EXTENT_ITEM_KEY:
                 if extent is not None:
                     yield extent
-                extent = ExtentItem(header, data)
+                extent = ExtentItem(header, data, load_data_refs, load_metadata_refs)
             elif header.type == METADATA_ITEM_KEY:
                 if extent is not None:
                     yield extent
-                extent = MetaDataItem(header, data)
-            elif header.type == EXTENT_DATA_REF_KEY:
+                extent = MetaDataItem(header, data, load_metadata_refs)
+            elif header.type == EXTENT_DATA_REF_KEY and load_data_refs is True:
                 extent.append_extent_data_ref(header, data)
-            elif header.type == SHARED_DATA_REF_KEY:
+            elif header.type == SHARED_DATA_REF_KEY and load_data_refs is True:
                 extent.append_shared_data_ref(header, data)
 
         if extent is not None:
@@ -577,13 +578,13 @@ class ExtentItem(object):
     extent_item = struct.Struct("<3Q")
     extent_inline_ref = struct.Struct("<BQ")
 
-    def __init__(self, header, data):
+    def __init__(self, header, data, load_data_refs=False, load_metadata_refs=False):
         self.key = Key(header.objectid, header.type, header.offset)
         self.vaddr = header.objectid
         self.length = header.offset
         self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(data, 0)
         pos = ExtentItem.extent_item.size
-        if self.flags == EXTENT_FLAG_DATA:
+        if self.flags == EXTENT_FLAG_DATA and load_data_refs is True:
             self.extent_data_refs = []
             self.shared_data_refs = []
             while pos < len(data):
@@ -597,7 +598,7 @@ class ExtentItem(object):
                     pos += 1
                     self.shared_data_refs.append(SharedDataRef(data, pos))
                     pos += SharedDataRef.shared_data_ref.size
-        elif self.flags & EXTENT_FLAG_TREE_BLOCK:
+        elif self.flags & EXTENT_FLAG_TREE_BLOCK and load_metadata_refs is True:
             self.tree_block_info = TreeBlockInfo(data, pos)
 
     def append_extent_data_ref(self, header, data):
@@ -661,11 +662,15 @@ class TreeBlockInfo(object):
 
 
 class MetaDataItem(object):
-    def __init__(self, header, data):
+    def __init__(self, header, data, load_refs=False):
         self.key = Key(header.objectid, header.type, header.offset)
         self.vaddr = header.objectid
         self.skinny_level = header.offset
         self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(data, 0)
+        if load_refs is True:
+            self._load_refs(data)
+
+    def _load_refs(self, data):
         pos = ExtentItem.extent_item.size
         self.tree_block_backrefs = []
         self.shared_block_backrefs = []
