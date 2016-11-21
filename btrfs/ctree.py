@@ -698,7 +698,7 @@ class TreeBlockRef(object):
         self.root = root
 
     def __str__(self):
-        return "tree block backref root {0}".format(self.root)
+        return "tree block backref root {0}".format(key_objectid_str(self.root, None))
 
 
 class SharedBlockRef(object):
