@@ -400,10 +400,10 @@ class FileSystem(object):
     def space_info(self):
         return btrfs.ioctl.space_info(self.fd)
 
-    def devices(self):
+    def devices(self, min_devid=1, max_devid=ULLONG_MAX):
         tree = CHUNK_TREE_OBJECTID
-        min_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, 0)
-        max_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, ULLONG_MAX)
+        min_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, min_devid)
+        max_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, max_devid)
         for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
             yield DevItem(header, data)
 
@@ -415,11 +415,12 @@ class FileSystem(object):
                                                nr_items=nr_items):
             yield Chunk(header, data)
 
-    def dev_extents(self):
+    def dev_extents(self, min_devid=1, max_devid=ULLONG_MAX):
         tree = DEV_TREE_OBJECTID
-        for header, data in btrfs.ioctl.search(self.fd, tree):
-            if header.type == DEV_EXTENT_KEY:
-                yield DevExtent(header, data)
+        min_key = btrfs.ctree.Key(min_devid, 0, 0)
+        max_key = btrfs.ctree.Key(max_devid, 255, ULLONG_MAX)
+        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+            yield DevExtent(header, data)
 
     def block_group(self, vaddr, length=None):
         tree = EXTENT_TREE_OBJECTID
