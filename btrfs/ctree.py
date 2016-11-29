@@ -563,15 +563,17 @@ class BlockGroupItem(object):
 
     def __init__(self, header, data):
         self.key = Key(header.objectid, header.type, header.offset)
+        self.transid = header.transid
         self.vaddr = header.objectid
         self.length = header.offset
         self.used, self.chunk_objectid, self.flags = \
             BlockGroupItem.block_group_item.unpack_from(data, 0)
 
     def __str__(self):
-        return "block group vaddr {0} length {1} flags {2} used {3} used_pct {4}".format(
-            self.vaddr, self.length, btrfs.utils.block_group_flags_str(self.flags),
-            self.used, int(round((self.used * 100) / self.length)))
+        return "block group vaddr {0} transid {1} length {2} flags {3} used {4} " \
+            "used_pct {5}".format(self.vaddr, self.transid, self.length,
+                                  btrfs.utils.block_group_flags_str(self.flags),
+                                  self.used, int(round((self.used * 100) / self.length)))
 
 
 class ExtentItem(object):
