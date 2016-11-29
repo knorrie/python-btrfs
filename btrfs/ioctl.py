@@ -199,7 +199,7 @@ SearchHeader = namedtuple('SearchHeader', ['transid', 'objectid', 'offset', 'typ
 
 
 def search(fd, tree, min_key=None, max_key=None,
-           transid_min=0, transid_max=ULLONG_MAX,
+           min_transid=0, max_transid=ULLONG_MAX,
            nr_items=ULONG_MAX):
     if min_key is None:
         min_key = btrfs.ctree.Key(0, 0, 0)
@@ -212,7 +212,7 @@ def search(fd, tree, min_key=None, max_key=None,
         ioctl_search_key.pack_into(buf, 0, tree,
                                    min_key.objectid, max_key.objectid,
                                    min_key.offset, max_key.offset,
-                                   transid_min, transid_max,
+                                   min_transid, max_transid,
                                    min_key.type, max_key.type,
                                    wanted_nr_items)
         fcntl.ioctl(fd, IOC_TREE_SEARCH, buf)
