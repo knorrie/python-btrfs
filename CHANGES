@@ -1,4 +1,4 @@
-python-btfs v4, Dec 18 2016
+python-btrfs v4, Dec 18 2016
   * Bump/inverse versioning, there will never be a v1.0, just keep
     developing and releasing. \:D/
   * IOCTLs: LOGICAL_INO
