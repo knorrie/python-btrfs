@@ -451,7 +451,7 @@ class FileSystem(object):
             elif header.type == EXTENT_DATA_REF_KEY and load_data_refs is True:
                 extent.append_extent_data_ref(header, data)
             elif header.type == SHARED_DATA_REF_KEY and load_data_refs is True:
-                extent.append_shared_data_ref(header, data)
+                extent.append_shared_data_ref(SharedDataRef(header, data))
             elif header.type != BLOCK_GROUP_ITEM_KEY:
                 raise Exception("BUG: unexpected object {0}".format(
                     Key(header.objectid, header.type, header.offset)))
@@ -601,16 +601,16 @@ class ExtentItem(object):
                     pos += ExtentDataRef.extent_data_ref.size
                 elif inline_ref_type == SHARED_DATA_REF_KEY:
                     pos += 1
-                    self.shared_data_refs.append(SharedDataRef(data, pos))
-                    pos += SharedDataRef.shared_data_ref.size
+                    self.shared_data_refs.append(InlineSharedDataRef(data, pos))
+                    pos += InlineSharedDataRef.inline_shared_data_ref.size
         elif self.flags & EXTENT_FLAG_TREE_BLOCK and load_metadata_refs is True:
             self.tree_block_info = TreeBlockInfo(data, pos)
 
     def append_extent_data_ref(self, header, data):
         self.extent_data_refs.append(ExtentDataRef(data, 0))
 
-    def append_shared_data_ref(self, header, data):
-        self.shared_data_refs.append(SharedDataRef(data, 0))
+    def append_shared_data_ref(self, ref):
+        self.shared_data_refs.append(ref)
 
     def __str__(self):
         return "extent vaddr {0} length {1} refs {2} gen {3} flags {4}".format(
@@ -631,13 +631,24 @@ class ExtentDataRef(object):
 
 
 class SharedDataRef(object):
-    shared_data_ref = struct.Struct("<QL")
+    shared_data_ref = struct.Struct("<L")
 
-    def __init__(self, data, pos):
-        self.parent, self.count = SharedDataRef.shared_data_ref.unpack_from(data, pos)
+    def __init__(self, header, data):
+        self.parent = header.offset
+        self.count, = SharedDataRef.shared_data_ref.unpack(data)
 
     def __str__(self):
         return "shared data backref parent {0} count {1}".format(self.parent, self.count)
+
+
+class InlineSharedDataRef(SharedDataRef):
+    inline_shared_data_ref = struct.Struct("<QL")
+
+    def __init__(self, data, pos):
+        self.parent, self.count = InlineSharedDataRef.inline_shared_data_ref.unpack_from(data, pos)
+
+    def __str__(self):
+        return "inline shared data backref parent {0} count {1}".format(self.parent, self.count)
 
 
 class TreeBlockInfo(object):
