@@ -22,12 +22,12 @@ for extent in fs.extents(vaddr, vaddr + block_group.length - 1,
                 print("    " + str(shared_ref))
         elif extent.flags & btrfs.ctree.EXTENT_FLAG_TREE_BLOCK and load_metadata_refs is True:
             print("    " + str(extent.tree_block_info))
-            for tree_block_backref in extent.tree_block_info.tree_block_backrefs:
+            for tree_block_backref in extent.tree_block_refs:
                 print("    " + str(tree_block_backref))
-            for shared_block_backref in extent.tree_block_info.shared_block_backrefs:
+            for shared_block_backref in extent.shared_block_refs:
                 print("    " + str(shared_block_backref))
     elif isinstance(extent, btrfs.ctree.MetaDataItem) and load_metadata_refs is True:
-        for tree_block_backref in extent.tree_block_backrefs:
+        for tree_block_backref in extent.tree_block_refs:
             print("    " + str(tree_block_backref))
-        for shared_block_backref in extent.shared_block_backrefs:
+        for shared_block_backref in extent.shared_block_refs:
             print("    " + str(shared_block_backref))

@@ -452,6 +452,10 @@ class FileSystem(object):
                 extent.append_extent_data_ref(ExtentDataRef(header, data))
             elif header.type == SHARED_DATA_REF_KEY and load_data_refs is True:
                 extent.append_shared_data_ref(SharedDataRef(header, data))
+            elif header.type == TREE_BLOCK_REF_KEY and load_metadata_refs is True:
+                extent.append_tree_block_ref(TreeBlockRef(header))
+            elif header.type == SHARED_BLOCK_REF_KEY and load_metadata_refs is True:
+                extent.append_shared_block_ref(SharedBlockRef(header))
             elif header.type != BLOCK_GROUP_ITEM_KEY:
                 raise Exception("BUG: unexpected object {0}".format(
                     Key(header.objectid, header.type, header.offset)))
@@ -605,12 +609,32 @@ class ExtentItem(object):
                     pos += InlineSharedDataRef.inline_shared_data_ref.size
         elif self.flags & EXTENT_FLAG_TREE_BLOCK and load_metadata_refs is True:
             self.tree_block_info = TreeBlockInfo(data, pos)
+            pos += TreeBlockInfo.tree_block_info.size
+            self.tree_block_refs = []
+            self.shared_block_refs = []
+            while pos < len(data):
+                inline_ref_type, inline_ref_offset = \
+                    ExtentItem.extent_inline_ref.unpack_from(data, pos)
+                if inline_ref_type == TREE_BLOCK_REF_KEY:
+                    self.tree_block_refs.append(InlineTreeBlockRef(inline_ref_offset))
+                elif inline_ref_type == SHARED_BLOCK_REF_KEY:
+                    self.shared_block_refs.append(InlineSharedBlockRef(inline_ref_offset))
+                else:
+                    raise Exception("BUG: expected inline TREE_BLOCK_REF or SHARED_BLOCK_REF_KEY "
+                                    "but got {0}".format(str(data[pos:])))
+                pos += ExtentItem.extent_inline_ref.size
 
     def append_extent_data_ref(self, ref):
         self.extent_data_refs.append(ref)
 
     def append_shared_data_ref(self, ref):
         self.shared_data_refs.append(ref)
+
+    def append_tree_block_ref(self, ref):
+        self.tree_block_refs.append(ref)
+
+    def append_shared_block_ref(self, ref):
+        self.shared_block_refs.append(ref)
 
     def __str__(self):
         return "extent vaddr {0} length {1} refs {2} gen {3} flags {4}".format(
@@ -670,20 +694,6 @@ class TreeBlockInfo(object):
         tb_objectid, tb_type, tb_offset, self.level = \
             TreeBlockInfo.tree_block_info.unpack_from(data, pos)
         self.key = Key(tb_objectid, tb_type, tb_offset)
-        pos += TreeBlockInfo.tree_block_info.size
-        self.tree_block_backrefs = []
-        self.shared_block_backrefs = []
-        while pos < len(data):
-            inline_ref_type, inline_ref_offset = \
-                ExtentItem.extent_inline_ref.unpack_from(data, pos)
-            if inline_ref_type == TREE_BLOCK_REF_KEY:
-                self.tree_block_backrefs.append(TreeBlockRef(inline_ref_offset))
-            elif inline_ref_type == SHARED_BLOCK_REF_KEY:
-                self.shared_block_backrefs.append(SharedBlockRef(inline_ref_offset))
-            else:
-                raise Exception("BUG: expected inline TREE_BLOCK_REF or SHARED_BLOCK_REF_KEY but "
-                                "got {0}".format(str(data[pos:])))
-            pos += ExtentItem.extent_inline_ref.size
 
     def __str__(self):
         return "tree block key {0} level {1}".format(self.key, self.level)
@@ -700,20 +710,26 @@ class MetaDataItem(object):
 
     def _load_refs(self, data):
         pos = ExtentItem.extent_item.size
-        self.tree_block_backrefs = []
-        self.shared_block_backrefs = []
+        self.tree_block_refs = []
+        self.shared_block_refs = []
         while pos < len(data):
             inline_ref_type, inline_ref_offset = \
                 ExtentItem.extent_inline_ref.unpack_from(data, pos)
             if inline_ref_type == TREE_BLOCK_REF_KEY:
-                self.tree_block_backrefs.append(TreeBlockRef(inline_ref_offset))
+                self.tree_block_refs.append(InlineTreeBlockRef(inline_ref_offset))
             elif inline_ref_type == SHARED_BLOCK_REF_KEY:
-                self.shared_block_backrefs.append(SharedBlockRef(inline_ref_offset))
+                self.shared_block_refs.append(InlineSharedBlockRef(inline_ref_offset))
             else:
                 raise Exception("BUG: expected inline TREE_BLOCK_REF or SHARED_BLOCK_REF_KEY "
                                 "in METADATA_ITEM {0}, but got: {1}"
                                 "".format(self.key, str(data[pos:])))
             pos += ExtentItem.extent_inline_ref.size
+
+    def append_tree_block_ref(self, ref):
+        self.tree_block_refs.append(ref)
+
+    def append_shared_block_ref(self, ref):
+        self.shared_block_refs.append(ref)
 
     def __str__(self):
         return "metadata vaddr {0} refs {1} gen {2} flags {3} skinny level {4}".format(
@@ -722,19 +738,35 @@ class MetaDataItem(object):
 
 
 class TreeBlockRef(object):
-    def __init__(self, root):
-        self.root = root
+    def __init__(self, header):
+        self.root = header.offset
 
     def __str__(self):
         return "tree block backref root {0}".format(key_objectid_str(self.root, None))
 
 
+class InlineTreeBlockRef(TreeBlockRef):
+    def __init__(self, root):
+        self.root = root
+
+    def __str__(self):
+        return "inline tree block backref root {0}".format(key_objectid_str(self.root, None))
+
+
 class SharedBlockRef(object):
+    def __init__(self, header):
+        self.parent = header.offset
+
+    def __str__(self):
+        return "shared block backref parent {0}".format(self.parent)
+
+
+class InlineSharedBlockRef(SharedBlockRef):
     def __init__(self, parent):
         self.parent = parent
 
     def __str__(self):
-        return "shared block backref parent {0}".format(self.parent)
+        return "inline shared block backref parent {0}".format(self.parent)
 
 
 class TimeSpec(object):
