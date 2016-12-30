@@ -449,7 +449,7 @@ class FileSystem(object):
                     yield extent
                 extent = MetaDataItem(header, data, load_metadata_refs)
             elif header.type == EXTENT_DATA_REF_KEY and load_data_refs is True:
-                extent.append_extent_data_ref(header, data)
+                extent.append_extent_data_ref(ExtentDataRef(header, data))
             elif header.type == SHARED_DATA_REF_KEY and load_data_refs is True:
                 extent.append_shared_data_ref(SharedDataRef(header, data))
             elif header.type != BLOCK_GROUP_ITEM_KEY:
@@ -597,8 +597,8 @@ class ExtentItem(object):
                     ExtentItem.extent_inline_ref.unpack_from(data, pos)
                 if inline_ref_type == EXTENT_DATA_REF_KEY:
                     pos += 1
-                    self.extent_data_refs.append(ExtentDataRef(data, pos))
-                    pos += ExtentDataRef.extent_data_ref.size
+                    self.extent_data_refs.append(InlineExtentDataRef(data, pos))
+                    pos += InlineExtentDataRef.inline_extent_data_ref.size
                 elif inline_ref_type == SHARED_DATA_REF_KEY:
                     pos += 1
                     self.shared_data_refs.append(InlineSharedDataRef(data, pos))
@@ -606,8 +606,8 @@ class ExtentItem(object):
         elif self.flags & EXTENT_FLAG_TREE_BLOCK and load_metadata_refs is True:
             self.tree_block_info = TreeBlockInfo(data, pos)
 
-    def append_extent_data_ref(self, header, data):
-        self.extent_data_refs.append(ExtentDataRef(data, 0))
+    def append_extent_data_ref(self, ref):
+        self.extent_data_refs.append(ref)
 
     def append_shared_data_ref(self, ref):
         self.shared_data_refs.append(ref)
@@ -621,12 +621,24 @@ class ExtentItem(object):
 class ExtentDataRef(object):
     extent_data_ref = struct.Struct("<3QL")
 
-    def __init__(self, data, pos=0):
+    def __init__(self, header, data):
         self.root, self.objectid, self.offset, self.count = \
-            ExtentDataRef.extent_data_ref.unpack_from(data, pos)
+            ExtentDataRef.extent_data_ref.unpack(data)
 
     def __str__(self):
         return "extent data backref root {0} objectid {1} offset {2} count {3}".format(
+            self.root, self.objectid, self.offset, self.count)
+
+
+class InlineExtentDataRef(ExtentDataRef):
+    inline_extent_data_ref = ExtentDataRef.extent_data_ref
+
+    def __init__(self, data, pos):
+        self.root, self.objectid, self.offset, self.count = \
+            InlineExtentDataRef.inline_extent_data_ref.unpack_from(data, pos)
+
+    def __str__(self):
+        return "inline extent data backref root {0} objectid {1} offset {2} count {3}".format(
             self.root, self.objectid, self.offset, self.count)
 
 
