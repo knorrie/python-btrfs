@@ -16,6 +16,14 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
+
+def _explode_if_not_amd64():
+    import platform
+    if platform.machine() != 'x86_64':
+        raise Exception("Sorry, only tested on amd64!")
+
+_explode_if_not_amd64()
+
 from btrfs.ctree import FileSystem  # noqa
 from btrfs.ctree import (  # noqa
     BLOCK_GROUP_DATA, BLOCK_GROUP_SYSTEM, BLOCK_GROUP_METADATA,

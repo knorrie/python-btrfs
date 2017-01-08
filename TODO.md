@@ -5,7 +5,6 @@ python-btrfs roadmap
 
 * based on extents, list files that use them (fs tree, inodes) (with full path)
 * subvolumes and the fs tree, directories, files, inodes, etc
-* Fix ioctl handling so it doesn't generate garbage for != amd64 see ba03a99a9
 
 ### v(+2) - Documentation
 
