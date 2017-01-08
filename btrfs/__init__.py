@@ -27,3 +27,4 @@ from btrfs.ctree import (  # noqa
 import btrfs.ctree  # noqa
 import btrfs.ioctl  # noqa
 import btrfs.utils  # noqa
+import btrfs.crc32c  # noqa
