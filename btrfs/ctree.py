@@ -27,9 +27,7 @@ ULONG_MAX = (1 << 32) - 1
 
 
 def ULL(n):
-    if n < 0:
-        return n + (1 << 64)
-    return n
+    return n & ULLONG_MAX
 
 
 ROOT_TREE_OBJECTID = 1
