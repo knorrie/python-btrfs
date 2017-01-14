@@ -1,3 +1,9 @@
+python-btrfs v5, Jan 14 2017
+  * Revamp and fix loading of extent backreferences.
+  * Explode when detecting a non x86_64 arch.
+  * Add a crc32c implementation and example script to create
+    a dir_item offset hash.
+
 python-btrfs v4, Dec 18 2016
   * Bump/inverse versioning, there will never be a v1.0, just keep
     developing and releasing. \:D/
