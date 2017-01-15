@@ -374,7 +374,7 @@ class Key(object):
 
 
 class DiskKey(Key):
-    disk_key = struct.Struct("<QBQ")
+    disk_key = struct.Struct('<QBQ')
 
     def __init__(self, buf, pos=0):
         super(DiskKey, self).__init__(*DiskKey.disk_key.unpack_from(buf, pos))
@@ -498,7 +498,7 @@ class FileSystem(object):
 
 
 class DevItem(object):
-    dev_item = struct.Struct("<3Q3L3QL2B16s16s")
+    dev_item = struct.Struct('<3Q3L3QL2B16s16s')
 
     def __init__(self, header, buf, pos=0):
         self.key = Key(header.objectid, header.type, header.offset)
@@ -515,7 +515,7 @@ class DevItem(object):
 
 
 class Chunk(object):
-    chunk = struct.Struct("<4Q3L2H")
+    chunk = struct.Struct('<4Q3L2H')
 
     def __init__(self, header, buf, pos=0):
         self.key = Key(header.objectid, header.type, header.offset)
@@ -536,7 +536,7 @@ class Chunk(object):
 
 
 class Stripe(object):
-    stripe = struct.Struct("<2Q16s")
+    stripe = struct.Struct('<2Q16s')
 
     def __init__(self, chunk, buf, pos=0):
         self.chunk = chunk
@@ -548,7 +548,7 @@ class Stripe(object):
 
 
 class DevExtent(object):
-    dev_extent = struct.Struct("<4Q16s")
+    dev_extent = struct.Struct('<4Q16s')
 
     def __init__(self, header, buf, pos=0):
         self.key = Key(header.objectid, header.type, header.offset)
@@ -565,7 +565,7 @@ class DevExtent(object):
 
 
 class BlockGroupItem(object):
-    block_group_item = struct.Struct("<3Q")
+    block_group_item = struct.Struct('<3Q')
 
     def __init__(self, header, buf, pos=0):
         self.key = Key(header.objectid, header.type, header.offset)
@@ -583,8 +583,8 @@ class BlockGroupItem(object):
 
 
 class ExtentItem(object):
-    extent_item = struct.Struct("<3Q")
-    extent_inline_ref = struct.Struct("<BQ")
+    extent_item = struct.Struct('<3Q')
+    extent_inline_ref = struct.Struct('<BQ')
 
     def __init__(self, header, buf, pos=0, load_data_refs=False, load_metadata_refs=False):
         self.key = Key(header.objectid, header.type, header.offset)
@@ -642,7 +642,7 @@ class ExtentItem(object):
 
 
 class ExtentDataRef(object):
-    extent_data_ref = struct.Struct("<3QL")
+    extent_data_ref = struct.Struct('<3QL')
 
     def __init__(self, header, buf, pos=0):
         self.root, self.objectid, self.offset, self.count = \
@@ -666,7 +666,7 @@ class InlineExtentDataRef(ExtentDataRef):
 
 
 class SharedDataRef(object):
-    shared_data_ref = struct.Struct("<L")
+    shared_data_ref = struct.Struct('<L')
 
     def __init__(self, header, buf, pos=0):
         self.parent = header.offset
@@ -677,7 +677,7 @@ class SharedDataRef(object):
 
 
 class InlineSharedDataRef(SharedDataRef):
-    inline_shared_data_ref = struct.Struct("<QL")
+    inline_shared_data_ref = struct.Struct('<QL')
 
     def __init__(self, buf, pos=0):
         self.parent, self.count = InlineSharedDataRef.inline_shared_data_ref.unpack_from(buf, pos)
@@ -687,7 +687,7 @@ class InlineSharedDataRef(SharedDataRef):
 
 
 class TreeBlockInfo(object):
-    tree_block_info = struct.Struct("<QBQB")
+    tree_block_info = struct.Struct('<QBQB')
 
     def __init__(self, buf, pos=0):
         tb_objectid, tb_type, tb_offset, self.level = \
@@ -769,7 +769,7 @@ class InlineSharedBlockRef(SharedBlockRef):
 
 
 class TimeSpec(object):
-    timespec = struct.Struct("<QL")
+    timespec = struct.Struct('<QL')
 
     def __init__(self, buf, pos=0):
         self.sec, self.nsec = TimeSpec.timespec.unpack_from(buf, pos)
@@ -777,13 +777,13 @@ class TimeSpec(object):
 
 class InodeItem(object):
     _inode_item = [
-        struct.Struct("<5Q4L3Q32x"),
+        struct.Struct('<5Q4L3Q32x'),
         TimeSpec.timespec,
         TimeSpec.timespec,
         TimeSpec.timespec,
         TimeSpec.timespec,
     ]
-    inode_item = struct.Struct("<" + ''.join([s.format[1:].decode() for s in _inode_item]))
+    inode_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _inode_item]))
 
     def __init__(self, header, buf, pos=0):
         if header is not None:
@@ -814,15 +814,15 @@ class InodeItem(object):
 class RootItem(object):
     _root_item = [
         InodeItem.inode_item,
-        struct.Struct("<7QL"),
+        struct.Struct('<7QL'),
         DiskKey.disk_key,
-        struct.Struct("<BBQ16s16s16s4Q"),
+        struct.Struct('<BBQ16s16s16s4Q'),
         TimeSpec.timespec,
         TimeSpec.timespec,
         TimeSpec.timespec,
         TimeSpec.timespec,
     ]
-    root_item = struct.Struct("<" + ''.join([s.format[1:].decode() for s in _root_item]))
+    root_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _root_item]))
 
     def __init__(self, header, buf, pos=0):
         self.key = Key(header.objectid, header.type, header.offset)

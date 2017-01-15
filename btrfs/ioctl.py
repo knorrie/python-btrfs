@@ -82,7 +82,7 @@ def create_buf(size=4096):
     return array.array(typecode, itertools.repeat(0, size))
 
 
-ioctl_fs_info_args = struct.Struct("=QQ16sLLL980x")
+ioctl_fs_info_args = struct.Struct('=QQ16sLLL980x')
 IOC_FS_INFO = _IOR(BTRFS_IOCTL_MAGIC, 31, ioctl_fs_info_args)
 
 
@@ -104,7 +104,7 @@ def fs_info(fd):
     return FsInfo(buf)
 
 
-ioctl_dev_info_args = struct.Struct("=Q16sQQ3032x{0}s".format(DEVICE_PATH_NAME_MAX))
+ioctl_dev_info_args = struct.Struct('=Q16sQQ3032x{0}s'.format(DEVICE_PATH_NAME_MAX))
 IOC_DEV_INFO = _IOWR(BTRFS_IOCTL_MAGIC, 30, ioctl_dev_info_args)
 
 
@@ -127,7 +127,7 @@ def dev_info(fd, devid):
     return DevInfo(buf)
 
 
-ioctl_get_dev_stats = struct.Struct("=QQQ5Q968x")
+ioctl_get_dev_stats = struct.Struct('=QQQ5Q968x')
 IOC_GET_DEV_STATS = _IOWR(BTRFS_IOCTL_MAGIC, 52, ioctl_get_dev_stats)
 
 
@@ -151,8 +151,8 @@ def dev_stats(fd, devid, reset=False):
     return DevStats(buf)
 
 
-ioctl_space_args = struct.Struct("=2Q")
-ioctl_space_info = struct.Struct("=3Q")
+ioctl_space_args = struct.Struct('=2Q')
+ioctl_space_info = struct.Struct('=3Q')
 IOC_SPACE_INFO = _IOWR(BTRFS_IOCTL_MAGIC, 20, ioctl_space_args)
 SpaceArgs = namedtuple('SpaceArgs', ['space_slots', 'total_spaces'])
 
@@ -190,10 +190,10 @@ def space_info(fd):
             for pos in range(ioctl_space_args.size, buf_size, ioctl_space_info.size)]
 
 
-ioctl_search_key = struct.Struct("=Q6QLLL4x32x")
-ioctl_search_args = struct.Struct("{0}{1}x".format(
+ioctl_search_key = struct.Struct('=Q6QLLL4x32x')
+ioctl_search_args = struct.Struct('{0}{1}x'.format(
     ioctl_search_key.format.decode(), 4096 - ioctl_search_key.size))
-ioctl_search_header = struct.Struct("=3Q2L")
+ioctl_search_header = struct.Struct('=3Q2L')
 IOC_TREE_SEARCH = _IOWR(BTRFS_IOCTL_MAGIC, 17, ioctl_search_args)
 SearchHeader = namedtuple('SearchHeader', ['transid', 'objectid', 'offset', 'type', 'len'])
 
@@ -232,10 +232,10 @@ def search(fd, tree, min_key=None, max_key=None,
             min_key += 1
 
 
-data_container = struct.Struct("=LLLL")
-ioctl_logical_ino_args = struct.Struct("=QQ4QQ")
+data_container = struct.Struct('=LLLL')
+ioctl_logical_ino_args = struct.Struct('=QQ4QQ')
 IOC_LOGICAL_INO = _IOWR(BTRFS_IOCTL_MAGIC, 36, ioctl_logical_ino_args)
-inum_offset_root = struct.Struct("=QQQ")
+inum_offset_root = struct.Struct('=QQQ')
 Inode = namedtuple('Inode', ['inum', 'offset', 'root'])
 
 
