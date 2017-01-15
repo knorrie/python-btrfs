@@ -1,3 +1,9 @@
+python-btrfs (5-1) unstable; urgency=medium
+
+  * New release, yay
+
+ -- Hans van Kranenburg <hans.van.kranenburg@mendix.com>  Sun, 15 Jan 2017 13:05:42 +0100
+
 python-btrfs (0.3-1) unstable; urgency=medium
 
   * New release, yay
