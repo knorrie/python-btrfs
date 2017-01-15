@@ -1,4 +1,4 @@
-# Copyright (C) 2016 Hans van Kranenburg <hans.van.kranenburg@mendix.com>
+# Copyright (C) 2016-2017 Hans van Kranenburg <hans.van.kranenburg@mendix.com>
 #
 # This file is part of the python-btrfs module.
 #
@@ -199,7 +199,7 @@ SearchHeader = namedtuple('SearchHeader', ['transid', 'objectid', 'offset', 'typ
 
 
 def search(fd, tree, min_key=None, max_key=None,
-           transid_min=0, transid_max=ULLONG_MAX,
+           min_transid=0, max_transid=ULLONG_MAX,
            nr_items=ULONG_MAX):
     if min_key is None:
         min_key = btrfs.ctree.Key(0, 0, 0)
@@ -212,7 +212,7 @@ def search(fd, tree, min_key=None, max_key=None,
         ioctl_search_key.pack_into(buf, 0, tree,
                                    min_key.objectid, max_key.objectid,
                                    min_key.offset, max_key.offset,
-                                   transid_min, transid_max,
+                                   min_transid, max_transid,
                                    min_key.type, max_key.type,
                                    wanted_nr_items)
         fcntl.ioctl(fd, IOC_TREE_SEARCH, buf)
@@ -230,3 +230,26 @@ def search(fd, tree, min_key=None, max_key=None,
                     break
             min_key = btrfs.ctree.Key(header.objectid, header.type, header.offset)
             min_key += 1
+
+
+data_container = struct.Struct("=LLLL")
+ioctl_logical_ino_args = struct.Struct("=QQ4QQ")
+IOC_LOGICAL_INO = _IOWR(BTRFS_IOCTL_MAGIC, 36, ioctl_logical_ino_args)
+inum_offset_root = struct.Struct("=QQQ")
+Inode = namedtuple('Inode', ['inum', 'offset', 'root'])
+
+
+def logical_to_ino(fd, vaddr, bufsize=4096):
+    bufsize = min(bufsize, 65536)
+    inodes_buf = create_buf(bufsize)
+    inodes_ptr = inodes_buf.buffer_info()[0]
+    args = create_buf(ioctl_logical_ino_args.size)
+    ioctl_logical_ino_args.pack_into(args, 0, vaddr, bufsize, 0, 0, 0, 0, inodes_ptr)
+    fcntl.ioctl(fd, IOC_LOGICAL_INO, args)
+    bytes_left, bytes_missing, elem_cnt, elem_missed = data_container.unpack_from(inodes_buf, 0)
+    inodes = []
+    pos = data_container.size
+    for elem in range(int(elem_cnt//3)):
+        inodes.append(Inode(*inum_offset_root.unpack_from(inodes_buf, pos)))
+        pos += inum_offset_root.size
+    return inodes, bytes_missing

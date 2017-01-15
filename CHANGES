@@ -1,3 +1,20 @@
+python-btrfs v5, Jan 14 2017
+  * Revamp and fix loading of extent backreferences.
+  * Explode when detecting a non x86_64 arch.
+  * Add a crc32c implementation and example script to create
+    a dir_item offset hash.
+
+python-btrfs v4, Dec 18 2016
+  * Bump/inverse versioning, there will never be a v1.0, just keep
+    developing and releasing. \:D/
+  * IOCTLs: LOGICAL_INO
+  * New datastructures: InodeItem, RootItem, DiskKey, TimeSpec
+  * Add all constants to pretty print tree keys
+  * Behaviour change: don't load extent refs by default
+  * Keep transid value when retrieving a BlockGroupItem
+  * Known issue:
+    - SHARED_BLOCK_REF and TREE_BLOCK_REF are missing in extent refs
+
 python-btrfs 0.3, Nov 15 2016
   * Showing the contents of metadata block groups
   * Renamed datastructures: DevItem, BlockGroupItem, ExtentItem

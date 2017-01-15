@@ -1,4 +1,4 @@
-# Copyright (C) 2016 Hans van Kranenburg <hans.van.kranenburg@mendix.com>
+# Copyright (C) 2016-2017 Hans van Kranenburg <hans.van.kranenburg@mendix.com>
 #
 # This file is part of the python-btrfs module.
 #
@@ -132,6 +132,16 @@ def extent_flags_str(flags):
         ret.append("TREE_BLOCK")
     if flags & BLOCK_FLAG_FULL_BACKREF:
         ret.append("FULL_BACKREF")
+    return '|'.join(ret)
+
+
+def flags_str(flags, flags_str_map):
+    ret = []
+    for flag in sorted(flags_str_map.keys()):
+        if flags & flag:
+            ret.append(flags_str_map[flag])
+    if len(ret) == 0:
+        ret.append("none")
     return '|'.join(ret)
 
 

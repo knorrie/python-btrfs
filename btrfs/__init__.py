@@ -1,4 +1,4 @@
-# Copyright (C) 2016 Hans van Kranenburg <hans.van.kranenburg@mendix.com>
+# Copyright (C) 2016-2017 Hans van Kranenburg <hans.van.kranenburg@mendix.com>
 #
 # This file is part of the python-btrfs module.
 #
@@ -16,6 +16,14 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
+
+def _explode_if_not_amd64():
+    import platform
+    if platform.machine() != 'x86_64':
+        raise Exception("Sorry, only tested on amd64!")
+
+_explode_if_not_amd64()
+
 from btrfs.ctree import FileSystem  # noqa
 from btrfs.ctree import (  # noqa
     BLOCK_GROUP_DATA, BLOCK_GROUP_SYSTEM, BLOCK_GROUP_METADATA,
@@ -27,3 +35,4 @@ from btrfs.ctree import (  # noqa
 import btrfs.ctree  # noqa
 import btrfs.ioctl  # noqa
 import btrfs.utils  # noqa
+import btrfs.crc32c  # noqa
