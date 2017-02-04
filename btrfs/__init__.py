@@ -20,13 +20,6 @@ import sys
 if sys.version_info.major < 3:
     raise ImportError("This library is not compatible with Python 2 any more, sorry.")
 
-def _explode_if_not_amd64():
-    import platform
-    if platform.machine() != 'x86_64':
-        raise Exception("Sorry, only tested on amd64!")
-
-_explode_if_not_amd64()
-
 from btrfs.ctree import FileSystem  # noqa
 from btrfs.ctree import (  # noqa
     BLOCK_GROUP_DATA, BLOCK_GROUP_SYSTEM, BLOCK_GROUP_METADATA,

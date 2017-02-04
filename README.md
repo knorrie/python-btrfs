@@ -28,6 +28,3 @@ Development
 
 The module is in very early development, support for filesystem structures will
 be added one after another.
-
-The module is only supposed to work correctly on amd64. If used on other
-systems, it'll (hopefully) refuse to work.
