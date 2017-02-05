@@ -71,6 +71,7 @@ def _IOWR(_type, nr, _struct):
 DEVICE_PATH_NAME_MAX = 1024
 
 from btrfs.ctree import BLOCK_GROUP_TYPE_MASK, SPACE_INFO_GLOBAL_RSV, BLOCK_GROUP_PROFILE_MASK
+from btrfs.ctree import FIRST_FREE_OBJECTID
 import btrfs.ctree
 
 
@@ -253,3 +254,16 @@ def logical_to_ino(fd, vaddr, bufsize=4096):
         inodes.append(Inode(*inum_offset_root.unpack_from(inodes_buf, pos)))
         pos += inum_offset_root.size
     return inodes, bytes_missing
+
+
+INO_LOOKUP_PATH_MAX = 4080
+ioctl_ino_lookup_args = struct.Struct('=QQ{}s'.format(INO_LOOKUP_PATH_MAX))
+IOC_INO_LOOKUP = _IOWR(BTRFS_IOCTL_MAGIC, 18, ioctl_ino_lookup_args)
+
+
+def ino_lookup(fd, treeid=0, objectid=FIRST_FREE_OBJECTID):
+    args = create_buf(ioctl_ino_lookup_args.size)
+    ioctl_ino_lookup_args.pack_into(args, 0, treeid, objectid, b'')
+    fcntl.ioctl(fd, IOC_INO_LOOKUP, args)
+    treeid, _, name_bytes = ioctl_ino_lookup_args.unpack_from(args, 0)
+    return treeid, name_bytes.split(b'\0', 1)[0]
