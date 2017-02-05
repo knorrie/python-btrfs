@@ -234,7 +234,7 @@ def search(fd, tree, min_key=None, max_key=None,
 
 
 data_container = struct.Struct('=LLLL')
-ioctl_logical_ino_args = struct.Struct('=QQ4QQ')
+ioctl_logical_ino_args = struct.Struct('=QQ32xQ')
 IOC_LOGICAL_INO = _IOWR(BTRFS_IOCTL_MAGIC, 36, ioctl_logical_ino_args)
 inum_offset_root = struct.Struct('=QQQ')
 Inode = namedtuple('Inode', ['inum', 'offset', 'root'])
@@ -245,7 +245,7 @@ def logical_to_ino(fd, vaddr, bufsize=4096):
     inodes_buf = create_buf(bufsize)
     inodes_ptr = inodes_buf.buffer_info()[0]
     args = create_buf(ioctl_logical_ino_args.size)
-    ioctl_logical_ino_args.pack_into(args, 0, vaddr, bufsize, 0, 0, 0, 0, inodes_ptr)
+    ioctl_logical_ino_args.pack_into(args, 0, vaddr, bufsize, inodes_ptr)
     fcntl.ioctl(fd, IOC_LOGICAL_INO, args)
     bytes_left, bytes_missing, elem_cnt, elem_missed = data_container.unpack_from(inodes_buf, 0)
     inodes = []
