@@ -447,14 +447,18 @@ class FileSystem(object):
                 if extent is not None:
                     yield extent
                 extent = MetaDataItem(header, data, load_refs=load_metadata_refs)
-            elif header.type == EXTENT_DATA_REF_KEY and load_data_refs is True:
-                extent.append_extent_data_ref(ExtentDataRef(header, data))
-            elif header.type == SHARED_DATA_REF_KEY and load_data_refs is True:
-                extent.append_shared_data_ref(SharedDataRef(header, data))
-            elif header.type == TREE_BLOCK_REF_KEY and load_metadata_refs is True:
-                extent.append_tree_block_ref(TreeBlockRef(header))
-            elif header.type == SHARED_BLOCK_REF_KEY and load_metadata_refs is True:
-                extent.append_shared_block_ref(SharedBlockRef(header))
+            elif header.type == EXTENT_DATA_REF_KEY:
+                if load_data_refs is True:
+                    extent.append_extent_data_ref(ExtentDataRef(header, data))
+            elif header.type == SHARED_DATA_REF_KEY:
+                if load_data_refs is True:
+                    extent.append_shared_data_ref(SharedDataRef(header, data))
+            elif header.type == TREE_BLOCK_REF_KEY:
+                if load_metadata_refs is True:
+                    extent.append_tree_block_ref(TreeBlockRef(header))
+            elif header.type == SHARED_BLOCK_REF_KEY:
+                if load_metadata_refs is True:
+                    extent.append_shared_block_ref(SharedBlockRef(header))
             elif header.type != BLOCK_GROUP_ITEM_KEY:
                 raise Exception("BUG: unexpected object {0}".format(
                     Key(header.objectid, header.type, header.offset)))
