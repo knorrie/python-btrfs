@@ -204,3 +204,10 @@ def fs_usage(fs):
     allocated = sum([device.bytes_used for device in devices])
 
     return total, allocated, used, wasted_hard, wasted_soft
+
+
+def embedded_text_for_str(text):
+    try:
+        return "utf-8 {}".format(text.decode('utf-8'))
+    except UnicodeDecodeError:
+        return "raw {}".format(repr(text))
