@@ -1,7 +1,7 @@
 python-btrfs
 ============
 
-Python module to inspect btrfs filesystems.
+Python 3 module to inspect btrfs filesystems.
 
 License: GPLv2.
 

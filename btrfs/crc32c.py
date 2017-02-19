@@ -16,11 +16,7 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
-from __future__ import division, print_function, absolute_import, unicode_literals
 import array
-import sys
-
-_python2 = sys.version_info[0] == 2
 
 table = (
     0x00000000, 0xf26b8303, 0xe13b70f7, 0x1350f3f4,
@@ -92,13 +88,7 @@ table = (
 
 def name_hash(data):
     if not isinstance(data, (array.array, bytearray)):
-        if _python2:
-            if isinstance(data, unicode):
-                data = bytearray(data, 'utf-8')
-            elif isinstance(data, str):
-                data = bytearray(data)
-        else:
-            data = bytes(data, 'utf-8')
+        data = bytes(data, 'utf-8')
     crc = 4294967294  # (u32)~1
     for char in data:
         crc = table[(crc ^ char) & 0xff] ^ (crc >> 8)

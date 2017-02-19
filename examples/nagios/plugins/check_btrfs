@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # Copyright (C) 2016 Hans van Kranenburg <hans.van.kranenburg@mendix.com>
 #
@@ -16,7 +16,6 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
-from __future__ import division, print_function, absolute_import, unicode_literals
 import argparse
 import btrfs
 import os

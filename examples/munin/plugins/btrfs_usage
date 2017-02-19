@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # Copyright (C) 2016 Hans van Kranenburg <hans.van.kranenburg@mendix.com>
 #
@@ -17,7 +17,6 @@
 # Boston, MA 02110-1301 USA
 
 
-from __future__ import print_function
 from collections import deque
 import btrfs
 import sys

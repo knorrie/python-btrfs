@@ -16,16 +16,12 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
-from __future__ import division, print_function, absolute_import, unicode_literals
 from collections import namedtuple
 import array
 import fcntl
 import itertools
 import struct
-import sys
 import uuid
-
-_python2 = sys.version_info[0] == 2
 
 ULLONG_MAX = (1 << 64) - 1
 ULONG_MAX = (1 << 32) - 1
@@ -76,11 +72,7 @@ import btrfs.ctree
 
 
 def create_buf(size=4096):
-    if _python2:
-        typecode = b'B'
-    else:
-        typecode = u'B'
-    return array.array(typecode, itertools.repeat(0, size))
+    return array.array(u'B', itertools.repeat(0, size))
 
 
 ioctl_fs_info_args = struct.Struct('=QQ16sLLL980x')

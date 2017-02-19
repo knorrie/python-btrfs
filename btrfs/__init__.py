@@ -16,6 +16,9 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
+import sys
+if sys.version_info.major < 3:
+    raise ImportError("This library is not compatible with Python 2 any more, sorry.")
 
 def _explode_if_not_amd64():
     import platform
