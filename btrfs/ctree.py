@@ -830,10 +830,10 @@ class InodeItem(object):
         pos += TimeSpec.timespec.size
 
     def __str__(self):
-        return "inode generation {0} transid {1} size {2} nbytes {3} block_group {4} mode {5} " \
-            "links {6} uid {7} gid {8} rdev {9} flags {10}({11})".format(
+        return "inode generation {} transid {} size {} nbytes {} block_group {} mode {:05o} " \
+            "links {} uid {} gid {} rdev {} flags {:#x}({})".format(
                 self.generation, self.transid, self.size, self.nbytes, self.block_group,
-                oct(self.mode), self.nlink, self.uid, self.gid, self.rdev, hex(self.flags),
+                self.mode, self.nlink, self.uid, self.gid, self.rdev, self.flags,
                 btrfs.utils.flags_str(self.flags, _inode_flags_str_map))
 
 
