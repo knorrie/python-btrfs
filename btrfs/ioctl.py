@@ -88,9 +88,9 @@ def _IOWR(_type, nr, _struct):
 
 DEVICE_PATH_NAME_MAX = 1024
 
-from btrfs.ctree import BLOCK_GROUP_TYPE_MASK, SPACE_INFO_GLOBAL_RSV, BLOCK_GROUP_PROFILE_MASK
-from btrfs.ctree import FIRST_FREE_OBJECTID
-import btrfs.ctree
+from btrfs.ctree import BLOCK_GROUP_TYPE_MASK, SPACE_INFO_GLOBAL_RSV, BLOCK_GROUP_PROFILE_MASK  # noqa
+from btrfs.ctree import FIRST_FREE_OBJECTID  # noqa
+import btrfs.ctree  # noqa
 
 
 def create_buf(size=4096):

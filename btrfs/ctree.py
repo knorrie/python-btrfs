@@ -298,7 +298,7 @@ def key_offset_str(offset, _type):
     return str(offset)
 
 
-import btrfs.ioctl
+import btrfs.ioctl  # noqa
 
 
 class Key(object):
