@@ -188,6 +188,26 @@ _dir_item_type_str_map = {
     FT_XATTR: 'XATTR',
 }
 
+COMPRESS_NONE = 0
+COMPRESS_ZLIB = 1
+COMPRESS_LZO = 2
+
+_compress_type_str_map = {
+    COMPRESS_NONE: 'none',
+    COMPRESS_ZLIB: 'zlib',
+    COMPRESS_LZO: 'lzo',
+}
+
+FILE_EXTENT_INLINE = 0
+FILE_EXTENT_REG = 1
+FILE_EXTENT_PREALLOC = 2
+
+_file_extent_type_str_map = {
+    FILE_EXTENT_INLINE: 'inline',
+    FILE_EXTENT_REG: 'regular',
+    FILE_EXTENT_PREALLOC: 'prealloc',
+}
+
 
 def qgroup_level(objectid):
     return objectid >> QGROUP_LEVEL_SHIFT
@@ -855,6 +875,21 @@ class InodeRef(object):
         return self._len
 
 
+class InodeExtref(object):
+    inode_extref = struct.Struct('<QQH')
+
+    def __init__(self, header, buf, pos=0):
+        self.key = Key(header.objectid, header.type, header.offset)
+        self.parent_objectid, self.index, self.name_len = \
+            InodeExtref.inode_extref.unpack_from(buf, pos)
+        pos += InodeExtref.inode_extref.size
+        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(buf, pos)
+
+    def __str__(self):
+        return "inode extref parent_objectid {} index {} name {}".format(
+            self.parent_objectid, self.index, btrfs.utils.embedded_text_for_str(self.name))
+
+
 class DirItem(object):
     _dir_item = [
         DiskKey.disk_key,
@@ -942,3 +977,46 @@ class RootItem(object):
         return "root uuid {0} dirid {1} gen {2} last_snapshot {3} flags {4}({5})".format(
             self.uuid, self.dirid, self.generation, self.last_snapshot,
             hex(self.flags), btrfs.utils.flags_str(self.flags, _root_flags_str_map))
+
+
+class FileExtentItem(object):
+    _file_extent_item = [
+        struct.Struct('<QQBB2xB'),
+        struct.Struct('<4Q'),
+    ]
+    file_extent_item = struct.Struct('<' + ''.join([s.format[1:].decode()
+                                                    for s in _file_extent_item]))
+
+    def __init__(self, header, buf, pos=0):
+        self.key = Key(header.objectid, header.type, header.offset)
+        self.generation, self.ram_bytes, self.compression, self.encryption, self.type = \
+            FileExtentItem._file_extent_item[0].unpack_from(buf, pos)
+        pos += FileExtentItem._file_extent_item[0].size
+        if self.type != FILE_EXTENT_INLINE:
+            # These are confusing, so they deserve a comment in the code:
+            # (disk_bytenr EXTENT_ITEM disk_num_bytes) is the tree key of
+            # the extent item storing the actual data.
+            #
+            # The third one, offset is the offset inside that extent where the
+            # data we need starts. num_bytes is the amount of bytes to be used
+            # from that offset onwards.
+            #
+            # Remember that these numbers always be multiples of disk block
+            # sizes, because that's how it gets cowed. We don't just use 1 or 2
+            # bytes from another extent.
+            self.disk_bytenr, self.disk_num_bytes, self.offset, self.num_bytes = \
+                FileExtentItem._file_extent_item[1].unpack_from(buf, pos)
+        else:
+            self._inline_encoded_nbytes = header.len - FileExtentItem._file_extent_item[0].size
+
+    def __str__(self):
+        ret = ["extent data generation {} ram_bytes {} compression {} type {}".format(
+            self.generation, self.ram_bytes,
+            _compress_type_str_map.get(self.compression, 'unknown'),
+            _file_extent_type_str_map.get(self.type, 'unknown'))]
+        if self.type != 0:
+            ret.append("disk_bytenr {} disk_num_bytes {} offset {} num_bytes {}".format(
+                self.disk_bytenr, self.disk_num_bytes, self.offset, self.num_bytes))
+        else:
+            ret.append("inline_encoded_nbytes {}".format(self._inline_encoded_nbytes))
+        return ' '.join(ret)
