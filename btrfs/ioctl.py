@@ -216,24 +216,51 @@ SearchHeader = namedtuple('SearchHeader', ['transid', 'objectid', 'offset', 'typ
 def search(fd, tree, min_key=None, max_key=None,
            min_transid=0, max_transid=ULLONG_MAX,
            nr_items=ULONG_MAX):
+    return search_v2(fd, tree, min_key, max_key, min_transid, max_transid,
+                     nr_items, _v2=False)
+
+
+_ioctl_search_args_v2 = [
+    ioctl_search_key,
+    struct.Struct('=Q')
+]
+ioctl_search_args_v2 = struct.Struct('=' + ''.join([s.format[1:].decode()
+                                                    for s in _ioctl_search_args_v2]))
+IOC_TREE_SEARCH_V2 = _IOWR(BTRFS_IOCTL_MAGIC, 17, ioctl_search_args_v2)
+
+
+def search_v2(fd, tree, min_key=None, max_key=None,
+              min_transid=0, max_transid=ULLONG_MAX,
+              nr_items=ULONG_MAX, buf_size=None, _v2=True):
     if min_key is None:
         min_key = btrfs.ctree.Key(0, 0, 0)
     if max_key is None:
         max_key = btrfs.ctree.Key(ULLONG_MAX, 255, ULLONG_MAX)
     wanted_nr_items = nr_items
     result_nr_items = -1
-    buf = create_buf(4096)
+    if _v2:
+        if buf_size is None:
+            buf_size = 16384
+        buf = create_buf(ioctl_search_args_v2.size + buf_size)
+    else:
+        buf = create_buf(4096)
     while min_key <= max_key and result_nr_items != 0 and wanted_nr_items > 0:
-        ioctl_search_key.pack_into(buf, 0, tree,
+        pos = 0
+        ioctl_search_key.pack_into(buf, pos, tree,
                                    min_key.objectid, max_key.objectid,
                                    min_key.offset, max_key.offset,
                                    min_transid, max_transid,
                                    min_key.type, max_key.type,
                                    wanted_nr_items)
-        fcntl.ioctl(fd, IOC_TREE_SEARCH, buf)
+        pos += ioctl_search_key.size
+        if _v2:
+            _ioctl_search_args_v2[1].pack_into(buf, pos, buf_size)
+            pos += _ioctl_search_args_v2[1].size
+            fcntl.ioctl(fd, IOC_TREE_SEARCH_V2, buf)
+        else:
+            fcntl.ioctl(fd, IOC_TREE_SEARCH, buf)
         result_nr_items = ioctl_search_key.unpack_from(buf, 0)[9]
         if result_nr_items > 0:
-            pos = ioctl_search_key.size
             for i in range(result_nr_items):
                 header = SearchHeader(*ioctl_search_header.unpack_from(buf, pos))
                 pos += ioctl_search_header.size
