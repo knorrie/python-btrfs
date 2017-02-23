@@ -44,6 +44,7 @@ def time_bg_search(vaddr, length, nr_items):
     now = time.time()
     print("    {0:.6f} sec done".format(now-start))
 
+
 time_bg_search(chunk.vaddr, chunk.length, 1)
 time_bg_search(chunk.vaddr, None, 1)
 time_bg_search(chunk.vaddr, None, 4096)
