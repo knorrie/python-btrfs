@@ -444,22 +444,22 @@ class FileSystem(object):
         tree = CHUNK_TREE_OBJECTID
         min_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, min_devid)
         max_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, max_devid)
-        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+        for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
             yield DevItem(header, data)
 
     def chunks(self, min_vaddr=0, max_vaddr=ULLONG_MAX, nr_items=ULONG_MAX):
         tree = CHUNK_TREE_OBJECTID
         min_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, min_vaddr)
         max_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, max_vaddr)
-        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key,
-                                               nr_items=nr_items):
+        for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key,
+                                                  nr_items=nr_items):
             yield Chunk(header, data)
 
     def dev_extents(self, min_devid=1, max_devid=ULLONG_MAX):
         tree = DEV_TREE_OBJECTID
         min_key = btrfs.ctree.Key(min_devid, 0, 0)
         max_key = btrfs.ctree.Key(max_devid, 255, ULLONG_MAX)
-        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+        for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
             yield DevExtent(header, data)
 
     def block_group(self, vaddr, length=None):
@@ -470,7 +470,7 @@ class FileSystem(object):
         max_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, max_offset)
         block_groups = [BlockGroupItem(header, data)
                         for header, data in
-                        btrfs.ioctl.search(self.fd, tree, min_key, max_key, nr_items=1)]
+                        btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key, nr_items=1)]
         return block_groups[0]
 
     def extents(self, min_vaddr=0, max_vaddr=ULLONG_MAX,
@@ -479,7 +479,7 @@ class FileSystem(object):
         min_key = Key(min_vaddr, 0, 0)
         max_key = Key(max_vaddr, 255, ULLONG_MAX)
         extent = None
-        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+        for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
             if header.type == EXTENT_ITEM_KEY:
                 if extent is not None:
                     yield extent
@@ -523,7 +523,7 @@ class FileSystem(object):
         max_key = Key(max_id, max_type, ULLONG_MAX)
         cur_header = None
         cur_data = None
-        for next_header, next_data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+        for next_header, next_data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
             if next_header.type != ROOT_ITEM_KEY:
                 continue
             if cur_header is not None and next_header.objectid > cur_header.objectid:
@@ -539,7 +539,7 @@ class FileSystem(object):
         min_key = Key(ORPHAN_OBJECTID, ORPHAN_ITEM_KEY, 0)
         max_key = Key(ORPHAN_OBJECTID, ORPHAN_ITEM_KEY, ULLONG_MAX)
         subvol_ids = [header.offset
-                      for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key)]
+                      for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key)]
         return subvol_ids
 
 

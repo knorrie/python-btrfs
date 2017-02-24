@@ -18,7 +18,7 @@ print("directory {} tree {} inum {}".format(dirname, tree, inum))
 
 min_key = btrfs.ctree.Key(inum, 0, 0)
 max_key = btrfs.ctree.Key(inum + 1, 0, 0) - 1
-for header, data in btrfs.ioctl.search(fd, tree, min_key, max_key):
+for header, data in btrfs.ioctl.search_v2(fd, tree, min_key, max_key):
     if header.type == btrfs.ctree.INODE_ITEM_KEY:
         print(btrfs.ctree.InodeItem(header, data))
     elif header.type == btrfs.ctree.INODE_REF_KEY:
