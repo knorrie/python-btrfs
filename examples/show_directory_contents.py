@@ -4,6 +4,10 @@ import btrfs
 import os
 import sys
 
+if len(sys.argv) < 2:
+    print("Usage: {} <directory>".format(sys.argv[0]))
+    sys.exit(1)
+
 dirname = sys.argv[1]
 
 if not os.path.isdir(dirname):

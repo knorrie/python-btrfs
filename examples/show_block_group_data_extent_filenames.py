@@ -4,6 +4,10 @@ import btrfs
 import errno
 import sys
 
+if len(sys.argv) < 3:
+    print("Usage: {} <vaddr> <mountpoint>".format(sys.argv[0]))
+    sys.exit(1)
+
 vaddr = int(sys.argv[1])
 fs = btrfs.FileSystem(sys.argv[2])
 block_group = fs.block_group(vaddr)
