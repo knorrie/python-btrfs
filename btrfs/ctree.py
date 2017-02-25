@@ -490,16 +490,16 @@ class FileSystem(object):
                     yield extent
                 extent = MetaDataItem(header, data, load_refs=load_metadata_refs)
             elif header.type == EXTENT_DATA_REF_KEY:
-                if load_data_refs is True:
+                if load_data_refs:
                     extent.append_extent_data_ref(ExtentDataRef(header, data))
             elif header.type == SHARED_DATA_REF_KEY:
-                if load_data_refs is True:
+                if load_data_refs:
                     extent.append_shared_data_ref(SharedDataRef(header, data))
             elif header.type == TREE_BLOCK_REF_KEY:
-                if load_metadata_refs is True:
+                if load_metadata_refs:
                     extent.append_tree_block_ref(TreeBlockRef(header))
             elif header.type == SHARED_BLOCK_REF_KEY:
-                if load_metadata_refs is True:
+                if load_metadata_refs:
                     extent.append_shared_block_ref(SharedBlockRef(header))
             elif header.type != BLOCK_GROUP_ITEM_KEY:
                 raise Exception("BUG: unexpected object {0}".format(
@@ -638,7 +638,7 @@ class ExtentItem(object):
         self.length = header.offset
         self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(buf, pos)
         pos += ExtentItem.extent_item.size
-        if self.flags == EXTENT_FLAG_DATA and load_data_refs is True:
+        if self.flags == EXTENT_FLAG_DATA and load_data_refs:
             self.extent_data_refs = []
             self.shared_data_refs = []
             while pos < len(buf):
@@ -652,7 +652,7 @@ class ExtentItem(object):
                     pos += 1
                     self.shared_data_refs.append(InlineSharedDataRef(buf, pos))
                     pos += InlineSharedDataRef.inline_shared_data_ref.size
-        elif self.flags & EXTENT_FLAG_TREE_BLOCK and load_metadata_refs is True:
+        elif self.flags & EXTENT_FLAG_TREE_BLOCK and load_metadata_refs:
             self.tree_block_info = TreeBlockInfo(buf, pos)
             pos += TreeBlockInfo.tree_block_info.size
             self.tree_block_refs = []
@@ -750,7 +750,7 @@ class MetaDataItem(object):
         self.vaddr = header.objectid
         self.skinny_level = header.offset
         self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(buf, pos)
-        if load_refs is True:
+        if load_refs:
             self._load_refs(buf, pos)
 
     def _load_refs(self, buf, pos):

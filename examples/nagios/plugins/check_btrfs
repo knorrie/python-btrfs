@@ -115,7 +115,7 @@ def check_usage(args):
         msg.append('Warning: Allocated: {0}% (Used: {1}%)'.format(allocated_pct, used_pct))
         warning = True
 
-    if critical is True or warning is True:
+    if critical or warning:
         print(', '.join(msg))
     else:
         if len(msg) > 0:
@@ -131,9 +131,9 @@ def check_usage(args):
     summary.append('Used: {0} ({1}%)'.format(bups(used), used_pct))
     print(', '.join(summary))
 
-    if critical is True:
+    if critical:
         return STATE_CRITICAL
-    if warning is True:
+    if warning:
         return STATE_WARNING
     return STATE_OK
 

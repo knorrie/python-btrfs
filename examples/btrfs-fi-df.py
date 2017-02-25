@@ -73,24 +73,24 @@ def main():
     args = parser.parse_args()
     unit = None
     binary = True
-    if args.raw is True:
+    if args.raw:
         unit = ''
-    if args.human_readable is True:
+    if args.human_readable:
         unit = None
-    if args.human_si is True:
+    if args.human_si:
         unit = None
         binary = False
-    if args.iec is True:
+    if args.iec:
         binary = True
-    if args.si is True:
+    if args.si:
         binary = False
-    if args.kbytes is True:
+    if args.kbytes:
         unit = 'K'
-    if args.mbytes is True:
+    if args.mbytes:
         unit = 'M'
-    if args.gbytes is True:
+    if args.gbytes:
         unit = 'G'
-    if args.tbytes is True:
+    if args.tbytes:
         unit = 'T'
     if len(args.junk) > 0:
         parser.print_help(sys.stderr)
