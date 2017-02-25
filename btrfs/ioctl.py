@@ -19,7 +19,6 @@
 from collections import namedtuple
 import array
 import fcntl
-import itertools
 import platform
 import struct
 import uuid
@@ -93,10 +92,6 @@ from btrfs.ctree import FIRST_FREE_OBJECTID  # noqa
 import btrfs.ctree  # noqa
 
 
-def create_buf(size=4096):
-    return array.array(u'B', itertools.repeat(0, size))
-
-
 ioctl_fs_info_args = struct.Struct('=QQ16sLLL980x')
 IOC_FS_INFO = _IOR(BTRFS_IOCTL_MAGIC, 31, ioctl_fs_info_args)
 
@@ -114,7 +109,7 @@ class FsInfo(object):
 
 
 def fs_info(fd):
-    buf = create_buf(ioctl_fs_info_args.size)
+    buf = bytearray(ioctl_fs_info_args.size)
     fcntl.ioctl(fd, IOC_FS_INFO, buf)
     return FsInfo(buf)
 
@@ -136,7 +131,7 @@ class DevInfo(object):
 
 
 def dev_info(fd, devid):
-    buf = create_buf(ioctl_dev_info_args.size)
+    buf = bytearray(ioctl_dev_info_args.size)
     ioctl_dev_info_args.pack_into(buf, 0, devid, b'', 0, 0, b'')
     fcntl.ioctl(fd, IOC_DEV_INFO, buf)
     return DevInfo(buf)
@@ -160,7 +155,7 @@ class DevStats(object):
 
 
 def dev_stats(fd, devid, reset=False):
-    buf = create_buf(ioctl_get_dev_stats.size)
+    buf = bytearray(ioctl_get_dev_stats.size)
     ioctl_get_dev_stats.pack_into(buf, 0, devid, 5, int(reset), 0, 0, 0, 0, 0)
     fcntl.ioctl(fd, IOC_GET_DEV_STATS, buf)
     return DevStats(buf)
@@ -190,7 +185,7 @@ class SpaceInfo(object):
 
 
 def space_args(fd):
-    buf = create_buf(ioctl_space_args.size)
+    buf = bytearray(ioctl_space_args.size)
     fcntl.ioctl(fd, IOC_SPACE_INFO, buf)
     return SpaceArgs(*ioctl_space_args.unpack(buf))
 
@@ -198,7 +193,7 @@ def space_args(fd):
 def space_info(fd):
     args = space_args(fd)
     buf_size = ioctl_space_args.size + ioctl_space_info.size * args.total_spaces
-    buf = create_buf(buf_size)
+    buf = bytearray(buf_size)
     ioctl_space_args.pack_into(buf, 0, args.total_spaces, 0)
     fcntl.ioctl(fd, IOC_SPACE_INFO, buf)
     return [SpaceInfo(buf, pos)
@@ -241,9 +236,9 @@ def search_v2(fd, tree, min_key=None, max_key=None,
     if _v2:
         if buf_size is None:
             buf_size = 16384
-        buf = create_buf(ioctl_search_args_v2.size + buf_size)
+        buf = bytearray(ioctl_search_args_v2.size + buf_size)
     else:
-        buf = create_buf(4096)
+        buf = bytearray(4096)
     while min_key <= max_key and result_nr_items != 0 and wanted_nr_items > 0:
         pos = 0
         ioctl_search_key.pack_into(buf, pos, tree,
@@ -283,9 +278,9 @@ Inode = namedtuple('Inode', ['inum', 'offset', 'root'])
 
 def logical_to_ino(fd, vaddr, bufsize=4096):
     bufsize = min(bufsize, 65536)
-    inodes_buf = create_buf(bufsize)
+    inodes_buf = array.array(u'B', bytearray(bufsize))
     inodes_ptr = inodes_buf.buffer_info()[0]
-    args = create_buf(ioctl_logical_ino_args.size)
+    args = bytearray(ioctl_logical_ino_args.size)
     ioctl_logical_ino_args.pack_into(args, 0, vaddr, bufsize, inodes_ptr)
     fcntl.ioctl(fd, IOC_LOGICAL_INO, args)
     bytes_left, bytes_missing, elem_cnt, elem_missed = data_container.unpack_from(inodes_buf, 0)
@@ -303,7 +298,7 @@ IOC_INO_LOOKUP = _IOWR(BTRFS_IOCTL_MAGIC, 18, ioctl_ino_lookup_args)
 
 
 def ino_lookup(fd, treeid=0, objectid=FIRST_FREE_OBJECTID):
-    args = create_buf(ioctl_ino_lookup_args.size)
+    args = bytearray(ioctl_ino_lookup_args.size)
     ioctl_ino_lookup_args.pack_into(args, 0, treeid, objectid, b'')
     fcntl.ioctl(fd, IOC_INO_LOOKUP, args)
     treeid, _, name_bytes = ioctl_ino_lookup_args.unpack_from(args, 0)

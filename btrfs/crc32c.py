@@ -16,8 +16,6 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
-import array
-
 table = (
     0x00000000, 0xf26b8303, 0xe13b70f7, 0x1350f3f4,
     0xc79a971f, 0x35f1141c, 0x26a1e7e8, 0xd4ca64eb,
@@ -87,7 +85,7 @@ table = (
 
 
 def name_hash(data):
-    if not isinstance(data, (array.array, bytearray)):
+    if not isinstance(data, (bytes, bytearray)):
         data = bytes(data, 'utf-8')
     crc = 4294967294  # (u32)~1
     for char in data:
