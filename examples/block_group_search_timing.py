@@ -19,7 +19,7 @@ if len(sys.argv) > 2:
     vaddr = int(sys.argv[2])
     chunks = list(fs.chunks(vaddr, vaddr, 1))
     if len(chunks) != 1:
-        print("no chunk at vaddr {0}".format(vaddr))
+        print("no chunk at vaddr {}".format(vaddr))
         sys.exit(1)
     chunk = chunks[0]
 else:
@@ -28,7 +28,7 @@ else:
     chunks = list(fs.chunks())
     now = time.time()
     chunk = chunks[random.randint(0, len(chunks)-1)]
-    print("    {0:.6f} sec choosing block group at {1}".format(now-start, chunk.vaddr))
+    print("    {:.6f} sec choosing block group at {}".format(now-start, chunk.vaddr))
 
 
 def time_bg_search(vaddr, length, nr_items):
@@ -37,15 +37,15 @@ def time_bg_search(vaddr, length, nr_items):
     max_offset = length if length is not None else ULLONG_MAX
     min_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, min_offset)
     max_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, max_offset)
-    print("\nmin {0}\nmax {1}\nnr_items {2}".format(min_key, max_key, nr_items))
+    print("\nmin {}\nmax {}\nnr_items {}".format(min_key, max_key, nr_items))
     start = time.time()
     for header, data in btrfs.ioctl.search_v2(fs.fd, tree, min_key, max_key, nr_items=nr_items):
         bg = btrfs.ctree.BlockGroupItem(header, data)
         now = time.time()
-        print("    {0:.6f} sec result {1}".format(now-start, bg.key))
+        print("    {:.6f} sec result {}".format(now-start, bg.key))
         start = now
     now = time.time()
-    print("    {0:.6f} sec done".format(now-start))
+    print("    {:.6f} sec done".format(now-start))
 
 
 time_bg_search(chunk.vaddr, chunk.length, 1)

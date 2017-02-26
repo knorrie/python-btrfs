@@ -245,9 +245,9 @@ def key_objectid_str(objectid, _type):
     if _type == DEV_EXTENT_KEY:
         return str(objectid)
     if _type == QGROUP_RELATION_KEY:
-        return "{0}/{1}".format(qgroup_level(objectid), qgroup_subvid(objectid))
+        return "{}/{}".format(qgroup_level(objectid), qgroup_subvid(objectid))
     if _type == UUID_KEY_SUBVOL or _type == UUID_KEY_RECEIVED_SUBVOL:
-        return "0x{0:0>16x}".format(objectid)
+        return "0x{:0>16x}".format(objectid)
 
     if objectid == ROOT_TREE_OBJECTID and _type == DEV_ITEM_KEY:
         return 'DEV_ITEMS'
@@ -309,9 +309,9 @@ def key_type_str(_type):
 
 def key_offset_str(offset, _type):
     if _type == QGROUP_RELATION_KEY or _type == QGROUP_INFO_KEY or _type == QGROUP_LIMIT_KEY:
-        return "{0}/{1}".format(qgroup_level(offset), qgroup_subvid(offset))
+        return "{}/{}".format(qgroup_level(offset), qgroup_subvid(offset))
     if _type == UUID_KEY_SUBVOL or _type == UUID_KEY_RECEIVED_SUBVOL:
-        return "0x{0:0>16x}".format(offset)
+        return "0x{:0>16x}".format(offset)
     if offset == ULLONG_MAX:
         return '-1'
 
@@ -398,7 +398,7 @@ class Key(object):
         return self._key > other
 
     def __str__(self):
-        return "({0} {1} {2})".format(
+        return "({} {} {})".format(
             key_objectid_str(self._objectid, self._type),
             key_type_str(self._type),
             key_offset_str(self._offset, self._type),
@@ -502,7 +502,7 @@ class FileSystem(object):
                 if load_metadata_refs:
                     extent.append_shared_block_ref(SharedBlockRef(header))
             elif header.type != BLOCK_GROUP_ITEM_KEY:
-                raise Exception("BUG: unexpected object {0}".format(
+                raise Exception("BUG: unexpected object {}".format(
                     Key(header.objectid, header.type, header.offset)))
 
         if extent is not None:
@@ -556,8 +556,8 @@ class DevItem(object):
         self.fsid = uuid.UUID(bytes=fsid_bytes)
 
     def __str__(self):
-        return "dev item devid {0} total bytes {1} bytes used {2}".format(
-            self.devid, self.total_bytes, self.bytes_used)
+        return "dev item devid {self.devid} total bytes {self.total_bytes} " \
+            "bytes used {self.bytes_used}".format(self=self)
 
 
 class Chunk(object):
@@ -575,10 +575,13 @@ class Chunk(object):
                                                 pos + Stripe.stripe.size * self.num_stripes,
                                                 Stripe.stripe.size)]
 
+    @property
+    def flags_str(self):
+        return btrfs.utils.block_group_flags_str(self.type)
+
     def __str__(self):
-        return "chunk vaddr {0} type {1} length {2} num_stripes {3}".format(
-            self.vaddr, btrfs.utils.block_group_flags_str(self.type),
-            self.length, self.num_stripes)
+        return "chunk vaddr {self.vaddr} type {self.flags_str} length {self.length} " \
+            "num_stripes {self.num_stripes}".format(self=self)
 
 
 class Stripe(object):
@@ -590,7 +593,7 @@ class Stripe(object):
         self.uuid = uuid.UUID(bytes=uuid_bytes)
 
     def __str__(self):
-        return "stripe devid {0} offset {1}".format(self.devid, self.offset)
+        return "stripe devid {self.devid} offset {self.offset}".format(self=self)
 
 
 class DevExtent(object):
@@ -606,8 +609,8 @@ class DevExtent(object):
         self.uuid = uuid.UUID(bytes=uuid_bytes)
 
     def __str__(self):
-        return "dev extent devid {0} paddr {1} length {2} chunk {3}".format(
-            self.devid, self.paddr, self.length, self.chunk_offset)
+        return "dev extent devid {self.devid} paddr {self.paddr} length {self.length} " \
+            "chunk {self.chunk_offset}".format(self=self)
 
 
 class BlockGroupItem(object):
@@ -621,11 +624,17 @@ class BlockGroupItem(object):
         self.used, self.chunk_objectid, self.flags = \
             BlockGroupItem.block_group_item.unpack_from(buf, pos)
 
+    @property
+    def used_pct(self):
+        return int(round((self.used * 100) / self.length))
+
+    @property
+    def flags_str(self):
+        return btrfs.utils.block_group_flags_str(self.flags)
+
     def __str__(self):
-        return "block group vaddr {0} transid {1} length {2} flags {3} used {4} " \
-            "used_pct {5}".format(self.vaddr, self.transid, self.length,
-                                  btrfs.utils.block_group_flags_str(self.flags),
-                                  self.used, int(round((self.used * 100) / self.length)))
+        return "block group vaddr {self.vaddr} transid {self.transid} length {self.length} " \
+            "flags {self.flags_str} used {self.used} used_pct {self.used_pct}".format(self=self)
 
 
 class ExtentItem(object):
@@ -666,7 +675,7 @@ class ExtentItem(object):
                     self.shared_block_refs.append(InlineSharedBlockRef(inline_ref_offset))
                 else:
                     raise Exception("BUG: expected inline TREE_BLOCK_REF or SHARED_BLOCK_REF_KEY "
-                                    "but got {0}".format(str(buf[pos:])))
+                                    "but got {}".format(str(buf[pos:])))
                 pos += ExtentItem.extent_inline_ref.size
 
     def append_extent_data_ref(self, ref):
@@ -681,10 +690,13 @@ class ExtentItem(object):
     def append_shared_block_ref(self, ref):
         self.shared_block_refs.append(ref)
 
+    @property
+    def flags_str(self):
+        return btrfs.utils.extent_flags_str(self.flags)
+
     def __str__(self):
-        return "extent vaddr {0} length {1} refs {2} gen {3} flags {4}".format(
-            self.vaddr, self.length, self.refs, self.generation,
-            btrfs.utils.extent_flags_str(self.flags))
+        return "extent vaddr {self.vaddr} length {self.length} refs {self.refs} " \
+            "gen {self.generation} flags {self.flags_str}".format(self=self)
 
 
 class ExtentDataRef(object):
@@ -695,8 +707,8 @@ class ExtentDataRef(object):
             ExtentDataRef.extent_data_ref.unpack_from(buf, pos)
 
     def __str__(self):
-        return "extent data backref root {0} objectid {1} offset {2} count {3}".format(
-            self.root, self.objectid, self.offset, self.count)
+        return "extent data backref root {self.root} objectid {self.objectid} " \
+            "offset {self.offset} count {self.count}".format(self=self)
 
 
 class InlineExtentDataRef(ExtentDataRef):
@@ -707,8 +719,8 @@ class InlineExtentDataRef(ExtentDataRef):
             InlineExtentDataRef.inline_extent_data_ref.unpack_from(buf, pos)
 
     def __str__(self):
-        return "inline extent data backref root {0} objectid {1} offset {2} count {3}".format(
-            self.root, self.objectid, self.offset, self.count)
+        return "inline extent data backref root {self.root} objectid {self.objectid} " \
+            "offset {self.offset} count {self.count}".format(self=self)
 
 
 class SharedDataRef(object):
@@ -719,7 +731,7 @@ class SharedDataRef(object):
         self.count, = SharedDataRef.shared_data_ref.unpack_from(buf, pos)
 
     def __str__(self):
-        return "shared data backref parent {0} count {1}".format(self.parent, self.count)
+        return "shared data backref parent {self.parent count {self.count}".format(self=self)
 
 
 class InlineSharedDataRef(SharedDataRef):
@@ -729,7 +741,8 @@ class InlineSharedDataRef(SharedDataRef):
         self.parent, self.count = InlineSharedDataRef.inline_shared_data_ref.unpack_from(buf, pos)
 
     def __str__(self):
-        return "inline shared data backref parent {0} count {1}".format(self.parent, self.count)
+        return "inline shared data backref parent {self.parent} " \
+            "count {self.count}".format(self=self)
 
 
 class TreeBlockInfo(object):
@@ -741,7 +754,7 @@ class TreeBlockInfo(object):
         self.key = Key(tb_objectid, tb_type, tb_offset)
 
     def __str__(self):
-        return "tree block key {0} level {1}".format(self.key, self.level)
+        return "tree block key {self.key} level {self.level}".format(self=self)
 
 
 class MetaDataItem(object):
@@ -766,7 +779,7 @@ class MetaDataItem(object):
                 self.shared_block_refs.append(InlineSharedBlockRef(inline_ref_offset))
             else:
                 raise Exception("BUG: expected inline TREE_BLOCK_REF or SHARED_BLOCK_REF_KEY "
-                                "in METADATA_ITEM {0}, but got: {1}"
+                                "in METADATA_ITEM {}, but got: {}"
                                 "".format(self.key, str(buf[pos:])))
             pos += ExtentItem.extent_inline_ref.size
 
@@ -776,10 +789,13 @@ class MetaDataItem(object):
     def append_shared_block_ref(self, ref):
         self.shared_block_refs.append(ref)
 
+    @property
+    def flags_str(self):
+        return btrfs.utils.extent_flags_str(self.flags)
+
     def __str__(self):
-        return "metadata vaddr {0} refs {1} gen {2} flags {3} skinny level {4}".format(
-            self.vaddr, self.refs, self.generation,
-            btrfs.utils.extent_flags_str(self.flags), self.skinny_level)
+        return "metadata vaddr {self.vaddr} refs {self.refs} gen {self.generation} " \
+            "flags {self.flags_str} skinny level {self.skinny_level}".format(self=self)
 
 
 class TreeBlockRef(object):
@@ -787,7 +803,7 @@ class TreeBlockRef(object):
         self.root = header.offset
 
     def __str__(self):
-        return "tree block backref root {0}".format(key_objectid_str(self.root, None))
+        return "tree block backref root {}".format(key_objectid_str(self.root, None))
 
 
 class InlineTreeBlockRef(TreeBlockRef):
@@ -795,7 +811,7 @@ class InlineTreeBlockRef(TreeBlockRef):
         self.root = root
 
     def __str__(self):
-        return "inline tree block backref root {0}".format(key_objectid_str(self.root, None))
+        return "inline tree block backref root {}".format(key_objectid_str(self.root, None))
 
 
 class SharedBlockRef(object):
@@ -803,7 +819,7 @@ class SharedBlockRef(object):
         self.parent = header.offset
 
     def __str__(self):
-        return "shared block backref parent {0}".format(self.parent)
+        return "shared block backref parent {}".format(self.parent)
 
 
 class InlineSharedBlockRef(SharedBlockRef):
@@ -811,7 +827,7 @@ class InlineSharedBlockRef(SharedBlockRef):
         self.parent = parent
 
     def __str__(self):
-        return "inline shared block backref parent {0}".format(self.parent)
+        return "inline shared block backref parent {}".format(self.parent)
 
 
 class TimeSpec(object):
@@ -819,6 +835,9 @@ class TimeSpec(object):
 
     def __init__(self, buf, pos=0):
         self.sec, self.nsec = TimeSpec.timespec.unpack_from(buf, pos)
+
+    def __str__(self):
+        return "{self.sec}.{self.nsec}".format(self=self)
 
 
 class InodeItem(object):
@@ -849,12 +868,15 @@ class InodeItem(object):
         self.otime = TimeSpec(buf, pos)
         pos += TimeSpec.timespec.size
 
+    @property
+    def flags_str(self):
+        return btrfs.utils.flags_str(self.flags, _inode_flags_str_map)
+
     def __str__(self):
-        return "inode generation {} transid {} size {} nbytes {} block_group {} mode {:05o} " \
-            "links {} uid {} gid {} rdev {} flags {:#x}({})".format(
-                self.generation, self.transid, self.size, self.nbytes, self.block_group,
-                self.mode, self.nlink, self.uid, self.gid, self.rdev, self.flags,
-                btrfs.utils.flags_str(self.flags, _inode_flags_str_map))
+        return "inode generation {self.generation} transid {self.transid} size {self.size} " \
+            "nbytes {self.nbytes} block_group {self.block_group} mode {self.mode:05o} " \
+            "nlink {self.nlink} uid {self.uid} gid {self.gid} rdev {self.rdev} " \
+            "flags {self.flags:#x}({self.flags_str})".format(self=self)
 
 
 class InodeRef(object):
@@ -910,10 +932,21 @@ class DirItem(object):
         pos += self.data_len
         self._len = DirItem.dir_item.size + self.name_len + self.data_len
 
+    @property
+    def type_str(self):
+        return _dir_item_type_str_map[self.type]
+
+    @property
+    def name_str(self):
+        return btrfs.utils.embedded_text_for_str(self.name)
+
+    @property
+    def data_str(self):
+        return btrfs.utils.embedded_text_for_str(self.data)
+
     def __str__(self):
-        return "dir item hash {} location {} type {} name {}".format(
-            self.key.offset, self.location, _dir_item_type_str_map[self.type],
-            btrfs.utils.embedded_text_for_str(self.name))
+        return "dir item hash {self.key.offset} location {self.location} type {self.type_str} " \
+            "name {self.name_str}".format(self=self)
 
     def __len__(self):
         return self._len
@@ -921,17 +954,14 @@ class DirItem(object):
 
 class DirIndex(DirItem):
     def __str__(self):
-        return "dir index {} location {} type {} name {}".format(
-            self.key.offset, self.location, _dir_item_type_str_map[self.type],
-            btrfs.utils.embedded_text_for_str(self.name))
+        return "dir index {self.key.offset} location {self.location} type {self.type_str} " \
+            "name {self.name_str}".format(self=self)
 
 
 class XAttrItem(DirItem):
     def __str__(self):
-        return "xattr item hash {} name {} data {}".format(
-            self.key.offset,
-            btrfs.utils.embedded_text_for_str(self.name),
-            btrfs.utils.embedded_text_for_str(self.data))
+        return "xattr item hash {self.key.offset} name {self.name_str} " \
+            "data {self.data_str}".format(self=self)
 
 
 class RootItem(object):
@@ -973,10 +1003,14 @@ class RootItem(object):
         self.rtime = TimeSpec(buf, pos)
         pos += TimeSpec.timespec.size
 
+    @property
+    def flags_str(self):
+        return btrfs.utils.flags_str(self.flags, _root_flags_str_map)
+
     def __str__(self):
-        return "root uuid {0} dirid {1} gen {2} last_snapshot {3} flags {4}({5})".format(
-            self.uuid, self.dirid, self.generation, self.last_snapshot,
-            hex(self.flags), btrfs.utils.flags_str(self.flags, _root_flags_str_map))
+        return "root uuid {self.uuid} dirid {self.dirid} gen {self.generation} " \
+            "last_snapshot {self.last_snapshot} " \
+            "flags {self.flags:#x}({self.flags_str})".format(self=self)
 
 
 class FileExtentItem(object):
@@ -1009,14 +1043,20 @@ class FileExtentItem(object):
         else:
             self._inline_encoded_nbytes = header.len - FileExtentItem._file_extent_item[0].size
 
+    @property
+    def compress_str(self):
+        _compress_type_str_map.get(self.compression, 'unknown')
+
+    @property
+    def type_str(self):
+        return _file_extent_type_str_map.get(self.type, 'unknown')
+
     def __str__(self):
-        ret = ["extent data generation {} ram_bytes {} compression {} type {}".format(
-            self.generation, self.ram_bytes,
-            _compress_type_str_map.get(self.compression, 'unknown'),
-            _file_extent_type_str_map.get(self.type, 'unknown'))]
+        ret = ["extent data generation {self.generation} ram_bytes {self.ram_bytes} "
+               "compression {self.compress_str} type {self.type_str}".format(self=self)]
         if self.type != 0:
-            ret.append("disk_bytenr {} disk_num_bytes {} offset {} num_bytes {}".format(
-                self.disk_bytenr, self.disk_num_bytes, self.offset, self.num_bytes))
+            ret.append("disk_bytenr {self.disk_bytenr} disk_num_bytes {self.disk_num_bytes} "
+                       "offset {self.offset} num_bytes {self.num_bytes}".format(self=self))
         else:
-            ret.append("inline_encoded_nbytes {}".format(self._inline_encoded_nbytes))
+            ret.append("inline_encoded_nbytes {self._inline_encoded_nbytes}".format(self=self))
         return ' '.join(ret)

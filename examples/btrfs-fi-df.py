@@ -98,11 +98,12 @@ def main():
 
     fs = btrfs.FileSystem(args.path[0])
     for space in fs.space_info():
-        print("{0}, {1}: total={2}, used={3}".format(
+        print("{}, {}: total={}, used={}".format(
               btrfs.utils.block_group_type_str(space.flags),
               btrfs.utils.block_group_profile_str(space.flags),
               btrfs.utils.pretty_size(space.total_bytes, unit, binary),
               btrfs.utils.pretty_size(space.used_bytes, unit, binary)))
+
 
 if __name__ == '__main__':
     main()
