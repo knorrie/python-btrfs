@@ -16,6 +16,7 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
+from collections import namedtuple
 import copy
 import os
 import struct
@@ -542,6 +543,14 @@ class FileSystem(object):
                       for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key)]
         return subvol_ids
 
+    def free_space_extents(self, min_vaddr=0, max_vaddr=ULLONG_MAX):
+        tree = FREE_SPACE_TREE_OBJECTID
+        min_key = Key(min_vaddr, 0, 0)
+        max_key = Key(max_vaddr, 255, ULLONG_MAX)
+        for header, _ in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
+            if header.type == FREE_SPACE_EXTENT_KEY:
+                yield FreeSpaceExtent(header.objectid, header.offset)
+
 
 class DevItem(object):
     dev_item = struct.Struct('<3Q3L3QL2B16s16s')
@@ -1060,3 +1069,6 @@ class FileExtentItem(object):
         else:
             ret.append("inline_encoded_nbytes {self._inline_encoded_nbytes}".format(self=self))
         return ' '.join(ret)
+
+
+FreeSpaceExtent = namedtuple('FreeSpaceExtent', ['vaddr', 'length'])
