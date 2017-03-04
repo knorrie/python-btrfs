@@ -36,6 +36,7 @@ def mounted_filesystems():
         filesystems.setdefault(fs.fsid, fs)
     return list(filesystems.values())
 
+
 _block_group_type_str_map = {
     BLOCK_GROUP_DATA: 'Data',
     BLOCK_GROUP_SYSTEM: 'System',
