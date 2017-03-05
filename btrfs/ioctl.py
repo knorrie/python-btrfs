@@ -18,6 +18,7 @@
 
 from collections import namedtuple
 import array
+import errno
 import fcntl
 import platform
 import struct
@@ -304,3 +305,343 @@ def ino_lookup(fd, treeid=0, objectid=FIRST_FREE_OBJECTID):
     fcntl.ioctl(fd, IOC_INO_LOOKUP, args)
     treeid, _, name_bytes = ioctl_ino_lookup_args.unpack_from(args, 0)
     return InoLookupResult(treeid, name_bytes.split(b'\0', 1)[0])
+
+
+BALANCE_ARGS_PROFILES = 1 << 0
+BALANCE_ARGS_USAGE = 1 << 1
+BALANCE_ARGS_DEVID = 1 << 2
+BALANCE_ARGS_DRANGE = 1 << 3
+BALANCE_ARGS_VRANGE = 1 << 4
+BALANCE_ARGS_LIMIT = 1 << 5
+BALANCE_ARGS_LIMIT_RANGE = 1 << 6
+BALANCE_ARGS_STRIPES_RANGE = 1 << 7
+BALANCE_ARGS_CONVERT = 1 << 8
+BALANCE_ARGS_SOFT = 1 << 9
+BALANCE_ARGS_USAGE_RANGE = 1 << 10
+
+_balance_args_flags_str_map = {
+    BALANCE_ARGS_PROFILES: 'PROFILES',
+    BALANCE_ARGS_USAGE: 'USAGE',
+    BALANCE_ARGS_DEVID: 'DEVID',
+    BALANCE_ARGS_DRANGE: 'DRANGE',
+    BALANCE_ARGS_VRANGE: 'VRANGE',
+    BALANCE_ARGS_LIMIT: 'LIMIT',
+    BALANCE_ARGS_LIMIT_RANGE: 'LIMIT_RANGE',
+    BALANCE_ARGS_STRIPES_RANGE: 'STRIPES_RANGE',
+    BALANCE_ARGS_CONVERT: 'CONVERT',
+    BALANCE_ARGS_SOFT: 'SOFT',
+    BALANCE_ARGS_USAGE_RANGE: 'USAGE_RANGE',
+}
+
+
+#
+# Note: does not implement single usage and limit values, so incompatible with
+# kernel < 4.4
+#
+class BalanceArgs(object):
+    def __init__(self, profiles=None, usage_min=None, usage_max=None,
+                 devid=None, pstart=None, pend=None, vstart=None, vend=None,
+                 target=None, limit_min=None, limit_max=None,
+                 stripes_min=None, stripes_max=None, soft=False):
+        self.flags = 0
+
+        if profiles is not None:
+            self.flags |= BALANCE_ARGS_PROFILES
+            self.profiles = profiles
+        else:
+            self.profiles = 0
+
+        if usage_min is not None:
+            self.flags |= BALANCE_ARGS_USAGE_RANGE
+            self.usage_min = usage_min
+        else:
+            self.usage_min = 0
+
+        if usage_max is not None:
+            self.flags |= BALANCE_ARGS_USAGE_RANGE
+            self.usage_max = usage_max
+        else:
+            self.usage_max = 100
+
+        if devid is not None:
+            self.flags |= BALANCE_ARGS_DEVID
+            self.devid = devid
+            if pstart is not None:
+                self.flags |= BALANCE_ARGS_DRANGE
+                self.pstart = pstart
+            else:
+                self.pstart = 0
+            if pend is not None:
+                self.flags |= BALANCE_ARGS_DRANGE
+                self.pend = pend
+            else:
+                self.pend = ULLONG_MAX
+        else:
+            self.devid = 0
+            self.pstart = 0
+            self.pend = ULLONG_MAX
+
+        if vstart is not None:
+            self.flags |= BALANCE_ARGS_VRANGE
+            self.vstart = vstart
+        else:
+            self.vstart = 0
+        if vend is not None:
+            self.flags |= BALANCE_ARGS_VRANGE
+            self.vend = vend
+        else:
+            self.vend = ULLONG_MAX
+
+        if target is not None:
+            self.flags |= BALANCE_ARGS_CONVERT
+            self.target = target
+            if soft:
+                self.flags |= BALANCE_ARGS_SOFT
+                self.soft = soft
+        else:
+            self.target = 0
+
+        if limit_min is not None:
+            self.flags |= BALANCE_ARGS_LIMIT_RANGE
+            self.limit_min = limit_min
+        else:
+            self.limit_min = 0
+
+        if limit_max is not None:
+            self.flags |= BALANCE_ARGS_LIMIT_RANGE
+            self.limit_max = limit_max
+        else:
+            self.limit_max = ULONG_MAX
+
+        if stripes_min is not None:
+            self.flags |= BALANCE_ARGS_STRIPES_RANGE
+            self.stripes_min = stripes_min
+        else:
+            self.stripes_min = 0
+
+        if stripes_max is not None:
+            self.flags |= BALANCE_ARGS_STRIPES_RANGE
+            self.stripes_max = stripes_max
+        else:
+            self.stripes_max = ULONG_MAX
+
+    def for_struct(self):
+        return self.profiles, self.usage_min, self.usage_max, self.devid, self.pstart, self.pend, \
+            self.vstart, self.vend, self.target, self.flags, self.limit_min, self.limit_max, \
+            self.stripes_min, self.stripes_max
+
+    def __repr__(self):
+        opts = []
+        if self.flags & BALANCE_ARGS_PROFILES:
+            opts.append("profiles={:#x}".format(self.profiles))
+        if self.flags & BALANCE_ARGS_USAGE_RANGE:
+            opts.append("usage_min={}, usage_max={}".format(self.usage_min, self.usage_max))
+        if self.flags & BALANCE_ARGS_DEVID:
+            opts.append("devid={}".format(self.devid))
+        if self.flags & BALANCE_ARGS_DRANGE:
+            opts.append("pstart={}, pend={}".format(self.pstart, self.pend))
+        if self.flags & BALANCE_ARGS_VRANGE:
+            opts.append("vstart={}, vend={}".format(self.vstart, self.vend))
+        if self.flags & BALANCE_ARGS_CONVERT:
+            opts.append("target={:#x}".format(self.target))
+        if self.flags & BALANCE_ARGS_LIMIT_RANGE:
+            opts.append("limit_min={}, limit_max={}".format(self.limit_min, self.limit_max))
+        if self.flags & BALANCE_ARGS_STRIPES_RANGE:
+            opts.append("stripes_min={}, stripes_max={}".format(
+                self.stripes_min, self.stripes_max))
+        if self.flags & BALANCE_ARGS_SOFT:
+            opts.append("soft=True")
+        return "BalanceArgs({})".format(', '.join(opts))
+
+    @property
+    def flags_str(self):
+        return btrfs.utils.flags_str(self.flags, _balance_args_flags_str_map)
+
+    def __str__(self):
+        opts = []
+        if self.flags & BALANCE_ARGS_PROFILES:
+            opts.append("profiles={}".format(
+                btrfs.utils.flags_str(self.profiles, btrfs.ctree._balance_args_profiles_str_map)))
+        if self.flags & BALANCE_ARGS_USAGE_RANGE:
+            opts.append("usage={}..{}".format(self.usage_min, self.usage_max))
+        if self.flags & BALANCE_ARGS_DEVID:
+            opts.append("devid={}".format(self.devid))
+        if self.flags & BALANCE_ARGS_DRANGE:
+            opts.append("drange={}..{}".format(self.pstart, self.pend))
+        if self.flags & BALANCE_ARGS_VRANGE:
+            opts.append("vrange={}..{}".format(self.vstart, self.vend))
+        if self.flags & BALANCE_ARGS_CONVERT:
+            opts.append("target={}".format(
+                btrfs.utils.flags_str(self.target, btrfs.ctree._balance_args_profiles_str_map)))
+        if self.flags & BALANCE_ARGS_LIMIT_RANGE:
+            opts.append("limit={}..{}".format(self.limit_min, self.limit_max))
+        if self.flags & BALANCE_ARGS_STRIPES_RANGE:
+            opts.append("stripes={}..{}".format(self.stripes_min, self.stripes_max))
+        if self.flags & BALANCE_ARGS_SOFT:
+            opts.append("soft")
+        return "flags({}) {}".format(self.flags_str, ', '.join(opts))
+
+
+BALANCE_DATA = 1 << 0
+BALANCE_SYSTEM = 1 << 1
+BALANCE_METADATA = 1 << 2
+BALANCE_TYPE_MASK = BALANCE_DATA | BALANCE_SYSTEM | BALANCE_METADATA
+BALANCE_FORCE = 1 << 3
+BALANCE_RESUME = 1 << 4
+
+BALANCE_STATE_RUNNING = 1 << 0
+BALANCE_STATE_PAUSE_REQ = 1 << 1
+BALANCE_STATE_CANCEL_REQ = 1 << 2
+
+_balance_state_str_map = {
+    BALANCE_STATE_RUNNING: 'RUNNING',
+    BALANCE_STATE_PAUSE_REQ: 'PAUSE_REQ',
+    BALANCE_STATE_CANCEL_REQ: 'CANCEL_REQ',
+}
+
+_balance_args = struct.Struct('=QLL7Q4L48x')
+_balance_progress = struct.Struct('=3Q')
+
+
+class BalanceProgress(object):
+    def __init__(self, state, expected, considered, completed):
+        self.state = state
+        self.expected = expected
+        self.considered = considered
+        self.completed = completed
+
+    @property
+    def state_str(self):
+        return btrfs.utils.flags_str(self.state, _balance_state_str_map)
+
+    def __repr__(self):
+        return "BalanceProgress(state={self.state:#x}, expected={self.expected}, " \
+            "considered={self.considered}, completed={self.completed}".format(self=self)
+
+    def __str__(self):
+        return "state {self.state_str} expected {self.expected} considered {self.considered} " \
+            "completed {self.completed}".format(self=self)
+
+
+_ioctl_balance_args = [
+    struct.Struct('=Q'),  # 0 - flags - in/out
+    struct.Struct('=Q'),  # 1 - state - out
+    _balance_args,  # 2 - data - in/out
+    _balance_args,  # 3 - meta - in/out
+    _balance_args,  # 4 - sys - in/out
+    _balance_progress,  # 5 - stat - out
+    struct.Struct('=576x')
+]
+ioctl_balance_args = struct.Struct('=' + ''.join([s.format[1:].decode()
+                                                  for s in _ioctl_balance_args]))
+IOC_BALANCE_V2 = _IOWR(BTRFS_IOCTL_MAGIC, 32, ioctl_balance_args)
+
+
+class BalanceError(Exception):
+    def __init__(self, state, msg):
+        self.state = state
+        self.msg = msg
+
+    @property
+    def errno(self):
+        return self.__context__.errno
+
+    def __str__(self):
+        return self.msg
+
+
+def balance_v2(fd, data_args=None, meta_args=None, sys_args=None, force=False, resume=False):
+    args = bytearray(ioctl_balance_args.size)
+    if resume:
+        _ioctl_balance_args[0].pack_into(args, 0, BALANCE_RESUME)
+    else:
+        flags = 0
+        pos = _ioctl_balance_args[0].size
+        pos += _ioctl_balance_args[1].size
+        if data_args is not None:
+            flags |= BALANCE_DATA
+            _balance_args.pack_into(args, pos, *data_args.for_struct())
+        pos += _balance_args.size
+        if meta_args is not None:
+            flags |= BALANCE_METADATA
+            _balance_args.pack_into(args, pos, *meta_args.for_struct())
+        pos += _balance_args.size
+        if sys_args is not None:
+            flags |= BALANCE_SYSTEM
+            _balance_args.pack_into(args, pos, *sys_args.for_struct())
+        if force:
+            flags |= BALANCE_FORCE
+        _ioctl_balance_args[0].pack_into(args, 0, flags)
+    try:
+        fcntl.ioctl(fd, IOC_BALANCE_V2, args)
+    except OSError as oserror:
+        pos = _ioctl_balance_args[0].size
+        state, = _ioctl_balance_args[1].unpack_from(args, pos)
+        errorcode = errno.errorcode[oserror.errno]
+        if oserror.errno == errno.ECANCELED:
+            if state & BALANCE_STATE_PAUSE_REQ:
+                msg = "Balance paused by user"
+            if state & BALANCE_STATE_CANCEL_REQ:
+                msg = "Balance canceled by user"
+        elif oserror.errno == errno.ENOTCONN and resume:
+            msg = "Balance resume failed: Not in progress ({})".format(errorcode)
+        elif oserror.errno == errno.EINPROGRESS:
+            if resume:
+                msg = "Balance resume failed: Already running ({})".format(errorcode)
+            else:
+                msg = "Balance start failed: Already in progress ({})".format(errorcode)
+        else:
+            msg = "Error during balancing, there may be more info in dmesg: {}, " \
+                "state {}".format(errorcode,
+                                  btrfs.utils.flags_str(state, _balance_state_str_map))
+        raise BalanceError(state, msg) from None
+    pos = _ioctl_balance_args[0].size
+    state, = _ioctl_balance_args[1].unpack_from(args, pos)
+    pos = sum(x.size for x in _ioctl_balance_args[:5])
+    return BalanceProgress(state, *_balance_progress.unpack_from(args, pos))
+
+
+BALANCE_CTL_PAUSE = 1
+BALANCE_CTL_CANCEL = 2
+ioctl_balance_ctl_int = struct.Struct('=i')
+IOC_BALANCE_CTL = _IOW(BTRFS_IOCTL_MAGIC, 33, ioctl_balance_ctl_int)
+
+
+def balance_ctl(fd, cmd):
+    try:
+        fcntl.ioctl(fd, IOC_BALANCE_CTL, cmd)
+    except OSError as oserror:
+        errorcode = errno.errorcode[oserror.errno]
+        if cmd == BALANCE_CTL_PAUSE:
+            if oserror.errno == errno.ENOTCONN:
+                msg = "Balance pause failed: Not in progress ({})".format(errorcode)
+            else:
+                msg = "Balance pause failed ({})".format(errorcode)
+        elif cmd == BALANCE_CTL_CANCEL:
+            if oserror.errno == errno.ENOTCONN:
+                msg = "Balance cancel failed: Not in progress ({})".format(errorcode)
+            else:
+                msg = "Balance cancel failed ({})".format(errorcode)
+        raise BalanceError(0, msg) from None
+
+
+IOC_BALANCE_PROGRESS = _IOR(BTRFS_IOCTL_MAGIC, 34, ioctl_balance_args)
+
+
+def balance_progress(fd):
+    args = bytearray(ioctl_balance_args.size)
+    try:
+        fcntl.ioctl(fd, IOC_BALANCE_PROGRESS, args)
+    except OSError as oserror:
+        pos = _ioctl_balance_args[0].size
+        state, = _ioctl_balance_args[1].unpack_from(args, pos)
+        errorcode = errno.errorcode[oserror.errno]
+        if oserror.errno == errno.ENOTCONN:
+            msg = "No balance found ({})".format(errorcode)
+        else:
+            msg = "Balance progress failed ({})".format(errorcode)
+        raise BalanceError(0, msg) from None
+    pos = _ioctl_balance_args[0].size
+    state, = _ioctl_balance_args[1].unpack_from(args, pos)
+    pos = sum(x.size for x in _ioctl_balance_args[:5])
+    return BalanceProgress(state, *_balance_progress.unpack_from(args, pos))
