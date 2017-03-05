@@ -127,11 +127,30 @@ BLOCK_GROUP_PROFILE_MASK = (
 
 SPACE_INFO_GLOBAL_RSV = 1 << 49
 
+
+_block_group_flags_str_map = {
+    BLOCK_GROUP_DATA: 'DATA',
+    BLOCK_GROUP_METADATA: 'METADATA',
+    BLOCK_GROUP_SYSTEM: 'SYSTEM',
+    BLOCK_GROUP_RAID0: 'RAID0',
+    BLOCK_GROUP_RAID1: 'RAID1',
+    BLOCK_GROUP_DUP: 'DUP',
+    BLOCK_GROUP_RAID10: 'RAID10',
+    BLOCK_GROUP_RAID5: 'RAID5',
+    BLOCK_GROUP_RAID6: 'RAID6',
+}
+
 QGROUP_LEVEL_SHIFT = 48
 
 EXTENT_FLAG_DATA = 1 << 0
 EXTENT_FLAG_TREE_BLOCK = 1 << 1
 BLOCK_FLAG_FULL_BACKREF = 1 << 8
+
+_extent_flags_str_map = {
+    EXTENT_FLAG_DATA: 'DATA',
+    EXTENT_FLAG_TREE_BLOCK: 'TREE_BLOCK',
+    BLOCK_FLAG_FULL_BACKREF: 'FULL_BACKREF',
+}
 
 INODE_NODATASUM = 1 << 0
 INODE_NODATACOW = 1 << 1
@@ -586,7 +605,7 @@ class Chunk(object):
 
     @property
     def flags_str(self):
-        return btrfs.utils.block_group_flags_str(self.type)
+        return btrfs.utils.flags_str(self.flags, _block_group_flags_str_map)
 
     def __str__(self):
         return "chunk vaddr {self.vaddr} type {self.flags_str} length {self.length} " \
@@ -639,7 +658,7 @@ class BlockGroupItem(object):
 
     @property
     def flags_str(self):
-        return btrfs.utils.block_group_flags_str(self.flags)
+        return btrfs.utils.flags_str(self.flags, _block_group_flags_str_map)
 
     def __str__(self):
         return "block group vaddr {self.vaddr} transid {self.transid} length {self.length} " \
@@ -701,7 +720,7 @@ class ExtentItem(object):
 
     @property
     def flags_str(self):
-        return btrfs.utils.extent_flags_str(self.flags)
+        return btrfs.utils.flags_str(self.flags, _extent_flags_str_map)
 
     def __str__(self):
         return "extent vaddr {self.vaddr} length {self.length} refs {self.refs} " \
@@ -800,7 +819,7 @@ class MetaDataItem(object):
 
     @property
     def flags_str(self):
-        return btrfs.utils.extent_flags_str(self.flags)
+        return btrfs.utils.flags_str(self.flags, _extent_flags_str_map)
 
     def __str__(self):
         return "metadata vaddr {self.vaddr} refs {self.refs} gen {self.generation} " \

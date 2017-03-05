@@ -24,7 +24,6 @@ from btrfs.ctree import (
     BLOCK_GROUP_RAID6, BLOCK_GROUP_DUP, BLOCK_GROUP_RAID10,
     BLOCK_GROUP_SINGLE,
     BLOCK_GROUP_PROFILE_MASK,
-    EXTENT_FLAG_DATA, EXTENT_FLAG_TREE_BLOCK, BLOCK_FLAG_FULL_BACKREF,
 )
 
 
@@ -101,40 +100,6 @@ def pretty_size(size, unit=None, binary=True):
     return "{0:.2f}{1}{2}B".format(size, unit, 'i' if base == 1024 and unit != '' else '')
 
 
-def block_group_flags_str(flags):
-    ret = []
-    if flags & BLOCK_GROUP_DATA:
-        ret.append("DATA")
-    if flags & BLOCK_GROUP_METADATA:
-        ret.append("METADATA")
-    if flags & BLOCK_GROUP_SYSTEM:
-        ret.append("SYSTEM")
-    if flags & BLOCK_GROUP_RAID0:
-        ret.append("RAID0")
-    if flags & BLOCK_GROUP_RAID1:
-        ret.append("RAID1")
-    if flags & BLOCK_GROUP_DUP:
-        ret.append("DUP")
-    if flags & BLOCK_GROUP_RAID10:
-        ret.append("RAID10")
-    if flags & BLOCK_GROUP_RAID5:
-        ret.append("RAID5")
-    if flags & BLOCK_GROUP_RAID6:
-        ret.append("RAID6")
-    return '|'.join(ret)
-
-
-def extent_flags_str(flags):
-    ret = []
-    if flags & EXTENT_FLAG_DATA:
-        ret.append("DATA")
-    if flags & EXTENT_FLAG_TREE_BLOCK:
-        ret.append("TREE_BLOCK")
-    if flags & BLOCK_FLAG_FULL_BACKREF:
-        ret.append("FULL_BACKREF")
-    return '|'.join(ret)
-
-
 def flags_str(flags, flags_str_map):
     ret = []
     for flag in sorted(flags_str_map.keys()):
@@ -143,6 +108,10 @@ def flags_str(flags, flags_str_map):
     if len(ret) == 0:
         ret.append("none")
     return '|'.join(ret)
+
+
+def block_group_flags_str(flags):
+    return flags_str(flags, btrfs.ctree._block_group_flags_str_map)
 
 
 _block_group_profile_ratio_map = {
