@@ -148,6 +148,16 @@ class DevStats(object):
             self.flush_errs, self.generation_errs, self.corruption_errs = \
             ioctl_get_dev_stats.unpack_from(buf)
 
+    @property
+    def counters(self):
+        return {
+            'write': self.write_errs,
+            'read': self.read_errs,
+            'flush': self.flush_errs,
+            'generation': self.generation_errs,
+            'corruption': self.corruption_errs,
+        }
+
     def __str__(self):
         return "devid {0} write_errs {1} read_errs {2} flush_errs {3} generation_errs {4} " \
             "corruption_errs {5}".format(self.devid, self.write_errs, self.read_errs,

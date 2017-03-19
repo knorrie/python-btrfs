@@ -74,7 +74,7 @@ def get_args():
     return STATE_OK, args
 
 
-def check_usage(args):
+def check_usage(args, fs):
     warning = False
     critical = False
     msg = []
@@ -82,7 +82,6 @@ def check_usage(args):
     GiB = 1073741824
     bups = btrfs.utils.pretty_size
 
-    fs = btrfs.FileSystem(args.mountpoint)
     dev_total, allocated, used, wasted_hard, wasted_soft = btrfs.utils.fs_usage(fs)
     total = dev_total - wasted_hard - wasted_soft
     wasted = wasted_hard + wasted_soft
@@ -122,17 +121,53 @@ def check_usage(args):
     return STATE_OK, msg, summary
 
 
+def check_dev_stats(fs):
+    state = STATE_OK
+    msg = []
+    summary = []
+    devices = list(fs.devices())
+    for device in devices:
+        stats = fs.dev_stats(device.devid)
+        device_msg = ["{} {}".format(value, counter)
+                      for counter, value in stats.counters.items()
+                      if value != 0]
+        if len(device_msg) > 0:
+            msg.append("Critical: Device {} has errors: {}".format(
+                device.devid, ", ".join(device_msg)))
+            state = STATE_CRITICAL
+    summary.append("{} device(s)".format(len(devices)))
+    if state != STATE_OK:
+        return state, msg, summary
+    summary.append("No device errors registered")
+    return state, msg, summary
+
+
 def main():
     args_state, args = get_args()
     if args_state != STATE_OK:
         return args_state
-    usage_state, usage_msg, usage_summary = check_usage(args)
-    if usage_state != STATE_OK:
-        print(", ".join(usage_msg))
+
+    fs = btrfs.FileSystem(args.mountpoint)
+    state = STATE_OK
+    msg = []
+    summary = []
+
+    usage_state, usage_msg, usage_summary = check_usage(args, fs)
+    state = max(state, usage_state)
+    msg.extend(usage_msg)
+    summary.extend(usage_summary)
+
+    dev_stats_state, dev_stats_msg, dev_stats_summary = check_dev_stats(fs)
+    state = max(state, dev_stats_state)
+    msg.extend(dev_stats_msg)
+    summary.extend(dev_stats_summary)
+
+    if len(msg) > 0:
+        print(", ".join(msg))
     else:
         print("BTRFS OK")
-    print(", ".join(usage_summary))
-    return usage_state
+    print(", ".join(summary))
+    return state
 
 
 if __name__ == "__main__":
