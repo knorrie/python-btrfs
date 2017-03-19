@@ -27,58 +27,51 @@ STATE_CRITICAL = 2
 STATE_UNKNOWN = 3
 
 
-class CheckBtrfsException(Exception):
-    def __init__(self, status, msg):
-        self.status = status
-        self.msg = msg
-
-
 def get_args():
     parser = argparse.ArgumentParser("Check BTRFS filesystem usage")
     parser.add_argument('-awg', '--allocated-warning-gib', type=int, default=0,
-                        help='Exit with WARNING status if less than the specified amount of '
-                        'disk space (in GiB) is unallocated')
+                        help="Exit with WARNING status if less than the specified amount of "
+                        "disk space (in GiB) is unallocated")
     parser.add_argument('-acg', '--allocated-critical-gib', type=int, default=0,
-                        help='Exit with CRITICAL status if less than the specified amount of '
-                        'disk space (in GiB) is unallocated')
+                        help="Exit with CRITICAL status if less than the specified amount of "
+                        "disk space (in GiB) is unallocated")
     parser.add_argument('-awp', '--allocated-warning-percent', type=int, default=100,
-                        help='Exit with WARNING status if more than the specified percent of '
-                        'disk space is allocated')
+                        help="Exit with WARNING status if more than the specified percent of "
+                        "disk space is allocated")
     parser.add_argument('-acp', '--allocated-critical-percent', type=int, default=100,
-                        help='Exit with CRITICAL status if more than the specified percent of '
-                        'disk space is allocated')
+                        help="Exit with CRITICAL status if more than the specified percent of "
+                        "disk space is allocated")
     parser.add_argument('-m', '--mountpoint', required=True,
-                        help='Path to the BTRFS mountpoint')
+                        help="Path to the BTRFS mountpoint")
     args = parser.parse_args()
 
     if not os.path.exists(args.mountpoint):
-        raise CheckBtrfsException(STATE_CRITICAL,
-                                  'BTRFS mountpoint does not exist: %s' % args.mountpoint)
+        print("BTRFS mountpoint does not exist: {}".format(args.mountpoint))
+        return STATE_CRITICAL, args
 
     if not os.access(args.mountpoint, os.R_OK):
-        raise CheckBtrfsException(STATE_CRITICAL,
-                                  'CRITICAL: Mountpoint is not accessible: %s' %
-                                  args.mountpoint)
+        print("Mountpoint is not accessible: {}".format(args.mountpoint))
+        return STATE_CRITICAL, args
 
     if args.allocated_warning_gib < 0:
-        raise CheckBtrfsException(
-            STATE_CRITICAL, 'CRITICAL: Allocated GiB warning threshold must be a '
-            'positive integer value: {0}'.format(args.allocated_warning_gib))
+        print("Allocated GiB warning threshold must be a positive integer value: {}".format(
+            args.allocated_warning_gib))
+        return STATE_CRITICAL, args
     if args.allocated_critical_gib < 0:
-        raise CheckBtrfsException(
-            STATE_CRITICAL, 'CRITICAL: Allocated GiB critical threshold must be a '
-            'positive integer value: {0}'.format(args.allocated_critical_gib))
+        print("Allocated GiB critical threshold must be a positive integer value: {}".format(
+            args.allocated_critical_gib))
+        return STATE_CRITICAL, args
 
     if args.allocated_warning_percent < 0 or args.allocated_warning_percent > 100:
-        raise CheckBtrfsException(
-            STATE_CRITICAL, 'CRITICAL: Allocated warning percentage must be between '
-            '0 and 100: {0}'.format(args.allocated_warning_percent))
+        print("Allocated warning percentage must be between 0 and 100: {}".format(
+            args.allocated_warning_percent))
+        return STATE_CRITICAL, args
     if args.allocated_critical_percent < 0 or args.allocated_critical_percent > 100:
-        raise CheckBtrfsException(
-            STATE_CRITICAL, 'CRITICAL: Allocated critical percentage must be between '
-            '0 and 100: {0}'.format(args.allocated_critical_percent))
+        print("Allocated critical percentage must be between 0 and 100: {}".format(
+            args.allocated_critical_percent))
+        return STATE_CRITICAL, args
 
-    return args
+    return STATE_OK, args
 
 
 def check_usage(args):
@@ -97,11 +90,11 @@ def check_usage(args):
     unused = total - used
 
     if unallocated < args.allocated_critical_gib * GiB:
-        msg.append('Critical: Unallocated left: {0} (Unused left: {1})'.format(
+        msg.append("Critical: Unallocated left: {} (Unused left: {})".format(
             bups(unallocated), bups(unused)))
         critical = True
     elif unallocated < args.allocated_warning_gib * GiB:
-        msg.append('Warning: Unallocated left: {0} (Unused left: {1})'.format(
+        msg.append("Warning: Unallocated left: {} (Unused left: {})".format(
             bups(unallocated), bups(unused)))
         warning = True
 
@@ -109,43 +102,38 @@ def check_usage(args):
     used_pct = int(round((used * 100) / total))
 
     if allocated_pct >= args.allocated_critical_percent:
-        msg.append('Critical: Allocated: {0}% (Used: {1}%)'.format(allocated_pct, used_pct))
+        msg.append("Critical: Allocated: {}% (Used: {}%)".format(allocated_pct, used_pct))
         critical = True
     elif allocated_pct >= args.allocated_warning_percent:
-        msg.append('Warning: Allocated: {0}% (Used: {1}%)'.format(allocated_pct, used_pct))
+        msg.append("Warning: Allocated: {}% (Used: {}%)".format(allocated_pct, used_pct))
         warning = True
 
-    if critical or warning:
-        print(', '.join(msg))
-    else:
-        if len(msg) > 0:
-            print('BTRFS OK: {0}'.format(', '.join(msg)))
-        else:
-            print('BTRFS OK')
-
     summary = []
-    summary.append('Total size: {0}'.format(bups(dev_total)))
-    summary.append('Allocated: {0} ({1}%)'.format(bups(allocated), allocated_pct))
+    summary.append("Total size: {}".format(bups(dev_total)))
+    summary.append("Allocated: {} ({}%)".format(bups(allocated), allocated_pct))
     if wasted > 0:
-        summary.append('Wasted: {0} (Reclaimable: {1})'.format(bups(wasted), bups(wasted_soft)))
-    summary.append('Used: {0} ({1}%)'.format(bups(used), used_pct))
-    print(', '.join(summary))
+        summary.append("Wasted: {} (Reclaimable: {})".format(bups(wasted), bups(wasted_soft)))
+    summary.append("Used: {} ({}%)".format(bups(used), used_pct))
 
     if critical:
-        return STATE_CRITICAL
+        return STATE_CRITICAL, msg, summary
     if warning:
-        return STATE_WARNING
-    return STATE_OK
+        return STATE_WARNING, msg, summary
+    return STATE_OK, msg, summary
 
 
 def main():
-    try:
-        args = get_args()
-        sys.exit(check_usage(args))
-    except CheckBtrfsException as cbe:
-        print(cbe.msg)
-        sys.exit(cbe.status)
+    args_state, args = get_args()
+    if args_state != STATE_OK:
+        return args_state
+    usage_state, usage_msg, usage_summary = check_usage(args)
+    if usage_state != STATE_OK:
+        print(", ".join(usage_msg))
+    else:
+        print("BTRFS OK")
+    print(", ".join(usage_summary))
+    return usage_state
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
