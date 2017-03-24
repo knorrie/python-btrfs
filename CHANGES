@@ -1,3 +1,20 @@
+python-btrfs v6, Mar 24 2017
+  * Only Python 3 supported from now on
+  * IOCTLs: INO_LOOKUP, LOGICAL_INO, TREE_SEARCH_V2, IOC_BALANCE_V2,
+    IOC_BALANCE_CTL, BALANCE_PROGRESS
+  * Data structures: InodeRef, DirItem, DirIndex, XAttrItem,
+    FileExtentItem, InodeExtref
+  * Add a helper to retrieve free space tree extents
+  * Check device error counters in the nagios plugin
+  * Fixes:
+    - Not loading backreferences for extents was broken
+    - Handle IOCTL differences for different architectures
+  * Examples added:
+    - Show directory contents (both the index and namehash list)
+    - Try to show a filename for data extents
+    - Show file information (inode, xattrs, etc, and list of extents)
+    - Show subvolumes
+
 python-btrfs v5, Jan 14 2017
   * Revamp and fix loading of extent backreferences.
   * Explode when detecting a non x86_64 arch.
