@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: python-btrfs
-Upstream-Contact: Hans van Kranenburg <hans.van.kranenburg@mendix.com>
+Upstream-Contact: Hans van Kranenburg <hans@knorrie.org>
 Source: https://github.com/knorrie/python-btrfs/
 
 Files: *

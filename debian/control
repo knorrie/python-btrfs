@@ -1,7 +1,7 @@
 Source: python-btrfs
 Section: libs
 Priority: extra
-Maintainer: Hans van Kranenburg <hans.van.kranenburg@mendix.com>
+Maintainer: Hans van Kranenburg <hans@knorrie.org>
 Build-Depends: debhelper (>= 9),
                dh-python,
                python3-all,
