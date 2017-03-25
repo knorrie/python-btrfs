@@ -11,7 +11,7 @@ setup(
     description='Python module to inspect btrfs filesystems.',
     long_description=long_description,
     author='Hans van Kranenburg',
-    author_email='hans.van.kranenburg@mendix.com',
+    author_email='hans@knorrie.org',
     url='https://github.com/knorrie/python-btrfs',
     download_url='https://github.com/knorrie/python-btrfs/tarball/v5',
     keywords=['btrfs', 'filesystem'],

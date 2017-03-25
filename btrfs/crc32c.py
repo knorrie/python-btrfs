@@ -1,4 +1,4 @@
-# Copyright (C) 2017 Hans van Kranenburg <hans.van.kranenburg@mendix.com>
+# Copyright (C) 2017 Hans van Kranenburg <hans@knorrie.org>
 #
 # This file is part of the python-btrfs module.
 #
