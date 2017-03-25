@@ -8,7 +8,7 @@ Standards-Version: 3.9.8
 Package: python3-btrfs
 Architecture: all
 Depends: ${python3:Depends}, ${misc:Depends}
-Description: Python module to inspect btrfs filesystems.
+Description: python module to inspect btrfs filesystems
  Currently, the primary goal of this module is to be able to inspect the
  internals of an existing filesystem for educational purposes.
  .
@@ -22,11 +22,31 @@ Architecture: all
 Depends: ${misc:Depends}, munin-node, python3, python3-btrfs
 Priority: extra
 Section: net
-Description: Munin plugin to graph space usage of Btrfs filesystems.
+Description: munin plugin for monitoring btrfs filesystems
+ This munin plugin uses the python btrfs module to retrieve information about
+ disk space allocation and usage.
+ .
+ Traditional space usage monitoring based on the output of df is not sufficient
+ when using btrfs. This plugin takes allocated but unused disk space, and
+ unallocatable disk space (for example when mixing different sized disks with
+ raid profiles) into account. It is meant to be used as an addition to using a
+ regular disk usage plugin, based on df output.
 
 Package: nagios-plugins-btrfs
 Architecture: all
 Depends: ${misc:Depends}, python3, python3-btrfs
 Priority: extra
 Section: net
-Description: Nagios plugin to check usage and error counters of a Btrfs filesystem.
+Description: btrfs plugin for nagios compatible monitoring systems
+ This nagios compatible monitoring plugin will check available space and error
+ statistics of a btrfs filesystem.
+ .
+ Traditional space usage monitoring based on the output of df is not sufficient
+ when using btrfs. This plugin takes allocated but unused disk space, and
+ unallocatable disk space (for example when mixing different sized disks with
+ raid profiles) into account. It is meant to be used as an addition to using a
+ regular disk usage plugin, based on df output.
+ .
+ Additionally, the check keeps an eye on device error stats and will report if
+ any of the counters (read errors, write errors, etc) of a device that is part
+ of the filesystem is not zero.
