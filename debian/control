@@ -9,7 +9,7 @@ Build-Depends: debhelper (>= 9),
 Standards-Version: 3.9.8
 
 Package: python3-btrfs
-Architecture: amd64
+Architecture: all
 Depends: ${python3:Depends}, ${misc:Depends}
 Description: Python module to inspect btrfs filesystems.
  Currently, the primary goal of this module is to be able to inspect the
