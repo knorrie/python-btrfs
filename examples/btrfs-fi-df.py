@@ -1,6 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
-from __future__ import print_function
 import argparse
 import btrfs
 import sys
@@ -74,24 +73,24 @@ def main():
     args = parser.parse_args()
     unit = None
     binary = True
-    if args.raw is True:
+    if args.raw:
         unit = ''
-    if args.human_readable is True:
+    if args.human_readable:
         unit = None
-    if args.human_si is True:
+    if args.human_si:
         unit = None
         binary = False
-    if args.iec is True:
+    if args.iec:
         binary = True
-    if args.si is True:
+    if args.si:
         binary = False
-    if args.kbytes is True:
+    if args.kbytes:
         unit = 'K'
-    if args.mbytes is True:
+    if args.mbytes:
         unit = 'M'
-    if args.gbytes is True:
+    if args.gbytes:
         unit = 'G'
-    if args.tbytes is True:
+    if args.tbytes:
         unit = 'T'
     if len(args.junk) > 0:
         parser.print_help(sys.stderr)
@@ -99,11 +98,12 @@ def main():
 
     fs = btrfs.FileSystem(args.path[0])
     for space in fs.space_info():
-        print("{0}, {1}: total={2}, used={3}".format(
+        print("{}, {}: total={}, used={}".format(
               btrfs.utils.block_group_type_str(space.flags),
               btrfs.utils.block_group_profile_str(space.flags),
               btrfs.utils.pretty_size(space.total_bytes, unit, binary),
               btrfs.utils.pretty_size(space.used_bytes, unit, binary)))
+
 
 if __name__ == '__main__':
     main()

@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2017 Hans van Kranenburg <hans.van.kranenburg@mendix.com>
+# Copyright (C) 2016-2017 Hans van Kranenburg <hans@knorrie.org>
 #
 # This file is part of the python-btrfs module.
 #
@@ -16,7 +16,7 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
-from __future__ import division, print_function, absolute_import, unicode_literals
+from collections import namedtuple
 import copy
 import os
 import struct
@@ -125,13 +125,43 @@ BLOCK_GROUP_PROFILE_MASK = (
     BLOCK_GROUP_RAID10
 )
 
+AVAIL_ALLOC_BIT_SINGLE = 1 << 48  # used in balance_args
 SPACE_INFO_GLOBAL_RSV = 1 << 49
+
+
+_block_group_flags_str_map = {
+    BLOCK_GROUP_DATA: 'DATA',
+    BLOCK_GROUP_METADATA: 'METADATA',
+    BLOCK_GROUP_SYSTEM: 'SYSTEM',
+    BLOCK_GROUP_RAID0: 'RAID0',
+    BLOCK_GROUP_RAID1: 'RAID1',
+    BLOCK_GROUP_DUP: 'DUP',
+    BLOCK_GROUP_RAID10: 'RAID10',
+    BLOCK_GROUP_RAID5: 'RAID5',
+    BLOCK_GROUP_RAID6: 'RAID6',
+}
+
+_balance_args_profiles_str_map = {
+    BLOCK_GROUP_RAID0: 'RAID0',
+    BLOCK_GROUP_RAID1: 'RAID1',
+    BLOCK_GROUP_DUP: 'DUP',
+    BLOCK_GROUP_RAID10: 'RAID10',
+    BLOCK_GROUP_RAID5: 'RAID5',
+    BLOCK_GROUP_RAID6: 'RAID6',
+    AVAIL_ALLOC_BIT_SINGLE: 'SINGLE',
+}
 
 QGROUP_LEVEL_SHIFT = 48
 
 EXTENT_FLAG_DATA = 1 << 0
 EXTENT_FLAG_TREE_BLOCK = 1 << 1
 BLOCK_FLAG_FULL_BACKREF = 1 << 8
+
+_extent_flags_str_map = {
+    EXTENT_FLAG_DATA: 'DATA',
+    EXTENT_FLAG_TREE_BLOCK: 'TREE_BLOCK',
+    BLOCK_FLAG_FULL_BACKREF: 'FULL_BACKREF',
+}
 
 INODE_NODATASUM = 1 << 0
 INODE_NODATACOW = 1 << 1
@@ -164,6 +194,49 @@ ROOT_SUBVOL_RDONLY = 1 << 0
 
 _root_flags_str_map = {
     ROOT_SUBVOL_RDONLY: 'RDONLY',
+}
+
+FT_UNKNOWN = 0
+FT_REG_FILE = 1
+FT_DIR = 2
+FT_CHRDEV = 3
+FT_BLKDEV = 4
+FT_FIFO = 5
+FT_SOCK = 6
+FT_SYMLINK = 7
+FT_XATTR = 8
+FT_MAX = 9
+
+_dir_item_type_str_map = {
+    FT_UNKNOWN: 'UNKNOWN',
+    FT_REG_FILE: 'FILE',
+    FT_DIR: 'DIR',
+    FT_CHRDEV: 'CHRDEV',
+    FT_BLKDEV: 'BLKDEV',
+    FT_FIFO: 'FIFO',
+    FT_SOCK: 'SOCK',
+    FT_SYMLINK: 'SYMLINK',
+    FT_XATTR: 'XATTR',
+}
+
+COMPRESS_NONE = 0
+COMPRESS_ZLIB = 1
+COMPRESS_LZO = 2
+
+_compress_type_str_map = {
+    COMPRESS_NONE: 'none',
+    COMPRESS_ZLIB: 'zlib',
+    COMPRESS_LZO: 'lzo',
+}
+
+FILE_EXTENT_INLINE = 0
+FILE_EXTENT_REG = 1
+FILE_EXTENT_PREALLOC = 2
+
+_file_extent_type_str_map = {
+    FILE_EXTENT_INLINE: 'inline',
+    FILE_EXTENT_REG: 'regular',
+    FILE_EXTENT_PREALLOC: 'prealloc',
 }
 
 
@@ -203,9 +276,9 @@ def key_objectid_str(objectid, _type):
     if _type == DEV_EXTENT_KEY:
         return str(objectid)
     if _type == QGROUP_RELATION_KEY:
-        return "{0}/{1}".format(qgroup_level(objectid), qgroup_subvid(objectid))
+        return "{}/{}".format(qgroup_level(objectid), qgroup_subvid(objectid))
     if _type == UUID_KEY_SUBVOL or _type == UUID_KEY_RECEIVED_SUBVOL:
-        return "0x{0:0>16x}".format(objectid)
+        return "0x{:0>16x}".format(objectid)
 
     if objectid == ROOT_TREE_OBJECTID and _type == DEV_ITEM_KEY:
         return 'DEV_ITEMS'
@@ -267,16 +340,16 @@ def key_type_str(_type):
 
 def key_offset_str(offset, _type):
     if _type == QGROUP_RELATION_KEY or _type == QGROUP_INFO_KEY or _type == QGROUP_LIMIT_KEY:
-        return "{0}/{1}".format(qgroup_level(offset), qgroup_subvid(offset))
+        return "{}/{}".format(qgroup_level(offset), qgroup_subvid(offset))
     if _type == UUID_KEY_SUBVOL or _type == UUID_KEY_RECEIVED_SUBVOL:
-        return "0x{0:0>16x}".format(offset)
+        return "0x{:0>16x}".format(offset)
     if offset == ULLONG_MAX:
         return '-1'
 
     return str(offset)
 
 
-import btrfs.ioctl
+import btrfs.ioctl  # noqa
 
 
 class Key(object):
@@ -356,7 +429,7 @@ class Key(object):
         return self._key > other
 
     def __str__(self):
-        return "({0} {1} {2})".format(
+        return "({} {} {})".format(
             key_objectid_str(self._objectid, self._type),
             key_type_str(self._type),
             key_offset_str(self._offset, self._type),
@@ -374,7 +447,7 @@ class Key(object):
 
 
 class DiskKey(Key):
-    disk_key = struct.Struct("<QBQ")
+    disk_key = struct.Struct('<QBQ')
 
     def __init__(self, buf, pos=0):
         super(DiskKey, self).__init__(*DiskKey.disk_key.unpack_from(buf, pos))
@@ -402,22 +475,22 @@ class FileSystem(object):
         tree = CHUNK_TREE_OBJECTID
         min_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, min_devid)
         max_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, max_devid)
-        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+        for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
             yield DevItem(header, data)
 
     def chunks(self, min_vaddr=0, max_vaddr=ULLONG_MAX, nr_items=ULONG_MAX):
         tree = CHUNK_TREE_OBJECTID
         min_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, min_vaddr)
         max_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, max_vaddr)
-        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key,
-                                               nr_items=nr_items):
+        for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key,
+                                                  nr_items=nr_items):
             yield Chunk(header, data)
 
     def dev_extents(self, min_devid=1, max_devid=ULLONG_MAX):
         tree = DEV_TREE_OBJECTID
         min_key = btrfs.ctree.Key(min_devid, 0, 0)
         max_key = btrfs.ctree.Key(max_devid, 255, ULLONG_MAX)
-        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+        for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
             yield DevExtent(header, data)
 
     def block_group(self, vaddr, length=None):
@@ -428,7 +501,7 @@ class FileSystem(object):
         max_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, max_offset)
         block_groups = [BlockGroupItem(header, data)
                         for header, data in
-                        btrfs.ioctl.search(self.fd, tree, min_key, max_key, nr_items=1)]
+                        btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key, nr_items=1)]
         return block_groups[0]
 
     def extents(self, min_vaddr=0, max_vaddr=ULLONG_MAX,
@@ -437,7 +510,7 @@ class FileSystem(object):
         min_key = Key(min_vaddr, 0, 0)
         max_key = Key(max_vaddr, 255, ULLONG_MAX)
         extent = None
-        for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+        for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
             if header.type == EXTENT_ITEM_KEY:
                 if extent is not None:
                     yield extent
@@ -447,16 +520,20 @@ class FileSystem(object):
                 if extent is not None:
                     yield extent
                 extent = MetaDataItem(header, data, load_refs=load_metadata_refs)
-            elif header.type == EXTENT_DATA_REF_KEY and load_data_refs is True:
-                extent.append_extent_data_ref(ExtentDataRef(header, data))
-            elif header.type == SHARED_DATA_REF_KEY and load_data_refs is True:
-                extent.append_shared_data_ref(SharedDataRef(header, data))
-            elif header.type == TREE_BLOCK_REF_KEY and load_metadata_refs is True:
-                extent.append_tree_block_ref(TreeBlockRef(header))
-            elif header.type == SHARED_BLOCK_REF_KEY and load_metadata_refs is True:
-                extent.append_shared_block_ref(SharedBlockRef(header))
+            elif header.type == EXTENT_DATA_REF_KEY:
+                if load_data_refs:
+                    extent.append_extent_data_ref(ExtentDataRef(header, data))
+            elif header.type == SHARED_DATA_REF_KEY:
+                if load_data_refs:
+                    extent.append_shared_data_ref(SharedDataRef(header, data))
+            elif header.type == TREE_BLOCK_REF_KEY:
+                if load_metadata_refs:
+                    extent.append_tree_block_ref(TreeBlockRef(header))
+            elif header.type == SHARED_BLOCK_REF_KEY:
+                if load_metadata_refs:
+                    extent.append_shared_block_ref(SharedBlockRef(header))
             elif header.type != BLOCK_GROUP_ITEM_KEY:
-                raise Exception("BUG: unexpected object {0}".format(
+                raise Exception("BUG: unexpected object {}".format(
                     Key(header.objectid, header.type, header.offset)))
 
         if extent is not None:
@@ -477,7 +554,7 @@ class FileSystem(object):
         max_key = Key(max_id, max_type, ULLONG_MAX)
         cur_header = None
         cur_data = None
-        for next_header, next_data in btrfs.ioctl.search(self.fd, tree, min_key, max_key):
+        for next_header, next_data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
             if next_header.type != ROOT_ITEM_KEY:
                 continue
             if cur_header is not None and next_header.objectid > cur_header.objectid:
@@ -493,12 +570,20 @@ class FileSystem(object):
         min_key = Key(ORPHAN_OBJECTID, ORPHAN_ITEM_KEY, 0)
         max_key = Key(ORPHAN_OBJECTID, ORPHAN_ITEM_KEY, ULLONG_MAX)
         subvol_ids = [header.offset
-                      for header, data in btrfs.ioctl.search(self.fd, tree, min_key, max_key)]
+                      for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key)]
         return subvol_ids
+
+    def free_space_extents(self, min_vaddr=0, max_vaddr=ULLONG_MAX):
+        tree = FREE_SPACE_TREE_OBJECTID
+        min_key = Key(min_vaddr, 0, 0)
+        max_key = Key(max_vaddr, 255, ULLONG_MAX)
+        for header, _ in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
+            if header.type == FREE_SPACE_EXTENT_KEY:
+                yield FreeSpaceExtent(header.objectid, header.offset)
 
 
 class DevItem(object):
-    dev_item = struct.Struct("<3Q3L3QL2B16s16s")
+    dev_item = struct.Struct('<3Q3L3QL2B16s16s')
 
     def __init__(self, header, buf, pos=0):
         self.key = Key(header.objectid, header.type, header.offset)
@@ -510,12 +595,12 @@ class DevItem(object):
         self.fsid = uuid.UUID(bytes=fsid_bytes)
 
     def __str__(self):
-        return "dev item devid {0} total bytes {1} bytes used {2}".format(
-            self.devid, self.total_bytes, self.bytes_used)
+        return "dev item devid {self.devid} total bytes {self.total_bytes} " \
+            "bytes used {self.bytes_used}".format(self=self)
 
 
 class Chunk(object):
-    chunk = struct.Struct("<4Q3L2H")
+    chunk = struct.Struct('<4Q3L2H')
 
     def __init__(self, header, buf, pos=0):
         self.key = Key(header.objectid, header.type, header.offset)
@@ -529,14 +614,17 @@ class Chunk(object):
                                                 pos + Stripe.stripe.size * self.num_stripes,
                                                 Stripe.stripe.size)]
 
+    @property
+    def flags_str(self):
+        return btrfs.utils.flags_str(self.flags, _block_group_flags_str_map)
+
     def __str__(self):
-        return "chunk vaddr {0} type {1} length {2} num_stripes {3}".format(
-            self.vaddr, btrfs.utils.block_group_flags_str(self.type),
-            self.length, self.num_stripes)
+        return "chunk vaddr {self.vaddr} type {self.flags_str} length {self.length} " \
+            "num_stripes {self.num_stripes}".format(self=self)
 
 
 class Stripe(object):
-    stripe = struct.Struct("<2Q16s")
+    stripe = struct.Struct('<2Q16s')
 
     def __init__(self, chunk, buf, pos=0):
         self.chunk = chunk
@@ -544,11 +632,11 @@ class Stripe(object):
         self.uuid = uuid.UUID(bytes=uuid_bytes)
 
     def __str__(self):
-        return "stripe devid {0} offset {1}".format(self.devid, self.offset)
+        return "stripe devid {self.devid} offset {self.offset}".format(self=self)
 
 
 class DevExtent(object):
-    dev_extent = struct.Struct("<4Q16s")
+    dev_extent = struct.Struct('<4Q16s')
 
     def __init__(self, header, buf, pos=0):
         self.key = Key(header.objectid, header.type, header.offset)
@@ -560,12 +648,12 @@ class DevExtent(object):
         self.uuid = uuid.UUID(bytes=uuid_bytes)
 
     def __str__(self):
-        return "dev extent devid {0} paddr {1} length {2} chunk {3}".format(
-            self.devid, self.paddr, self.length, self.chunk_offset)
+        return "dev extent devid {self.devid} paddr {self.paddr} length {self.length} " \
+            "chunk {self.chunk_offset}".format(self=self)
 
 
 class BlockGroupItem(object):
-    block_group_item = struct.Struct("<3Q")
+    block_group_item = struct.Struct('<3Q')
 
     def __init__(self, header, buf, pos=0):
         self.key = Key(header.objectid, header.type, header.offset)
@@ -575,16 +663,22 @@ class BlockGroupItem(object):
         self.used, self.chunk_objectid, self.flags = \
             BlockGroupItem.block_group_item.unpack_from(buf, pos)
 
+    @property
+    def used_pct(self):
+        return int(round((self.used * 100) / self.length))
+
+    @property
+    def flags_str(self):
+        return btrfs.utils.flags_str(self.flags, _block_group_flags_str_map)
+
     def __str__(self):
-        return "block group vaddr {0} transid {1} length {2} flags {3} used {4} " \
-            "used_pct {5}".format(self.vaddr, self.transid, self.length,
-                                  btrfs.utils.block_group_flags_str(self.flags),
-                                  self.used, int(round((self.used * 100) / self.length)))
+        return "block group vaddr {self.vaddr} transid {self.transid} length {self.length} " \
+            "flags {self.flags_str} used {self.used} used_pct {self.used_pct}".format(self=self)
 
 
 class ExtentItem(object):
-    extent_item = struct.Struct("<3Q")
-    extent_inline_ref = struct.Struct("<BQ")
+    extent_item = struct.Struct('<3Q')
+    extent_inline_ref = struct.Struct('<BQ')
 
     def __init__(self, header, buf, pos=0, load_data_refs=False, load_metadata_refs=False):
         self.key = Key(header.objectid, header.type, header.offset)
@@ -592,7 +686,7 @@ class ExtentItem(object):
         self.length = header.offset
         self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(buf, pos)
         pos += ExtentItem.extent_item.size
-        if self.flags == EXTENT_FLAG_DATA and load_data_refs is True:
+        if self.flags == EXTENT_FLAG_DATA and load_data_refs:
             self.extent_data_refs = []
             self.shared_data_refs = []
             while pos < len(buf):
@@ -606,7 +700,7 @@ class ExtentItem(object):
                     pos += 1
                     self.shared_data_refs.append(InlineSharedDataRef(buf, pos))
                     pos += InlineSharedDataRef.inline_shared_data_ref.size
-        elif self.flags & EXTENT_FLAG_TREE_BLOCK and load_metadata_refs is True:
+        elif self.flags & EXTENT_FLAG_TREE_BLOCK and load_metadata_refs:
             self.tree_block_info = TreeBlockInfo(buf, pos)
             pos += TreeBlockInfo.tree_block_info.size
             self.tree_block_refs = []
@@ -620,7 +714,7 @@ class ExtentItem(object):
                     self.shared_block_refs.append(InlineSharedBlockRef(inline_ref_offset))
                 else:
                     raise Exception("BUG: expected inline TREE_BLOCK_REF or SHARED_BLOCK_REF_KEY "
-                                    "but got {0}".format(str(buf[pos:])))
+                                    "but got {}".format(str(buf[pos:])))
                 pos += ExtentItem.extent_inline_ref.size
 
     def append_extent_data_ref(self, ref):
@@ -635,22 +729,25 @@ class ExtentItem(object):
     def append_shared_block_ref(self, ref):
         self.shared_block_refs.append(ref)
 
+    @property
+    def flags_str(self):
+        return btrfs.utils.flags_str(self.flags, _extent_flags_str_map)
+
     def __str__(self):
-        return "extent vaddr {0} length {1} refs {2} gen {3} flags {4}".format(
-            self.vaddr, self.length, self.refs, self.generation,
-            btrfs.utils.extent_flags_str(self.flags))
+        return "extent vaddr {self.vaddr} length {self.length} refs {self.refs} " \
+            "gen {self.generation} flags {self.flags_str}".format(self=self)
 
 
 class ExtentDataRef(object):
-    extent_data_ref = struct.Struct("<3QL")
+    extent_data_ref = struct.Struct('<3QL')
 
     def __init__(self, header, buf, pos=0):
         self.root, self.objectid, self.offset, self.count = \
             ExtentDataRef.extent_data_ref.unpack_from(buf, pos)
 
     def __str__(self):
-        return "extent data backref root {0} objectid {1} offset {2} count {3}".format(
-            self.root, self.objectid, self.offset, self.count)
+        return "extent data backref root {self.root} objectid {self.objectid} " \
+            "offset {self.offset} count {self.count}".format(self=self)
 
 
 class InlineExtentDataRef(ExtentDataRef):
@@ -661,33 +758,34 @@ class InlineExtentDataRef(ExtentDataRef):
             InlineExtentDataRef.inline_extent_data_ref.unpack_from(buf, pos)
 
     def __str__(self):
-        return "inline extent data backref root {0} objectid {1} offset {2} count {3}".format(
-            self.root, self.objectid, self.offset, self.count)
+        return "inline extent data backref root {self.root} objectid {self.objectid} " \
+            "offset {self.offset} count {self.count}".format(self=self)
 
 
 class SharedDataRef(object):
-    shared_data_ref = struct.Struct("<L")
+    shared_data_ref = struct.Struct('<L')
 
     def __init__(self, header, buf, pos=0):
         self.parent = header.offset
         self.count, = SharedDataRef.shared_data_ref.unpack_from(buf, pos)
 
     def __str__(self):
-        return "shared data backref parent {0} count {1}".format(self.parent, self.count)
+        return "shared data backref parent {self.parent count {self.count}".format(self=self)
 
 
 class InlineSharedDataRef(SharedDataRef):
-    inline_shared_data_ref = struct.Struct("<QL")
+    inline_shared_data_ref = struct.Struct('<QL')
 
     def __init__(self, buf, pos=0):
         self.parent, self.count = InlineSharedDataRef.inline_shared_data_ref.unpack_from(buf, pos)
 
     def __str__(self):
-        return "inline shared data backref parent {0} count {1}".format(self.parent, self.count)
+        return "inline shared data backref parent {self.parent} " \
+            "count {self.count}".format(self=self)
 
 
 class TreeBlockInfo(object):
-    tree_block_info = struct.Struct("<QBQB")
+    tree_block_info = struct.Struct('<QBQB')
 
     def __init__(self, buf, pos=0):
         tb_objectid, tb_type, tb_offset, self.level = \
@@ -695,7 +793,7 @@ class TreeBlockInfo(object):
         self.key = Key(tb_objectid, tb_type, tb_offset)
 
     def __str__(self):
-        return "tree block key {0} level {1}".format(self.key, self.level)
+        return "tree block key {self.key} level {self.level}".format(self=self)
 
 
 class MetaDataItem(object):
@@ -704,7 +802,7 @@ class MetaDataItem(object):
         self.vaddr = header.objectid
         self.skinny_level = header.offset
         self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(buf, pos)
-        if load_refs is True:
+        if load_refs:
             self._load_refs(buf, pos)
 
     def _load_refs(self, buf, pos):
@@ -720,7 +818,7 @@ class MetaDataItem(object):
                 self.shared_block_refs.append(InlineSharedBlockRef(inline_ref_offset))
             else:
                 raise Exception("BUG: expected inline TREE_BLOCK_REF or SHARED_BLOCK_REF_KEY "
-                                "in METADATA_ITEM {0}, but got: {1}"
+                                "in METADATA_ITEM {}, but got: {}"
                                 "".format(self.key, str(buf[pos:])))
             pos += ExtentItem.extent_inline_ref.size
 
@@ -730,10 +828,13 @@ class MetaDataItem(object):
     def append_shared_block_ref(self, ref):
         self.shared_block_refs.append(ref)
 
+    @property
+    def flags_str(self):
+        return btrfs.utils.flags_str(self.flags, _extent_flags_str_map)
+
     def __str__(self):
-        return "metadata vaddr {0} refs {1} gen {2} flags {3} skinny level {4}".format(
-            self.vaddr, self.refs, self.generation,
-            btrfs.utils.extent_flags_str(self.flags), self.skinny_level)
+        return "metadata vaddr {self.vaddr} refs {self.refs} gen {self.generation} " \
+            "flags {self.flags_str} skinny level {self.skinny_level}".format(self=self)
 
 
 class TreeBlockRef(object):
@@ -741,7 +842,7 @@ class TreeBlockRef(object):
         self.root = header.offset
 
     def __str__(self):
-        return "tree block backref root {0}".format(key_objectid_str(self.root, None))
+        return "tree block backref root {}".format(key_objectid_str(self.root, None))
 
 
 class InlineTreeBlockRef(TreeBlockRef):
@@ -749,7 +850,7 @@ class InlineTreeBlockRef(TreeBlockRef):
         self.root = root
 
     def __str__(self):
-        return "inline tree block backref root {0}".format(key_objectid_str(self.root, None))
+        return "inline tree block backref root {}".format(key_objectid_str(self.root, None))
 
 
 class SharedBlockRef(object):
@@ -757,7 +858,7 @@ class SharedBlockRef(object):
         self.parent = header.offset
 
     def __str__(self):
-        return "shared block backref parent {0}".format(self.parent)
+        return "shared block backref parent {}".format(self.parent)
 
 
 class InlineSharedBlockRef(SharedBlockRef):
@@ -765,25 +866,28 @@ class InlineSharedBlockRef(SharedBlockRef):
         self.parent = parent
 
     def __str__(self):
-        return "inline shared block backref parent {0}".format(self.parent)
+        return "inline shared block backref parent {}".format(self.parent)
 
 
 class TimeSpec(object):
-    timespec = struct.Struct("<QL")
+    timespec = struct.Struct('<QL')
 
     def __init__(self, buf, pos=0):
         self.sec, self.nsec = TimeSpec.timespec.unpack_from(buf, pos)
 
+    def __str__(self):
+        return "{self.sec}.{self.nsec}".format(self=self)
+
 
 class InodeItem(object):
     _inode_item = [
-        struct.Struct("<5Q4L3Q32x"),
+        struct.Struct('<5Q4L3Q32x'),
         TimeSpec.timespec,
         TimeSpec.timespec,
         TimeSpec.timespec,
         TimeSpec.timespec,
     ]
-    inode_item = struct.Struct("<" + ''.join([s.format[1:].decode() for s in _inode_item]))
+    inode_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _inode_item]))
 
     def __init__(self, header, buf, pos=0):
         if header is not None:
@@ -803,26 +907,114 @@ class InodeItem(object):
         self.otime = TimeSpec(buf, pos)
         pos += TimeSpec.timespec.size
 
+    @property
+    def flags_str(self):
+        return btrfs.utils.flags_str(self.flags, _inode_flags_str_map)
+
     def __str__(self):
-        return "inode generation {0} transid {1} size {2} nbytes {3} block_group {4} mode {5} " \
-            "links {6} uid {7} gid {8} rdev {9} flags {10}({11})".format(
-                self.generation, self.transid, self.size, self.nbytes, self.block_group,
-                oct(self.mode), self.nlink, self.uid, self.gid, self.rdev, hex(self.flags),
-                btrfs.utils.flags_str(self.flags, _inode_flags_str_map))
+        return "inode generation {self.generation} transid {self.transid} size {self.size} " \
+            "nbytes {self.nbytes} block_group {self.block_group} mode {self.mode:05o} " \
+            "nlink {self.nlink} uid {self.uid} gid {self.gid} rdev {self.rdev} " \
+            "flags {self.flags:#x}({self.flags_str})".format(self=self)
+
+
+class InodeRef(object):
+    inode_ref = struct.Struct('<QH')
+
+    def __init__(self, header, buf, pos=0):
+        self.key = Key(header.objectid, header.type, header.offset)
+        self.index, self.name_len = InodeRef.inode_ref.unpack_from(buf, pos)
+        pos += InodeRef.inode_ref.size
+        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(buf, pos)
+        self._len = InodeRef.inode_ref.size + self.name_len
+
+    def __str__(self):
+        return "inode ref index {} name {}".format(
+            self.index, btrfs.utils.embedded_text_for_str(self.name))
+
+    def __len__(self):
+        return self._len
+
+
+class InodeExtref(object):
+    inode_extref = struct.Struct('<QQH')
+
+    def __init__(self, header, buf, pos=0):
+        self.key = Key(header.objectid, header.type, header.offset)
+        self.parent_objectid, self.index, self.name_len = \
+            InodeExtref.inode_extref.unpack_from(buf, pos)
+        pos += InodeExtref.inode_extref.size
+        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(buf, pos)
+
+    def __str__(self):
+        return "inode extref parent_objectid {} index {} name {}".format(
+            self.parent_objectid, self.index, btrfs.utils.embedded_text_for_str(self.name))
+
+
+class DirItem(object):
+    _dir_item = [
+        DiskKey.disk_key,
+        struct.Struct('<QHHB')
+    ]
+    dir_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _dir_item]))
+
+    def __init__(self, header, buf, pos=0):
+        self.key = Key(header.objectid, header.type, header.offset)
+        self.location = DiskKey(buf, pos)
+        pos += DiskKey.disk_key.size
+        self.transid, self.data_len, self.name_len, self.type = \
+            DirItem._dir_item[1].unpack_from(buf, pos)
+        pos += DirItem._dir_item[1].size
+        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(buf, pos)
+        pos += self.name_len
+        self.data, = struct.Struct('<{}s'.format(self.data_len)).unpack_from(buf, pos)
+        pos += self.data_len
+        self._len = DirItem.dir_item.size + self.name_len + self.data_len
+
+    @property
+    def type_str(self):
+        return _dir_item_type_str_map[self.type]
+
+    @property
+    def name_str(self):
+        return btrfs.utils.embedded_text_for_str(self.name)
+
+    @property
+    def data_str(self):
+        return btrfs.utils.embedded_text_for_str(self.data)
+
+    def __str__(self):
+        return "dir item hash {self.key.offset} location {self.location} type {self.type_str} " \
+            "name {self.name_str}".format(self=self)
+
+    def __len__(self):
+        return self._len
+
+
+class DirIndex(DirItem):
+    def __str__(self):
+        return "dir index {self.key.offset} location {self.location} type {self.type_str} " \
+            "name {self.name_str}".format(self=self)
+
+
+class XAttrItem(DirItem):
+    def __str__(self):
+        return "xattr item hash {self.key.offset} name {self.name_str} " \
+            "data {self.data_str}".format(self=self)
 
 
 class RootItem(object):
     _root_item = [
         InodeItem.inode_item,
-        struct.Struct("<7QL"),
+        struct.Struct('<7QL'),
         DiskKey.disk_key,
-        struct.Struct("<BBQ16s16s16s4Q"),
+        struct.Struct('<BBQ16s16s16s4Q'),
         TimeSpec.timespec,
         TimeSpec.timespec,
         TimeSpec.timespec,
         TimeSpec.timespec,
     ]
-    root_item = struct.Struct("<" + ''.join([s.format[1:].decode() for s in _root_item]))
+    root_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _root_item]))
 
     def __init__(self, header, buf, pos=0):
         self.key = Key(header.objectid, header.type, header.offset)
@@ -850,7 +1042,63 @@ class RootItem(object):
         self.rtime = TimeSpec(buf, pos)
         pos += TimeSpec.timespec.size
 
+    @property
+    def flags_str(self):
+        return btrfs.utils.flags_str(self.flags, _root_flags_str_map)
+
     def __str__(self):
-        return "root uuid {0} dirid {1} gen {2} last_snapshot {3} flags {4}({5})".format(
-            self.uuid, self.dirid, self.generation, self.last_snapshot,
-            hex(self.flags), btrfs.utils.flags_str(self.flags, _root_flags_str_map))
+        return "root {self.key.objectid} uuid {self.uuid} dirid {self.dirid}" \
+            "gen {self.generation} last_snapshot {self.last_snapshot} " \
+            "flags {self.flags:#x}({self.flags_str})".format(self=self)
+
+
+class FileExtentItem(object):
+    _file_extent_item = [
+        struct.Struct('<QQBB2xB'),
+        struct.Struct('<4Q'),
+    ]
+    file_extent_item = struct.Struct('<' + ''.join([s.format[1:].decode()
+                                                    for s in _file_extent_item]))
+
+    def __init__(self, header, buf, pos=0):
+        self.key = Key(header.objectid, header.type, header.offset)
+        self.generation, self.ram_bytes, self.compression, self.encryption, self.type = \
+            FileExtentItem._file_extent_item[0].unpack_from(buf, pos)
+        pos += FileExtentItem._file_extent_item[0].size
+        if self.type != FILE_EXTENT_INLINE:
+            # These are confusing, so they deserve a comment in the code:
+            # (disk_bytenr EXTENT_ITEM disk_num_bytes) is the tree key of
+            # the extent item storing the actual data.
+            #
+            # The third one, offset is the offset inside that extent where the
+            # data we need starts. num_bytes is the amount of bytes to be used
+            # from that offset onwards.
+            #
+            # Remember that these numbers always be multiples of disk block
+            # sizes, because that's how it gets cowed. We don't just use 1 or 2
+            # bytes from another extent.
+            self.disk_bytenr, self.disk_num_bytes, self.offset, self.num_bytes = \
+                FileExtentItem._file_extent_item[1].unpack_from(buf, pos)
+        else:
+            self._inline_encoded_nbytes = header.len - FileExtentItem._file_extent_item[0].size
+
+    @property
+    def compress_str(self):
+        _compress_type_str_map.get(self.compression, 'unknown')
+
+    @property
+    def type_str(self):
+        return _file_extent_type_str_map.get(self.type, 'unknown')
+
+    def __str__(self):
+        ret = ["extent data generation {self.generation} ram_bytes {self.ram_bytes} "
+               "compression {self.compress_str} type {self.type_str}".format(self=self)]
+        if self.type != 0:
+            ret.append("disk_bytenr {self.disk_bytenr} disk_num_bytes {self.disk_num_bytes} "
+                       "offset {self.offset} num_bytes {self.num_bytes}".format(self=self))
+        else:
+            ret.append("inline_encoded_nbytes {self._inline_encoded_nbytes}".format(self=self))
+        return ' '.join(ret)
+
+
+FreeSpaceExtent = namedtuple('FreeSpaceExtent', ['vaddr', 'length'])

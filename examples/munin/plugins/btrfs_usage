@@ -1,6 +1,6 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
-# Copyright (C) 2016 Hans van Kranenburg <hans.van.kranenburg@mendix.com>
+# Copyright (C) 2016 Hans van Kranenburg <hans@knorrie.org>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public
@@ -17,7 +17,6 @@
 # Boston, MA 02110-1301 USA
 
 
-from __future__ import print_function
 from collections import deque
 import btrfs
 import sys
