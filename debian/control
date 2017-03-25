@@ -22,14 +22,14 @@ Description: Python module to inspect btrfs filesystems.
 
 Package: munin-plugins-btrfs
 Architecture: all
-Depends: munin-node, python3-btrfs
+Depends: ${misc:Depends}, munin-node, python3-btrfs
 Priority: extra
 Section: net
 Description: Munin plugin to graph space usage of Btrfs filesystems.
 
 Package: nagios-plugins-btrfs
 Architecture: all
-Depends: python3-btrfs
+Depends: ${misc:Depends}, python3-btrfs
 Priority: extra
 Section: net
 Description: Nagios plugin to check usage and error counters of a Btrfs filesystem.
