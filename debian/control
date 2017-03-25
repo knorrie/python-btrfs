@@ -32,7 +32,7 @@ Description: munin plugin for monitoring btrfs filesystems
  raid profiles) into account. It is meant to be used as an addition to using a
  regular disk usage plugin, based on df output.
 
-Package: nagios-plugins-btrfs
+Package: monitoring-plugins-btrfs
 Architecture: all
 Depends: ${misc:Depends}, python3, python3-btrfs
 Priority: extra
