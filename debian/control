@@ -11,13 +11,14 @@ Standards-Version: 3.9.8
 Package: python3-btrfs
 Architecture: amd64
 Depends: ${python3:Depends}, ${misc:Depends}
-Description: Python module to inspect btrfs filesystems. (Python 3)
- The primary goal of this module is to be able to inspect the internals of an
- existing filesystem for educational purposes.
+Description: Python module to inspect btrfs filesystems.
+ Currently, the primary goal of this module is to be able to inspect the
+ internals of an existing filesystem for educational purposes.
  .
- The python module acts as a wrapper around the low level kernel calls and
- btrfs data structures, presenting them as python objects with interesting
- attributes and references to other objects.
+ A second goal is to provide a nicer way for automating administration tasks
+ and writing monitoring scripts by being able to just programmatically access
+ the needed information, instead of having to spend most of the time on parsing
+ human readable output from other btrfs tools.
 
 Package: munin-plugins-btrfs
 Architecture: all
@@ -31,4 +32,4 @@ Architecture: all
 Depends: python3-btrfs
 Priority: extra
 Section: net
-Description: Nagios plugin to check space usage of Btrfs filesystems.
+Description: Nagios plugin to check usage and error counters of a Btrfs filesystem.
