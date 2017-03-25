@@ -1,24 +1,5 @@
-python-btrfs (5-1) unstable; urgency=medium
+python-btrfs (6-1) unstable; urgency=medium
 
-  * New release, yay
+  * Initial release (Closes: #858753).
 
- -- Hans van Kranenburg <hans.van.kranenburg@mendix.com>  Sun, 15 Jan 2017 13:05:42 +0100
-
-python-btrfs (0.3-1) unstable; urgency=medium
-
-  * New release, yay
-
- -- Hans van Kranenburg <hans.van.kranenburg@mendix.com>  Tue, 15 Nov 2016 23:29:37 +0100
-
-python-btrfs (0.2.1-1) unstable; urgency=medium
-
-  * New "upstream" version
-  * Build for python2 and python3 now
-
- -- Hans van Kranenburg <hans.van.kranenburg@mendix.com>  Wed, 29 Jun 2016 02:17:17 +0200
-
-python-btrfs (0.1-1) unstable; urgency=medium
-
-  * Initial release
-
- -- Hans van Kranenburg <hans.van.kranenburg@mendix.com>  Tue, 21 Jun 2016 01:35:04 +0200
+ -- Hans van Kranenburg <hans@knorrie.org>  Sun, 26 Mar 2017 01:09:35 +0100
