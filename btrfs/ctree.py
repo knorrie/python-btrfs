@@ -1047,7 +1047,7 @@ class RootItem(object):
         return btrfs.utils.flags_str(self.flags, _root_flags_str_map)
 
     def __str__(self):
-        return "root {self.key.objectid} uuid {self.uuid} dirid {self.dirid}" \
+        return "root {self.key.objectid} uuid {self.uuid} dirid {self.dirid} " \
             "gen {self.generation} last_snapshot {self.last_snapshot} " \
             "flags {self.flags:#x}({self.flags_str})".format(self=self)
 
