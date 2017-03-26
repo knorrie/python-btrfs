@@ -1,5 +1,5 @@
 Source: python-btrfs
-Section: libs
+Section: python
 Priority: optional
 Maintainer: Hans van Kranenburg <hans@knorrie.org>
 Build-Depends: debhelper (>= 9), dh-python, python3-all, python3-setuptools
