@@ -1,6 +1,6 @@
 Source: python-btrfs
 Section: libs
-Priority: extra
+Priority: optional
 Maintainer: Hans van Kranenburg <hans@knorrie.org>
 Build-Depends: debhelper (>= 9), dh-python, python3-all, python3-setuptools
 Standards-Version: 3.9.8
@@ -20,7 +20,6 @@ Description: python module to inspect btrfs filesystems
 Package: munin-plugins-btrfs
 Architecture: all
 Depends: ${misc:Depends}, munin-node, python3, python3-btrfs
-Priority: extra
 Section: net
 Description: munin plugin for monitoring btrfs filesystems
  This munin plugin uses the python btrfs module to retrieve information about
@@ -35,7 +34,6 @@ Description: munin plugin for monitoring btrfs filesystems
 Package: monitoring-plugins-btrfs
 Architecture: all
 Depends: ${misc:Depends}, python3, python3-btrfs
-Priority: extra
 Section: net
 Description: btrfs plugin for nagios compatible monitoring systems
  This nagios compatible monitoring plugin will check available space and error
