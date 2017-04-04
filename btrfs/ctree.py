@@ -457,7 +457,10 @@ class FileSystem(object):
     def __init__(self, path):
         self.path = path
         self.fd = os.open(path, os.O_RDONLY)
-        self.fsid = self.fs_info().fsid
+        _fs_info = self.fs_info()
+        self.fsid = _fs_info.fsid
+        self.nodesize = _fs_info.nodesize
+        self.sectorsize = _fs_info.sectorsize
 
     def fs_info(self):
         return btrfs.ioctl.fs_info(self.fd)
