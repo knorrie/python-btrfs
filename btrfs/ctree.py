@@ -616,7 +616,7 @@ class Chunk(object):
 
     @property
     def flags_str(self):
-        return btrfs.utils.flags_str(self.flags, _block_group_flags_str_map)
+        return btrfs.utils.flags_str(self.type, _block_group_flags_str_map)
 
     def __str__(self):
         return "chunk vaddr {self.vaddr} type {self.flags_str} length {self.length} " \
