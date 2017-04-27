@@ -16,7 +16,6 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
-from collections import namedtuple
 import copy
 import os
 import struct
@@ -350,6 +349,7 @@ def key_offset_str(offset, _type):
 
 
 import btrfs.ioctl  # noqa
+import btrfs.free_space_tree  # noqa
 
 
 class Key(object):
@@ -580,9 +580,15 @@ class FileSystem(object):
         tree = FREE_SPACE_TREE_OBJECTID
         min_key = Key(min_vaddr, 0, 0)
         max_key = Key(max_vaddr, 255, ULLONG_MAX)
-        for header, _ in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
+        for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
             if header.type == FREE_SPACE_EXTENT_KEY:
-                yield FreeSpaceExtent(header.objectid, header.offset)
+                yield btrfs.free_space_tree.FreeSpaceExtent(header.objectid, header.offset)
+            elif header.type == FREE_SPACE_BITMAP_KEY:
+                yield from btrfs.free_space_tree.unpack_bitmap(
+                    header.objectid, self.sectorsize, data)
+            elif header.type != FREE_SPACE_INFO_KEY:
+                raise Exception("BUG: unexpected object {}".format(
+                    Key(header.objectid, header.type, header.offset)))
 
 
 class DevItem(object):
@@ -1102,6 +1108,3 @@ class FileExtentItem(object):
         else:
             ret.append("inline_encoded_nbytes {self._inline_encoded_nbytes}".format(self=self))
         return ' '.join(ret)
-
-
-FreeSpaceExtent = namedtuple('FreeSpaceExtent', ['vaddr', 'length'])
