@@ -1071,6 +1071,7 @@ class FileExtentItem(object):
 
     def __init__(self, header, buf, pos=0):
         self.key = Key(header.objectid, header.type, header.offset)
+        self.logical_offset = header.offset
         self.generation, self.ram_bytes, self.compression, self.encryption, self.type = \
             FileExtentItem._file_extent_item[0].unpack_from(buf, pos)
         pos += FileExtentItem._file_extent_item[0].size
@@ -1093,14 +1094,15 @@ class FileExtentItem(object):
 
     @property
     def compress_str(self):
-        _compress_type_str_map.get(self.compression, 'unknown')
+        return _compress_type_str_map.get(self.compression, 'unknown')
 
     @property
     def type_str(self):
         return _file_extent_type_str_map.get(self.type, 'unknown')
 
     def __str__(self):
-        ret = ["extent data generation {self.generation} ram_bytes {self.ram_bytes} "
+        ret = ["extent data at {self.logical_offset} generation {self.generation} "
+               "ram_bytes {self.ram_bytes} "
                "compression {self.compress_str} type {self.type_str}".format(self=self)]
         if self.type != 0:
             ret.append("disk_bytenr {self.disk_bytenr} disk_num_bytes {self.disk_num_bytes} "
