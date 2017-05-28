@@ -1,3 +1,12 @@
+python-btrfs v7, May 28 2017
+  * Also unpack bitmaps when showing the free space tree
+  * Fixes:
+    - A few unfortunate typos in __str__ methods of objects
+  * Examples added:
+    - Show background subvolume removal progress.
+    - Show metadata tree sizes in bytes and amount of tree blocks.
+    - Show file info by tree and inode number
+
 python-btrfs v6, Mar 24 2017
   * Only Python 3 supported from now on
   * IOCTLs: INO_LOOKUP, LOGICAL_INO, TREE_SEARCH_V2, IOC_BALANCE_V2,

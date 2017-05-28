@@ -16,7 +16,6 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
-from collections import namedtuple
 import copy
 import os
 import struct
@@ -350,6 +349,7 @@ def key_offset_str(offset, _type):
 
 
 import btrfs.ioctl  # noqa
+import btrfs.free_space_tree  # noqa
 
 
 class Key(object):
@@ -457,7 +457,10 @@ class FileSystem(object):
     def __init__(self, path):
         self.path = path
         self.fd = os.open(path, os.O_RDONLY)
-        self.fsid = self.fs_info().fsid
+        _fs_info = self.fs_info()
+        self.fsid = _fs_info.fsid
+        self.nodesize = _fs_info.nodesize
+        self.sectorsize = _fs_info.sectorsize
 
     def fs_info(self):
         return btrfs.ioctl.fs_info(self.fd)
@@ -577,9 +580,15 @@ class FileSystem(object):
         tree = FREE_SPACE_TREE_OBJECTID
         min_key = Key(min_vaddr, 0, 0)
         max_key = Key(max_vaddr, 255, ULLONG_MAX)
-        for header, _ in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
+        for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
             if header.type == FREE_SPACE_EXTENT_KEY:
-                yield FreeSpaceExtent(header.objectid, header.offset)
+                yield btrfs.free_space_tree.FreeSpaceExtent(header.objectid, header.offset)
+            elif header.type == FREE_SPACE_BITMAP_KEY:
+                yield from btrfs.free_space_tree.unpack_bitmap(
+                    header.objectid, self.sectorsize, data)
+            elif header.type != FREE_SPACE_INFO_KEY:
+                raise Exception("BUG: unexpected object {}".format(
+                    Key(header.objectid, header.type, header.offset)))
 
 
 class DevItem(object):
@@ -616,7 +625,7 @@ class Chunk(object):
 
     @property
     def flags_str(self):
-        return btrfs.utils.flags_str(self.flags, _block_group_flags_str_map)
+        return btrfs.utils.flags_str(self.type, _block_group_flags_str_map)
 
     def __str__(self):
         return "chunk vaddr {self.vaddr} type {self.flags_str} length {self.length} " \
@@ -1047,7 +1056,7 @@ class RootItem(object):
         return btrfs.utils.flags_str(self.flags, _root_flags_str_map)
 
     def __str__(self):
-        return "root {self.key.objectid} uuid {self.uuid} dirid {self.dirid}" \
+        return "root {self.key.objectid} uuid {self.uuid} dirid {self.dirid} " \
             "gen {self.generation} last_snapshot {self.last_snapshot} " \
             "flags {self.flags:#x}({self.flags_str})".format(self=self)
 
@@ -1062,6 +1071,7 @@ class FileExtentItem(object):
 
     def __init__(self, header, buf, pos=0):
         self.key = Key(header.objectid, header.type, header.offset)
+        self.logical_offset = header.offset
         self.generation, self.ram_bytes, self.compression, self.encryption, self.type = \
             FileExtentItem._file_extent_item[0].unpack_from(buf, pos)
         pos += FileExtentItem._file_extent_item[0].size
@@ -1084,14 +1094,15 @@ class FileExtentItem(object):
 
     @property
     def compress_str(self):
-        _compress_type_str_map.get(self.compression, 'unknown')
+        return _compress_type_str_map.get(self.compression, 'unknown')
 
     @property
     def type_str(self):
         return _file_extent_type_str_map.get(self.type, 'unknown')
 
     def __str__(self):
-        ret = ["extent data generation {self.generation} ram_bytes {self.ram_bytes} "
+        ret = ["extent data at {self.logical_offset} generation {self.generation} "
+               "ram_bytes {self.ram_bytes} "
                "compression {self.compress_str} type {self.type_str}".format(self=self)]
         if self.type != 0:
             ret.append("disk_bytenr {self.disk_bytenr} disk_num_bytes {self.disk_num_bytes} "
@@ -1099,6 +1110,3 @@ class FileExtentItem(object):
         else:
             ret.append("inline_encoded_nbytes {self._inline_encoded_nbytes}".format(self=self))
         return ' '.join(ret)
-
-
-FreeSpaceExtent = namedtuple('FreeSpaceExtent', ['vaddr', 'length'])
