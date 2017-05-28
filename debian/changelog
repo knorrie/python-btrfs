@@ -1,3 +1,11 @@
+python-btrfs (7-1) unstable; urgency=medium
+
+  * New upstream release v7
+  * debian/control: Add Homepage field
+  * debian/python3-btrfs.examples: Include README for examples
+
+ -- Hans van Kranenburg <hans@knorrie.org>  Sun, 28 May 2017 19:17:10 +0200
+
 python-btrfs (6-2) unstable; urgency=medium
 
   * Initial release (Closes: #858753).
