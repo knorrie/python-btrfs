@@ -666,7 +666,6 @@ class BlockGroupItem(object):
 
     def __init__(self, header, buf, pos=0):
         self.key = Key(header.objectid, header.type, header.offset)
-        self.transid = header.transid
         self.vaddr = header.objectid
         self.length = header.offset
         self.used, self.chunk_objectid, self.flags = \
@@ -681,7 +680,7 @@ class BlockGroupItem(object):
         return btrfs.utils.flags_str(self.flags, _block_group_flags_str_map)
 
     def __str__(self):
-        return "block group vaddr {self.vaddr} transid {self.transid} length {self.length} " \
+        return "block group vaddr {self.vaddr} length {self.length} " \
             "flags {self.flags_str} used {self.used} used_pct {self.used_pct}".format(self=self)
 
 
