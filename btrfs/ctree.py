@@ -450,8 +450,8 @@ class Key(object):
 class DiskKey(Key):
     disk_key = struct.Struct('<QBQ')
 
-    def __init__(self, buf, pos=0):
-        super(DiskKey, self).__init__(*DiskKey.disk_key.unpack_from(buf, pos))
+    def __init__(self, data):
+        super(DiskKey, self).__init__(*DiskKey.disk_key.unpack_from(data))
 
 
 class FileSystem(object):
@@ -606,12 +606,12 @@ class ItemData(object):
 class DevItem(ItemData):
     dev_item = struct.Struct('<3Q3L3QL2B16s16s')
 
-    def __init__(self, header, buf, pos=0):
+    def __init__(self, header, data):
         super().__init__(header)
         self.devid, self.total_bytes, self.bytes_used, self.io_align, self.io_width, \
             self.sector_size, self.type, self.generation, self.start_offset, self.dev_group, \
             self.seek_speed, self.bandwidth, uuid_bytes, fsid_bytes = \
-            DevItem.dev_item.unpack_from(buf, pos)
+            DevItem.dev_item.unpack(data)
         self.uuid = uuid.UUID(bytes=uuid_bytes)
         self.fsid = uuid.UUID(bytes=fsid_bytes)
 
@@ -623,17 +623,18 @@ class DevItem(ItemData):
 class Chunk(ItemData):
     chunk = struct.Struct('<4Q3L2H')
 
-    def __init__(self, header, buf, pos=0):
+    def __init__(self, header, data):
         super().__init__(header)
         self.vaddr = header.offset
         self.length, self.owner, self.stripe_len, self.type, self.io_align, \
             self.io_width, self.sector_size, self.num_stripes, self.sub_stripes = \
-            Chunk.chunk.unpack_from(buf, pos)
-        pos += Chunk.chunk.size
-        self.stripes = [Stripe(self, buf, stripe_pos)
-                        for stripe_pos in range(pos,
-                                                pos + Stripe.stripe.size * self.num_stripes,
-                                                Stripe.stripe.size)]
+            Chunk.chunk.unpack_from(data)
+        self.stripes = []
+        pos = Chunk.chunk.size
+        for i in range(self.num_stripes):
+            next_pos = pos + Stripe.stripe.size
+            self.stripes.append(Stripe(self, data[pos:next_pos]))
+            pos = next_pos
 
     @property
     def flags_str(self):
@@ -647,9 +648,9 @@ class Chunk(ItemData):
 class Stripe(object):
     stripe = struct.Struct('<2Q16s')
 
-    def __init__(self, chunk, buf, pos=0):
+    def __init__(self, chunk, data):
         self.chunk = chunk
-        self.devid, self.offset, uuid_bytes = Stripe.stripe.unpack_from(buf, pos)
+        self.devid, self.offset, uuid_bytes = Stripe.stripe.unpack(data)
         self.uuid = uuid.UUID(bytes=uuid_bytes)
 
     def __str__(self):
@@ -659,12 +660,12 @@ class Stripe(object):
 class DevExtent(ItemData):
     dev_extent = struct.Struct('<4Q16s')
 
-    def __init__(self, header, buf, pos=0):
+    def __init__(self, header, data):
         super().__init__(header)
         self.devid = header.objectid
         self.paddr = header.offset
         self.chunk_tree, self.chunk_objectid, self.chunk_offset, self.length, uuid_bytes = \
-            DevExtent.dev_extent.unpack_from(buf, pos)
+            DevExtent.dev_extent.unpack(data)
         self.vaddr = self.chunk_offset
         self.uuid = uuid.UUID(bytes=uuid_bytes)
 
@@ -676,12 +677,12 @@ class DevExtent(ItemData):
 class BlockGroupItem(ItemData):
     block_group_item = struct.Struct('<3Q')
 
-    def __init__(self, header, buf, pos=0):
+    def __init__(self, header, data):
         super().__init__(header)
         self.vaddr = header.objectid
         self.length = header.offset
         self.used, self.chunk_objectid, self.flags = \
-            BlockGroupItem.block_group_item.unpack_from(buf, pos)
+            BlockGroupItem.block_group_item.unpack(data)
 
     @property
     def used_pct(self):
@@ -700,41 +701,45 @@ class ExtentItem(ItemData):
     extent_item = struct.Struct('<3Q')
     extent_inline_ref = struct.Struct('<BQ')
 
-    def __init__(self, header, buf, pos=0, load_data_refs=False, load_metadata_refs=False):
+    def __init__(self, header, data, load_data_refs=False, load_metadata_refs=False):
         super().__init__(header)
+        pos = 0
         self.vaddr = header.objectid
         self.length = header.offset
-        self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(buf, pos)
+        self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(data, pos)
         pos += ExtentItem.extent_item.size
         if self.flags == EXTENT_FLAG_DATA and load_data_refs:
             self.extent_data_refs = []
             self.shared_data_refs = []
-            while pos < len(buf):
+            while pos < len(data):
                 inline_ref_type, inline_ref_offset = \
-                    ExtentItem.extent_inline_ref.unpack_from(buf, pos)
+                    ExtentItem.extent_inline_ref.unpack_from(data, pos)
                 if inline_ref_type == EXTENT_DATA_REF_KEY:
                     pos += 1
-                    self.extent_data_refs.append(InlineExtentDataRef(buf, pos))
-                    pos += InlineExtentDataRef.inline_extent_data_ref.size
+                    next_pos = pos + InlineExtentDataRef.inline_extent_data_ref.size
+                    self.extent_data_refs.append(InlineExtentDataRef(data[pos:next_pos]))
+                    pos = next_pos
                 elif inline_ref_type == SHARED_DATA_REF_KEY:
                     pos += 1
-                    self.shared_data_refs.append(InlineSharedDataRef(buf, pos))
-                    pos += InlineSharedDataRef.inline_shared_data_ref.size
+                    next_pos = pos + InlineSharedDataRef.inline_shared_data_ref.size
+                    self.shared_data_refs.append(InlineSharedDataRef(data[pos:next_pos]))
+                    pos = next_pos
         elif self.flags & EXTENT_FLAG_TREE_BLOCK and load_metadata_refs:
-            self.tree_block_info = TreeBlockInfo(buf, pos)
-            pos += TreeBlockInfo.tree_block_info.size
+            next_pos = pos + TreeBlockInfo.tree_block_info.size
+            self.tree_block_info = TreeBlockInfo(data[pos:next_pos])
+            pos = next_pos
             self.tree_block_refs = []
             self.shared_block_refs = []
-            while pos < len(buf):
+            while pos < len(data):
                 inline_ref_type, inline_ref_offset = \
-                    ExtentItem.extent_inline_ref.unpack_from(buf, pos)
+                    ExtentItem.extent_inline_ref.unpack_from(data, pos)
                 if inline_ref_type == TREE_BLOCK_REF_KEY:
                     self.tree_block_refs.append(InlineTreeBlockRef(inline_ref_offset))
                 elif inline_ref_type == SHARED_BLOCK_REF_KEY:
                     self.shared_block_refs.append(InlineSharedBlockRef(inline_ref_offset))
                 else:
                     raise Exception("BUG: expected inline TREE_BLOCK_REF or SHARED_BLOCK_REF_KEY "
-                                    "but got {}".format(str(buf[pos:])))
+                                    "but got inline_ref_type {}".format(inline_ref_type))
                 pos += ExtentItem.extent_inline_ref.size
 
     def append_extent_data_ref(self, ref):
@@ -761,10 +766,10 @@ class ExtentItem(ItemData):
 class ExtentDataRef(ItemData):
     extent_data_ref = struct.Struct('<3QL')
 
-    def __init__(self, header, buf, pos=0):
+    def __init__(self, header, data):
         super().__init__(header)
         self.root, self.objectid, self.offset, self.count = \
-            ExtentDataRef.extent_data_ref.unpack_from(buf, pos)
+            ExtentDataRef.extent_data_ref.unpack(data)
 
     def __str__(self):
         return "extent data backref root {self.root} objectid {self.objectid} " \
@@ -774,9 +779,9 @@ class ExtentDataRef(ItemData):
 class InlineExtentDataRef(ExtentDataRef):
     inline_extent_data_ref = ExtentDataRef.extent_data_ref
 
-    def __init__(self, buf, pos=0):
+    def __init__(self, data):
         self.root, self.objectid, self.offset, self.count = \
-            InlineExtentDataRef.inline_extent_data_ref.unpack_from(buf, pos)
+            InlineExtentDataRef.inline_extent_data_ref.unpack(data)
 
     def __str__(self):
         return "inline extent data backref root {self.root} objectid {self.objectid} " \
@@ -786,10 +791,10 @@ class InlineExtentDataRef(ExtentDataRef):
 class SharedDataRef(ItemData):
     shared_data_ref = struct.Struct('<L')
 
-    def __init__(self, header, buf, pos=0):
+    def __init__(self, header, data):
         super().__init__(header)
         self.parent = header.offset
-        self.count, = SharedDataRef.shared_data_ref.unpack_from(buf, pos)
+        self.count, = SharedDataRef.shared_data_ref.unpack(data)
 
     def __str__(self):
         return "shared data backref parent {self.parent count {self.count}".format(self=self)
@@ -798,8 +803,8 @@ class SharedDataRef(ItemData):
 class InlineSharedDataRef(SharedDataRef):
     inline_shared_data_ref = struct.Struct('<QL')
 
-    def __init__(self, buf, pos=0):
-        self.parent, self.count = InlineSharedDataRef.inline_shared_data_ref.unpack_from(buf, pos)
+    def __init__(self, data):
+        self.parent, self.count = InlineSharedDataRef.inline_shared_data_ref.unpack(data)
 
     def __str__(self):
         return "inline shared data backref parent {self.parent} " \
@@ -809,9 +814,9 @@ class InlineSharedDataRef(SharedDataRef):
 class TreeBlockInfo(object):
     tree_block_info = struct.Struct('<QBQB')
 
-    def __init__(self, buf, pos=0):
+    def __init__(self, data):
         tb_objectid, tb_type, tb_offset, self.level = \
-            TreeBlockInfo.tree_block_info.unpack_from(buf, pos)
+            TreeBlockInfo.tree_block_info.unpack(data)
         self.key = Key(tb_objectid, tb_type, tb_offset)
 
     def __str__(self):
@@ -819,29 +824,29 @@ class TreeBlockInfo(object):
 
 
 class MetaDataItem(ItemData):
-    def __init__(self, header, buf, pos=0, load_refs=False):
+    def __init__(self, header, data, load_refs=False):
         super().__init__(header)
         self.vaddr = header.objectid
         self.skinny_level = header.offset
-        self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(buf, pos)
+        self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(data)
         if load_refs:
-            self._load_refs(buf, pos)
+            self._load_refs(data[ExtentItem.extent_item.size:])
 
-    def _load_refs(self, buf, pos):
-        pos += ExtentItem.extent_item.size
+    def _load_refs(self, data):
+        pos = 0
         self.tree_block_refs = []
         self.shared_block_refs = []
-        while pos < len(buf):
+        while pos < len(data):
             inline_ref_type, inline_ref_offset = \
-                ExtentItem.extent_inline_ref.unpack_from(buf, pos)
+                ExtentItem.extent_inline_ref.unpack_from(data, pos)
             if inline_ref_type == TREE_BLOCK_REF_KEY:
                 self.tree_block_refs.append(InlineTreeBlockRef(inline_ref_offset))
             elif inline_ref_type == SHARED_BLOCK_REF_KEY:
                 self.shared_block_refs.append(InlineSharedBlockRef(inline_ref_offset))
             else:
                 raise Exception("BUG: expected inline TREE_BLOCK_REF or SHARED_BLOCK_REF_KEY "
-                                "in METADATA_ITEM {}, but got: {}"
-                                "".format(self.key, str(buf[pos:])))
+                                "in METADATA_ITEM {}, but got inline_ref_type {}"
+                                "".format(self.key, inline_ref_type))
             pos += ExtentItem.extent_inline_ref.size
 
     def append_tree_block_ref(self, ref):
@@ -896,8 +901,8 @@ class InlineSharedBlockRef(SharedBlockRef):
 class TimeSpec(object):
     timespec = struct.Struct('<QL')
 
-    def __init__(self, buf, pos=0):
-        self.sec, self.nsec = TimeSpec.timespec.unpack_from(buf, pos)
+    def __init__(self, data):
+        self.sec, self.nsec = TimeSpec.timespec.unpack_from(data)
 
     def __str__(self):
         return "{self.sec}.{self.nsec}".format(self=self)
@@ -913,20 +918,20 @@ class InodeItem(ItemData):
     ]
     inode_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _inode_item]))
 
-    def __init__(self, header, buf, pos=0):
+    def __init__(self, header, data):
         super().__init__(header)
         self.generation, self.transid, self.size, self.nbytes, self.block_group, \
             self.nlink, self.uid, self.gid, self.mode, self.rdev, self.flags, self.sequence = \
-            InodeItem._inode_item[0].unpack_from(buf, pos)
-        pos += InodeItem._inode_item[0].size
-        self.atime = TimeSpec(buf, pos)
-        pos += TimeSpec.timespec.size
-        self.ctime = TimeSpec(buf, pos)
-        pos += TimeSpec.timespec.size
-        self.mtime = TimeSpec(buf, pos)
-        pos += TimeSpec.timespec.size
-        self.otime = TimeSpec(buf, pos)
-        pos += TimeSpec.timespec.size
+            InodeItem._inode_item[0].unpack_from(data)
+        pos = InodeItem._inode_item[0].size
+        next_pos = pos + TimeSpec.timespec.size
+        self.atime = TimeSpec(data[pos:next_pos])
+        pos, next_pos = next_pos, next_pos + TimeSpec.timespec.size
+        self.ctime = TimeSpec(data[pos:next_pos])
+        pos, next_pos = next_pos, next_pos + TimeSpec.timespec.size
+        self.mtime = TimeSpec(data[pos:next_pos])
+        pos, next_pos = next_pos, next_pos + TimeSpec.timespec.size
+        self.otime = TimeSpec(data[pos:next_pos])
 
     @property
     def flags_str(self):
@@ -940,14 +945,14 @@ class InodeItem(ItemData):
 
 
 class InodeRefList(ItemData, collections.abc.MutableSequence):
-    def __init__(self, header, buf, pos=0):
+    def __init__(self, header, data):
         super().__init__(header)
         self._list = []
-        ir_pos = 0
-        while ir_pos < header.len:
-            inode_ref = InodeRef(buf, pos+ir_pos)
+        pos = 0
+        while pos < header.len:
+            inode_ref = InodeRef(data, pos)
             self._list.append(inode_ref)
-            ir_pos += len(inode_ref)
+            pos += len(inode_ref)
 
     def __getitem__(self, index):
         return self._list[index]
@@ -971,10 +976,10 @@ class InodeRefList(ItemData, collections.abc.MutableSequence):
 class InodeRef(object):
     inode_ref = struct.Struct('<QH')
 
-    def __init__(self, buf, pos):
-        self.index, self.name_len = InodeRef.inode_ref.unpack_from(buf, pos)
+    def __init__(self, data, pos):
+        self.index, self.name_len = InodeRef.inode_ref.unpack_from(data, pos)
         pos += InodeRef.inode_ref.size
-        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(buf, pos)
+        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
         self._len = InodeRef.inode_ref.size + self.name_len
 
     @property
@@ -989,14 +994,14 @@ class InodeRef(object):
 
 
 class InodeExtrefList(ItemData, collections.abc.MutableSequence):
-    def __init__(self, header, buf, pos=0):
+    def __init__(self, header, data):
         super().__init__(header)
         self._list = []
-        ier_pos = 0
-        while ier_pos < header.len:
-            inode_extref = InodeExtref(buf, pos+ier_pos)
+        pos = 0
+        while pos < header.len:
+            inode_extref = InodeExtref(data, pos)
             self._list.append(inode_extref)
-            ier_pos += len(inode_extref)
+            pos += len(inode_extref)
 
     def __getitem__(self, index):
         return self._list[index]
@@ -1020,11 +1025,11 @@ class InodeExtrefList(ItemData, collections.abc.MutableSequence):
 class InodeExtref(object):
     inode_extref = struct.Struct('<QQH')
 
-    def __init__(self, buf, pos=0):
+    def __init__(self, data, pos):
         self.parent_objectid, self.index, self.name_len = \
-            InodeExtref.inode_extref.unpack_from(buf, pos)
+            InodeExtref.inode_extref.unpack_from(data, pos)
         pos += InodeExtref.inode_extref.size
-        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(buf, pos)
+        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
         self._len = InodeExtref.inode_extref.size + self.name_len
 
     @property
@@ -1040,15 +1045,15 @@ class InodeExtref(object):
 
 
 class DirItemList(ItemData, collections.abc.MutableSequence):
-    def __init__(self, header, buf, pos=0):
+    def __init__(self, header, data):
         super().__init__(header)
         self._list = []
-        di_pos = 0
-        while di_pos < header.len:
+        pos = 0
+        while pos < header.len:
             cls = {DIR_ITEM_KEY: DirItem, XATTR_ITEM_KEY: XAttrItem}
-            dir_item = cls[self.key.type](buf, pos+di_pos)
+            dir_item = cls[self.key.type](data, pos)
             self._list.append(dir_item)
-            di_pos += len(dir_item)
+            pos += len(dir_item)
 
     def __getitem__(self, index):
         return self._list[index]
@@ -1081,15 +1086,16 @@ class DirItem(object):
     ]
     dir_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _dir_item]))
 
-    def __init__(self, buf, pos):
-        self.location = DiskKey(buf, pos)
-        pos += DiskKey.disk_key.size
+    def __init__(self, data, pos):
+        next_pos = pos + DiskKey.disk_key.size
+        self.location = DiskKey(data[pos:next_pos])
+        pos = next_pos
         self.transid, self.data_len, self.name_len, self.type = \
-            DirItem._dir_item[1].unpack_from(buf, pos)
+            DirItem._dir_item[1].unpack_from(data, pos)
         pos += DirItem._dir_item[1].size
-        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(buf, pos)
+        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
         pos += self.name_len
-        self.data, = struct.Struct('<{}s'.format(self.data_len)).unpack_from(buf, pos)
+        self.data, = struct.Struct('<{}s'.format(self.data_len)).unpack_from(data, pos)
         pos += self.data_len
         self._len = DirItem.dir_item.size + self.name_len + self.data_len
 
@@ -1119,14 +1125,14 @@ class XAttrItem(DirItem):
 
 
 class DirIndex(ItemData):
-    def __init__(self, header, buf, pos=0):
+    def __init__(self, header, data):
         super().__init__(header)
-        self.location = DiskKey(buf, pos)
-        pos += DiskKey.disk_key.size
+        self.location = DiskKey(data[:DiskKey.disk_key.size])
+        pos = DiskKey.disk_key.size
         self.transid, self.data_len, self.name_len, self.type = \
-            DirItem._dir_item[1].unpack_from(buf, pos)
+            DirItem._dir_item[1].unpack_from(data, pos)
         pos += DirItem._dir_item[1].size
-        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(buf, pos)
+        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
 
     @property
     def type_str(self):
@@ -1154,31 +1160,31 @@ class RootItem(ItemData):
     ]
     root_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _root_item]))
 
-    def __init__(self, header, buf, pos=0):
+    def __init__(self, header, data):
         super().__init__(header)
-        self.inode = InodeItem(None, buf, pos)
-        pos += InodeItem.inode_item.size
+        self.inode = InodeItem(None, data[:InodeItem.inode_item.size])
+        pos = InodeItem.inode_item.size
         self.generation, self.dirid, self.bytenr, self.byte_limit, self.bytes_used, \
             self.last_snapshot, self.flags, self.refs = \
-            RootItem._root_item[1].unpack_from(buf, pos)
+            RootItem._root_item[1].unpack_from(data, pos)
         pos += RootItem._root_item[1].size
-        self.drop_progress = DiskKey(buf, pos)
+        self.drop_progress = DiskKey(data[pos:pos+DiskKey.disk_key.size])
         pos += DiskKey.disk_key.size
         self.drop_level, self.level, self.generation_v2, uuid_bytes, parent_uuid_bytes, \
             received_uuid_bytes, self.ctransid, self.otransid, self.stransid, self.rtransid = \
-            RootItem._root_item[3].unpack_from(buf, pos)
-        pos += RootItem._root_item[3].size
+            RootItem._root_item[3].unpack_from(data, pos)
         self.uuid = uuid.UUID(bytes=uuid_bytes)
         self.parent_uuid = uuid.UUID(bytes=parent_uuid_bytes)
         self.received_uuid = uuid.UUID(bytes=received_uuid_bytes)
-        self.ctime = TimeSpec(buf, pos)
-        pos += TimeSpec.timespec.size
-        self.otime = TimeSpec(buf, pos)
-        pos += TimeSpec.timespec.size
-        self.stime = TimeSpec(buf, pos)
-        pos += TimeSpec.timespec.size
-        self.rtime = TimeSpec(buf, pos)
-        pos += TimeSpec.timespec.size
+        pos += RootItem._root_item[3].size
+        next_pos = pos + TimeSpec.timespec.size
+        self.ctime = TimeSpec(data[pos:next_pos])
+        pos, next_pos = next_pos, next_pos + TimeSpec.timespec.size
+        self.otime = TimeSpec(data[pos:next_pos])
+        pos, next_pos = next_pos, next_pos + TimeSpec.timespec.size
+        self.stime = TimeSpec(data[pos:next_pos])
+        pos, next_pos = next_pos, next_pos + TimeSpec.timespec.size
+        self.rtime = TimeSpec(data[pos:next_pos])
 
     @property
     def flags_str(self):
@@ -1198,12 +1204,11 @@ class FileExtentItem(ItemData):
     file_extent_item = struct.Struct('<' + ''.join([s.format[1:].decode()
                                                     for s in _file_extent_item]))
 
-    def __init__(self, header, buf, pos=0):
+    def __init__(self, header, data):
         super().__init__(header)
         self.logical_offset = header.offset
         self.generation, self.ram_bytes, self.compression, self.encryption, self.type = \
-            FileExtentItem._file_extent_item[0].unpack_from(buf, pos)
-        pos += FileExtentItem._file_extent_item[0].size
+            FileExtentItem._file_extent_item[0].unpack_from(data)
         if self.type != FILE_EXTENT_INLINE:
             # These are confusing, so they deserve a comment in the code:
             # (disk_bytenr EXTENT_ITEM disk_num_bytes) is the tree key of
@@ -1216,8 +1221,9 @@ class FileExtentItem(ItemData):
             # Remember that these numbers always be multiples of disk block
             # sizes, because that's how it gets cowed. We don't just use 1 or 2
             # bytes from another extent.
+            pos = FileExtentItem._file_extent_item[0].size
             self.disk_bytenr, self.disk_num_bytes, self.offset, self.num_bytes = \
-                FileExtentItem._file_extent_item[1].unpack_from(buf, pos)
+                FileExtentItem._file_extent_item[1].unpack_from(data, pos)
         else:
             self._inline_encoded_nbytes = header.len - FileExtentItem._file_extent_item[0].size
 
