@@ -598,6 +598,9 @@ class ItemData(object):
         elif header is not None:
             raise TypeError("Not a SearchHeader: {}".format(header))
 
+    def __lt__(self, other):
+        return self.key < other.key
+
 
 class DevItem(ItemData):
     dev_item = struct.Struct('<3Q3L3QL2B16s16s')
