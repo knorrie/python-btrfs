@@ -591,11 +591,19 @@ class FileSystem(object):
                     Key(header.objectid, header.type, header.offset)))
 
 
-class DevItem(object):
+class ItemData(object):
+    def __init__(self, header):
+        if isinstance(header, btrfs.ioctl.SearchHeader):
+            self.key = Key(header.objectid, header.type, header.offset)
+        elif header is not None:
+            raise TypeError("Not a SearchHeader: {}".format(header))
+
+
+class DevItem(ItemData):
     dev_item = struct.Struct('<3Q3L3QL2B16s16s')
 
     def __init__(self, header, buf, pos=0):
-        self.key = Key(header.objectid, header.type, header.offset)
+        super().__init__(header)
         self.devid, self.total_bytes, self.bytes_used, self.io_align, self.io_width, \
             self.sector_size, self.type, self.generation, self.start_offset, self.dev_group, \
             self.seek_speed, self.bandwidth, uuid_bytes, fsid_bytes = \
@@ -608,11 +616,11 @@ class DevItem(object):
             "bytes used {self.bytes_used}".format(self=self)
 
 
-class Chunk(object):
+class Chunk(ItemData):
     chunk = struct.Struct('<4Q3L2H')
 
     def __init__(self, header, buf, pos=0):
-        self.key = Key(header.objectid, header.type, header.offset)
+        super().__init__(header)
         self.vaddr = header.offset
         self.length, self.owner, self.stripe_len, self.type, self.io_align, \
             self.io_width, self.sector_size, self.num_stripes, self.sub_stripes = \
@@ -644,11 +652,11 @@ class Stripe(object):
         return "stripe devid {self.devid} offset {self.offset}".format(self=self)
 
 
-class DevExtent(object):
+class DevExtent(ItemData):
     dev_extent = struct.Struct('<4Q16s')
 
     def __init__(self, header, buf, pos=0):
-        self.key = Key(header.objectid, header.type, header.offset)
+        super().__init__(header)
         self.devid = header.objectid
         self.paddr = header.offset
         self.chunk_tree, self.chunk_objectid, self.chunk_offset, self.length, uuid_bytes = \
@@ -661,11 +669,11 @@ class DevExtent(object):
             "chunk {self.chunk_offset}".format(self=self)
 
 
-class BlockGroupItem(object):
+class BlockGroupItem(ItemData):
     block_group_item = struct.Struct('<3Q')
 
     def __init__(self, header, buf, pos=0):
-        self.key = Key(header.objectid, header.type, header.offset)
+        super().__init__(header)
         self.vaddr = header.objectid
         self.length = header.offset
         self.used, self.chunk_objectid, self.flags = \
@@ -684,12 +692,12 @@ class BlockGroupItem(object):
             "flags {self.flags_str} used {self.used} used_pct {self.used_pct}".format(self=self)
 
 
-class ExtentItem(object):
+class ExtentItem(ItemData):
     extent_item = struct.Struct('<3Q')
     extent_inline_ref = struct.Struct('<BQ')
 
     def __init__(self, header, buf, pos=0, load_data_refs=False, load_metadata_refs=False):
-        self.key = Key(header.objectid, header.type, header.offset)
+        super().__init__(header)
         self.vaddr = header.objectid
         self.length = header.offset
         self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(buf, pos)
@@ -746,10 +754,11 @@ class ExtentItem(object):
             "gen {self.generation} flags {self.flags_str}".format(self=self)
 
 
-class ExtentDataRef(object):
+class ExtentDataRef(ItemData):
     extent_data_ref = struct.Struct('<3QL')
 
     def __init__(self, header, buf, pos=0):
+        super().__init__(header)
         self.root, self.objectid, self.offset, self.count = \
             ExtentDataRef.extent_data_ref.unpack_from(buf, pos)
 
@@ -770,10 +779,11 @@ class InlineExtentDataRef(ExtentDataRef):
             "offset {self.offset} count {self.count}".format(self=self)
 
 
-class SharedDataRef(object):
+class SharedDataRef(ItemData):
     shared_data_ref = struct.Struct('<L')
 
     def __init__(self, header, buf, pos=0):
+        super().__init__(header)
         self.parent = header.offset
         self.count, = SharedDataRef.shared_data_ref.unpack_from(buf, pos)
 
@@ -804,9 +814,9 @@ class TreeBlockInfo(object):
         return "tree block key {self.key} level {self.level}".format(self=self)
 
 
-class MetaDataItem(object):
+class MetaDataItem(ItemData):
     def __init__(self, header, buf, pos=0, load_refs=False):
-        self.key = Key(header.objectid, header.type, header.offset)
+        super().__init__(header)
         self.vaddr = header.objectid
         self.skinny_level = header.offset
         self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(buf, pos)
@@ -845,8 +855,9 @@ class MetaDataItem(object):
             "flags {self.flags_str} skinny level {self.skinny_level}".format(self=self)
 
 
-class TreeBlockRef(object):
+class TreeBlockRef(ItemData):
     def __init__(self, header):
+        super().__init__(header)
         self.root = header.offset
 
     def __str__(self):
@@ -861,8 +872,9 @@ class InlineTreeBlockRef(TreeBlockRef):
         return "inline tree block backref root {}".format(key_objectid_str(self.root, None))
 
 
-class SharedBlockRef(object):
+class SharedBlockRef(ItemData):
     def __init__(self, header):
+        super().__init__(header)
         self.parent = header.offset
 
     def __str__(self):
@@ -887,7 +899,7 @@ class TimeSpec(object):
         return "{self.sec}.{self.nsec}".format(self=self)
 
 
-class InodeItem(object):
+class InodeItem(ItemData):
     _inode_item = [
         struct.Struct('<5Q4L3Q32x'),
         TimeSpec.timespec,
@@ -898,10 +910,7 @@ class InodeItem(object):
     inode_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _inode_item]))
 
     def __init__(self, header, buf, pos=0):
-        if header is not None:
-            self.key = Key(header.objectid, header.type, header.offset)
-        else:
-            self.key = None
+        super().__init__(header)
         self.generation, self.transid, self.size, self.nbytes, self.block_group, \
             self.nlink, self.uid, self.gid, self.mode, self.rdev, self.flags, self.sequence = \
             InodeItem._inode_item[0].unpack_from(buf, pos)
@@ -926,11 +935,11 @@ class InodeItem(object):
             "flags {self.flags:#x}({self.flags_str})".format(self=self)
 
 
-class InodeRef(object):
+class InodeRef(ItemData):
     inode_ref = struct.Struct('<QH')
 
     def __init__(self, header, buf, pos=0):
-        self.key = Key(header.objectid, header.type, header.offset)
+        super().__init__(header)
         self.index, self.name_len = InodeRef.inode_ref.unpack_from(buf, pos)
         pos += InodeRef.inode_ref.size
         self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(buf, pos)
@@ -944,11 +953,11 @@ class InodeRef(object):
         return self._len
 
 
-class InodeExtref(object):
+class InodeExtref(ItemData):
     inode_extref = struct.Struct('<QQH')
 
     def __init__(self, header, buf, pos=0):
-        self.key = Key(header.objectid, header.type, header.offset)
+        super().__init__(header)
         self.parent_objectid, self.index, self.name_len = \
             InodeExtref.inode_extref.unpack_from(buf, pos)
         pos += InodeExtref.inode_extref.size
@@ -959,7 +968,7 @@ class InodeExtref(object):
             self.parent_objectid, self.index, btrfs.utils.embedded_text_for_str(self.name))
 
 
-class DirItem(object):
+class DirItem(ItemData):
     _dir_item = [
         DiskKey.disk_key,
         struct.Struct('<QHHB')
@@ -967,7 +976,7 @@ class DirItem(object):
     dir_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _dir_item]))
 
     def __init__(self, header, buf, pos=0):
-        self.key = Key(header.objectid, header.type, header.offset)
+        super().__init__(header)
         self.location = DiskKey(buf, pos)
         pos += DiskKey.disk_key.size
         self.transid, self.data_len, self.name_len, self.type = \
@@ -1011,7 +1020,7 @@ class XAttrItem(DirItem):
             "data {self.data_str}".format(self=self)
 
 
-class RootItem(object):
+class RootItem(ItemData):
     _root_item = [
         InodeItem.inode_item,
         struct.Struct('<7QL'),
@@ -1025,7 +1034,7 @@ class RootItem(object):
     root_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _root_item]))
 
     def __init__(self, header, buf, pos=0):
-        self.key = Key(header.objectid, header.type, header.offset)
+        super().__init__(header)
         self.inode = InodeItem(None, buf, pos)
         pos += InodeItem.inode_item.size
         self.generation, self.dirid, self.bytenr, self.byte_limit, self.bytes_used, \
@@ -1060,7 +1069,7 @@ class RootItem(object):
             "flags {self.flags:#x}({self.flags_str})".format(self=self)
 
 
-class FileExtentItem(object):
+class FileExtentItem(ItemData):
     _file_extent_item = [
         struct.Struct('<QQBB2xB'),
         struct.Struct('<4Q'),
@@ -1069,7 +1078,7 @@ class FileExtentItem(object):
                                                     for s in _file_extent_item]))
 
     def __init__(self, header, buf, pos=0):
-        self.key = Key(header.objectid, header.type, header.offset)
+        super().__init__(header)
         self.logical_offset = header.offset
         self.generation, self.ram_bytes, self.compression, self.encryption, self.type = \
             FileExtentItem._file_extent_item[0].unpack_from(buf, pos)
