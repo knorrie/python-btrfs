@@ -29,13 +29,15 @@ for header, data in btrfs.ioctl.search_v2(fd, tree, min_key, max_key):
         # directory only has one link
         print(btrfs.ctree.InodeRef(header, data))
     elif header.type == btrfs.ctree.XATTR_ITEM_KEY:
-        print(btrfs.ctree.XAttrItem(header, data))
+        xattr_item_list = btrfs.ctree.XAttrItemList(header, data)
+        print(xattr_item_list)
+        for xattr_item in xattr_item_list:
+            print("    {}".format(xattr_item))
     elif header.type == btrfs.ctree.DIR_ITEM_KEY:
-        pos = 0
-        while pos < header.len:
-            item = btrfs.ctree.DirItem(header, data, pos)
-            print(item)
-            pos += len(item)
+        dir_item_list = btrfs.ctree.DirItemList(header, data)
+        print(dir_item_list)
+        for dir_item in dir_item_list:
+            print("    {}".format(dir_item))
     elif header.type == btrfs.ctree.DIR_INDEX_KEY:
         print(btrfs.ctree.DirIndex(header, data))
     else:

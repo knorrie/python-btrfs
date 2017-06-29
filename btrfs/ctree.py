@@ -16,6 +16,7 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
+import collections.abc
 import copy
 import os
 import struct
@@ -971,15 +972,49 @@ class InodeExtref(ItemData):
             self.parent_objectid, self.index, btrfs.utils.embedded_text_for_str(self.name))
 
 
-class DirItem(ItemData):
+class DirItemList(ItemData, collections.abc.MutableSequence):
+    def __init__(self, header, buf, pos=0):
+        super().__init__(header)
+        self._list = []
+        di_pos = 0
+        while di_pos < header.len:
+            cls = {DIR_ITEM_KEY: DirItem, XATTR_ITEM_KEY: XAttrItem}
+            dir_item = cls[self.key.type](buf, pos+di_pos)
+            self._list.append(dir_item)
+            di_pos += len(dir_item)
+
+    def __getitem__(self, index):
+        return self._list[index]
+
+    def __setitem__(self, index, value):
+        self._list[index] = value
+
+    def __delitem__(self, index):
+        del self._list[index]
+
+    def __len__(self):
+        return len(self._list)
+
+    def insert(self, index, value):
+        self._list.insert(index, value)
+
+    def __str__(self):
+        return "dir item list hash {self.key.offset} size {}".format(len(self), self=self)
+
+
+class XAttrItemList(DirItemList):
+    def __str__(self):
+        return "xattr item list hash {self.key.offset} size {}".format(len(self), self=self)
+
+
+class DirItem(object):
     _dir_item = [
         DiskKey.disk_key,
         struct.Struct('<QHHB')
     ]
     dir_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _dir_item]))
 
-    def __init__(self, header, buf, pos=0):
-        super().__init__(header)
+    def __init__(self, buf, pos):
         self.location = DiskKey(buf, pos)
         pos += DiskKey.disk_key.size
         self.transid, self.data_len, self.name_len, self.type = \
@@ -1003,24 +1038,40 @@ class DirItem(ItemData):
     def data_str(self):
         return btrfs.utils.embedded_text_for_str(self.data)
 
-    def __str__(self):
-        return "dir item hash {self.key.offset} location {self.location} type {self.type_str} " \
-            "name {self.name_str}".format(self=self)
-
     def __len__(self):
         return self._len
 
-
-class DirIndex(DirItem):
     def __str__(self):
-        return "dir index {self.key.offset} location {self.location} type {self.type_str} " \
+        return "dir item location {self.location} type {self.type_str} " \
             "name {self.name_str}".format(self=self)
 
 
 class XAttrItem(DirItem):
     def __str__(self):
-        return "xattr item hash {self.key.offset} name {self.name_str} " \
-            "data {self.data_str}".format(self=self)
+        return "xattr item name {self.name_str} data {self.data_str}".format(self=self)
+
+
+class DirIndex(ItemData):
+    def __init__(self, header, buf, pos=0):
+        super().__init__(header)
+        self.location = DiskKey(buf, pos)
+        pos += DiskKey.disk_key.size
+        self.transid, self.data_len, self.name_len, self.type = \
+            DirItem._dir_item[1].unpack_from(buf, pos)
+        pos += DirItem._dir_item[1].size
+        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(buf, pos)
+
+    @property
+    def type_str(self):
+        return _dir_item_type_str_map[self.type]
+
+    @property
+    def name_str(self):
+        return btrfs.utils.embedded_text_for_str(self.name)
+
+    def __str__(self):
+        return "dir index {self.key.offset} location {self.location} type {self.type_str} " \
+            "name {self.name_str}".format(self=self)
 
 
 class RootItem(ItemData):

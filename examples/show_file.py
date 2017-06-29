@@ -34,7 +34,10 @@ for header, data in btrfs.ioctl.search_v2(fd, tree, min_key, max_key):
     elif header.type == btrfs.ctree.INODE_EXTREF_KEY:
         print(btrfs.ctree.InodeExtref(header, data))
     elif header.type == btrfs.ctree.XATTR_ITEM_KEY:
-        print(btrfs.ctree.XAttrItem(header, data))
+        xattr_item_list = btrfs.ctree.XAttrItemList(header, data)
+        print(xattr_item_list)
+        for xattr_item in xattr_item_list:
+            print("    {}".format(xattr_item))
     elif header.type == btrfs.ctree.EXTENT_DATA_KEY:
         print(btrfs.ctree.FileExtentItem(header, data))
     else:
