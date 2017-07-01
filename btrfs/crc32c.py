@@ -94,3 +94,7 @@ def crc32c(crc, data):
 
 def name_hash(name):
     return crc32c(4294967294, name)  # (u32)~1
+
+
+def extref_hash(parent_objectid, name):
+    return crc32c(parent_objectid, name)
