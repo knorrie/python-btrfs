@@ -939,37 +939,104 @@ class InodeItem(ItemData):
             "flags {self.flags:#x}({self.flags_str})".format(self=self)
 
 
-class InodeRef(ItemData):
-    inode_ref = struct.Struct('<QH')
-
+class InodeRefList(ItemData, collections.abc.MutableSequence):
     def __init__(self, header, buf, pos=0):
         super().__init__(header)
+        self._list = []
+        ir_pos = 0
+        while ir_pos < header.len:
+            inode_ref = InodeRef(buf, pos+ir_pos)
+            self._list.append(inode_ref)
+            ir_pos += len(inode_ref)
+
+    def __getitem__(self, index):
+        return self._list[index]
+
+    def __setitem__(self, index, value):
+        self._list[index] = value
+
+    def __delitem__(self, index):
+        del self._list[index]
+
+    def __len__(self):
+        return len(self._list)
+
+    def insert(self, index, value):
+        self._list.insert(index, value)
+
+    def __str__(self):
+        return "inode ref list size {}".format(len(self))
+
+
+class InodeRef(object):
+    inode_ref = struct.Struct('<QH')
+
+    def __init__(self, buf, pos):
         self.index, self.name_len = InodeRef.inode_ref.unpack_from(buf, pos)
         pos += InodeRef.inode_ref.size
         self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(buf, pos)
         self._len = InodeRef.inode_ref.size + self.name_len
 
-    def __str__(self):
-        return "inode ref index {} name {}".format(
-            self.index, btrfs.utils.embedded_text_for_str(self.name))
+    @property
+    def name_str(self):
+        return btrfs.utils.embedded_text_for_str(self.name)
 
     def __len__(self):
         return self._len
 
+    def __str__(self):
+        return "inode ref index {self.index} name {self.name_str}".format(self=self)
 
-class InodeExtref(ItemData):
-    inode_extref = struct.Struct('<QQH')
 
+class InodeExtrefList(ItemData, collections.abc.MutableSequence):
     def __init__(self, header, buf, pos=0):
         super().__init__(header)
+        self._list = []
+        ier_pos = 0
+        while ier_pos < header.len:
+            inode_extref = InodeExtref(buf, pos+ier_pos)
+            self._list.append(inode_extref)
+            ier_pos += len(inode_extref)
+
+    def __getitem__(self, index):
+        return self._list[index]
+
+    def __setitem__(self, index, value):
+        self._list[index] = value
+
+    def __delitem__(self, index):
+        del self._list[index]
+
+    def __len__(self):
+        return len(self._list)
+
+    def insert(self, index, value):
+        self._list.insert(index, value)
+
+    def __str__(self):
+        return "inode extref list hash {self.key.offset} size {}".format(len(self), self=self)
+
+
+class InodeExtref(object):
+    inode_extref = struct.Struct('<QQH')
+
+    def __init__(self, buf, pos=0):
         self.parent_objectid, self.index, self.name_len = \
             InodeExtref.inode_extref.unpack_from(buf, pos)
         pos += InodeExtref.inode_extref.size
         self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(buf, pos)
+        self._len = InodeExtref.inode_extref.size + self.name_len
+
+    @property
+    def name_str(self):
+        return btrfs.utils.embedded_text_for_str(self.name)
+
+    def __len__(self):
+        return self._len
 
     def __str__(self):
-        return "inode extref parent_objectid {} index {} name {}".format(
-            self.parent_objectid, self.index, btrfs.utils.embedded_text_for_str(self.name))
+        return "inode extref parent_objectid {self.parent_objectid} index {self.index} " \
+            "name {self.name_str}".format(self=self)
 
 
 class DirItemList(ItemData, collections.abc.MutableSequence):
