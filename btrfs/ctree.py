@@ -797,7 +797,7 @@ class SharedDataRef(ItemData):
         self.count, = SharedDataRef.shared_data_ref.unpack(data)
 
     def __str__(self):
-        return "shared data backref parent {self.parent count {self.count}".format(self=self)
+        return "shared data backref parent {self.parent} count {self.count}".format(self=self)
 
 
 class InlineSharedDataRef(SharedDataRef):
