@@ -36,21 +36,20 @@ _IOC_TYPEBITS = 8
 # be to make a compiled extension instead, delivering the right values, but...
 # that hasn't been done yet!
 arch = platform.machine()
-if arch in ('x86_64', 'i686', 'i386', 'i586', 'amd64', 'ia64', 'm68k', 's390x', 'i486') \
-        or arch.startswith('arm'):
+if arch in ('x86_64', 'i686', 'i386', 'i586', 'amd64', 'ia64', 'm68k', 'i486') \
+        or arch.startswith(('aarch64', 'arm', 's390')):
     _IOC_SIZEBITS = 14
     _IOC_DIRBITS = 2
     _IOC_NONE = 0
     _IOC_WRITE = 1
     _IOC_READ = 2
-elif arch in ('ppc', 'powerpc', 'alpha', 'sparc64', 'ppc64', 'ppc64le', 'sparc',
-              'mips64', 'mips'):
+elif arch in ('powerpc', 'alpha') or arch.startswith(('sparc', 'ppc', 'mips')):
     _IOC_SIZEBITS = 13
     _IOC_DIRBITS = 3
     _IOC_NONE = 1
     _IOC_READ = 2
     _IOC_WRITE = 4
-elif arch in ('parisc64', 'parisc', 'hppa'):
+elif arch == 'hppa' or arch.startswith('parisc'):
     _IOC_SIZEBITS = 14
     _IOC_DIRBITS = 2
     _IOC_NONE = 0
