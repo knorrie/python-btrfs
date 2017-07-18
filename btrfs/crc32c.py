@@ -84,10 +84,17 @@ table = (
 )
 
 
-def name_hash(data):
+def crc32c(crc, data):
     if not isinstance(data, (bytes, bytearray)):
         data = bytes(data, 'utf-8')
-    crc = 4294967294  # (u32)~1
     for char in data:
         crc = table[(crc ^ char) & 0xff] ^ (crc >> 8)
     return crc & 0xffffffff
+
+
+def name_hash(name):
+    return crc32c(4294967294, name)  # (u32)~1
+
+
+def extref_hash(parent_objectid, name):
+    return crc32c(parent_objectid, name)

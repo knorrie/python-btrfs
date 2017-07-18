@@ -26,16 +26,18 @@ for header, data in btrfs.ioctl.search_v2(fd, tree, min_key, max_key):
     if header.type == btrfs.ctree.INODE_ITEM_KEY:
         print(btrfs.ctree.InodeItem(header, data))
     elif header.type == btrfs.ctree.INODE_REF_KEY:
-        # directory only has one link
-        print(btrfs.ctree.InodeRef(header, data))
+        # directory can only have one link
+        print(btrfs.ctree.InodeRefList(header, data)[0])
     elif header.type == btrfs.ctree.XATTR_ITEM_KEY:
-        print(btrfs.ctree.XAttrItem(header, data))
+        xattr_item_list = btrfs.ctree.XAttrItemList(header, data)
+        print(xattr_item_list)
+        for xattr_item in xattr_item_list:
+            print("    {}".format(xattr_item))
     elif header.type == btrfs.ctree.DIR_ITEM_KEY:
-        pos = 0
-        while pos < header.len:
-            item = btrfs.ctree.DirItem(header, data, pos)
-            print(item)
-            pos += len(item)
+        dir_item_list = btrfs.ctree.DirItemList(header, data)
+        print(dir_item_list)
+        for dir_item in dir_item_list:
+            print("    {}".format(dir_item))
     elif header.type == btrfs.ctree.DIR_INDEX_KEY:
         print(btrfs.ctree.DirIndex(header, data))
     else:

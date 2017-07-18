@@ -29,7 +29,6 @@ while True:
             current_id, since = subvol_id, int(time.time())
             break
     if current_id is not None:
-        current_drop_progress = None
         report_after = 0
         while True:
             subvolumes = list(fs.subvolumes(min_id=current_id, max_id=current_id))

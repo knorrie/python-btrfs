@@ -36,21 +36,20 @@ _IOC_TYPEBITS = 8
 # be to make a compiled extension instead, delivering the right values, but...
 # that hasn't been done yet!
 arch = platform.machine()
-if arch in ('x86_64', 'i686', 'i386', 'i586', 'amd64', 'ia64', 'm68k', 's390x', 'i486') \
-        or arch.startswith('arm'):
+if arch in ('x86_64', 'i686', 'i386', 'i586', 'amd64', 'ia64', 'm68k', 'i486') \
+        or arch.startswith(('aarch64', 'arm', 's390')):
     _IOC_SIZEBITS = 14
     _IOC_DIRBITS = 2
     _IOC_NONE = 0
     _IOC_WRITE = 1
     _IOC_READ = 2
-elif arch in ('ppc', 'powerpc', 'alpha', 'sparc64', 'ppc64', 'ppc64le', 'sparc',
-              'mips64', 'mips'):
+elif arch in ('powerpc', 'alpha') or arch.startswith(('sparc', 'ppc', 'mips')):
     _IOC_SIZEBITS = 13
     _IOC_DIRBITS = 3
     _IOC_NONE = 1
     _IOC_READ = 2
     _IOC_WRITE = 4
-elif arch in ('parisc64', 'parisc', 'hppa'):
+elif arch == 'hppa' or arch.startswith('parisc'):
     _IOC_SIZEBITS = 14
     _IOC_DIRBITS = 2
     _IOC_NONE = 0
@@ -244,13 +243,14 @@ def search_v2(fd, tree, min_key=None, max_key=None,
         max_key = btrfs.ctree.Key(ULLONG_MAX, 255, ULLONG_MAX)
     wanted_nr_items = nr_items
     result_nr_items = -1
-    if _v2:
-        if buf_size is None:
-            buf_size = 16384
-        buf = bytearray(ioctl_search_args_v2.size + buf_size)
-    else:
-        buf = bytearray(4096)
+    if _v2 and buf_size is None:
+        buf_size = 16384
     while min_key <= max_key and result_nr_items != 0 and wanted_nr_items > 0:
+        if _v2:
+            buf = bytearray(ioctl_search_args_v2.size + buf_size)
+        else:
+            buf = bytearray(4096)
+        buf_view = memoryview(buf)
         pos = 0
         ioctl_search_key.pack_into(buf, pos, tree,
                                    min_key.objectid, max_key.objectid,
@@ -270,8 +270,7 @@ def search_v2(fd, tree, min_key=None, max_key=None,
             for i in range(result_nr_items):
                 header = SearchHeader(*ioctl_search_header.unpack_from(buf, pos))
                 pos += ioctl_search_header.size
-                data = buf[pos:pos+header.len]
-                yield((header, data))
+                yield((header, buf_view[pos:pos+header.len]))
                 pos += header.len
                 wanted_nr_items -= 1
                 if wanted_nr_items == 0:
