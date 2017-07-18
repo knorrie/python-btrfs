@@ -1,3 +1,9 @@
+python-btrfs (8-1~bpo9+1) stretch-backports; urgency=medium
+
+  * Rebuild for Stretch (no changes)
+
+ -- Hans van Kranenburg <hans@knorrie.org>  Tue, 18 Jul 2017 23:34:42 +0200
+
 python-btrfs (8-1) unstable; urgency=medium
 
   * New release v8 (Closes: #868370)
