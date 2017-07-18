@@ -3,7 +3,7 @@ Section: python
 Priority: optional
 Maintainer: Hans van Kranenburg <hans@knorrie.org>
 Build-Depends: debhelper (>= 9), dh-python, python3-all, python3-setuptools
-Standards-Version: 3.9.8
+Standards-Version: 4.0.0
 Homepage: https://github.com/knorrie/python-btrfs/
 
 Package: python3-btrfs
