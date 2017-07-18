@@ -1,3 +1,16 @@
+python-btrfs v8, Jul 18 2017
+  * Easier handling of multiple appended data structures of the dir item and
+    inode ref families easier. (not backwards compatible!)
+  * Don't keep metadata page transid value when retrieving a BlockGroupItem.
+    This was introduced in v4, but it's not technically correct.
+  * Improve architecture dependent ioctl number handling.
+  * Examples added:
+    - Do a custom sorted btrfs balance, working from the least used block
+      group to the most used, stopping at some usage value.
+    - Calculate an inode extref hash from an inode number and file name.
+  * Fixes:
+    - Another unfortunate typo in __str__ methods of an object
+
 python-btrfs v7, May 28 2017
   * Also unpack bitmaps when showing the free space tree
   * Fixes:
