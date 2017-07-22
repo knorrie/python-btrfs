@@ -11,7 +11,7 @@ if len(sys.argv) < 2:
 filename = sys.argv[1]
 
 if not os.path.isfile(filename):
-    print("{} is not a filename!".format(filename))
+    print("{} is not a regular file!".format(filename))
     sys.exit(1)
 
 inum = os.stat(filename).st_ino
