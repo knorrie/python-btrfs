@@ -1,6 +1,6 @@
 python-btrfs v8, Jul 18 2017
   * Easier handling of multiple appended data structures of the dir item and
-    inode ref families easier. (not backwards compatible!)
+    inode ref families. (not backwards compatible!)
   * Don't keep metadata page transid value when retrieving a BlockGroupItem.
     This was introduced in v4, but it's not technically correct.
   * Improve architecture dependent ioctl number handling.
