@@ -93,6 +93,10 @@ def crc32c(crc, data):
     return crc & 0xffffffff
 
 
+def crc32c_data(data):
+    return 0xffffffff ^ crc32c(~0, data)
+
+
 def name_hash(name):
     return crc32c(~1, name)
 
