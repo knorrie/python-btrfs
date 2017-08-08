@@ -87,6 +87,7 @@ table = (
 def crc32c(crc, data):
     if not isinstance(data, (bytes, bytearray)):
         data = bytes(data, 'utf-8')
+    crc = crc & 0xffffffff
     for char in data:
         crc = table[(crc ^ char) & 0xff] ^ (crc >> 8)
     return crc & 0xffffffff
