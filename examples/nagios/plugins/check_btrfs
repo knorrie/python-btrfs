@@ -128,17 +128,15 @@ def check_dev_stats(fs):
     devices = list(fs.devices())
     for device in devices:
         stats = fs.dev_stats(device.devid)
-        device_msg = ["{} {}".format(value, counter)
+        device_msg = ["{}: {}".format(counter, value)
                       for counter, value in stats.counters.items()
                       if value != 0]
         if len(device_msg) > 0:
-            msg.append("Critical: Device {} has errors: {}".format(
-                device.devid, ", ".join(device_msg)))
+            msg.append("device {}: {}".format(device.devid, ", ".join(device_msg)))
             state = STATE_CRITICAL
     summary.append("{} device(s)".format(len(devices)))
     if state != STATE_OK:
         return state, msg, summary
-    summary.append("No device errors registered")
     return state, msg, summary
 
 
