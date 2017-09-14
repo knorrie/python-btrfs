@@ -150,11 +150,11 @@ class DevStats(object):
     @property
     def counters(self):
         return {
-            'write': self.write_errs,
-            'read': self.read_errs,
-            'flush': self.flush_errs,
-            'generation': self.generation_errs,
-            'corruption': self.corruption_errs,
+            'write_errs': self.write_errs,
+            'read_errs': self.read_errs,
+            'flush_errs': self.flush_errs,
+            'generation_errs': self.generation_errs,
+            'corruption_errs': self.corruption_errs,
         }
 
     def __str__(self):
