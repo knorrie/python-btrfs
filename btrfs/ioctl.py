@@ -287,12 +287,31 @@ Inode = namedtuple('Inode', ['inum', 'offset', 'root'])
 
 
 def logical_to_ino(fd, vaddr, bufsize=4096):
-    bufsize = min(bufsize, 65536)
+    return logical_to_ino_v2(fd, vaddr, bufsize, _v2=False)
+
+
+ioctl_logical_ino_args_v2 = struct.Struct('=QQ24xQQ')
+IOC_LOGICAL_INO_V2 = _IOWR(BTRFS_IOCTL_MAGIC, 59, ioctl_logical_ino_args)
+LOGICAL_INO_ARGS_IGNORE_OFFSET = 1 << 0
+
+
+def logical_to_ino_v2(fd, vaddr, bufsize=4096, ignore_offset=False, _v2=True):
+    if _v2:
+        bufsize = min(bufsize, 16777216)
+    else:
+        bufsize = min(bufsize, 65536)
     inodes_buf = array.array(u'B', bytearray(bufsize))
     inodes_ptr = inodes_buf.buffer_info()[0]
     args = bytearray(ioctl_logical_ino_args.size)
-    ioctl_logical_ino_args.pack_into(args, 0, vaddr, bufsize, inodes_ptr)
-    fcntl.ioctl(fd, IOC_LOGICAL_INO, args)
+    if _v2:
+        flags = 0
+        if ignore_offset:
+            flags |= LOGICAL_INO_ARGS_IGNORE_OFFSET
+        ioctl_logical_ino_args_v2.pack_into(args, 0, vaddr, bufsize, flags, inodes_ptr)
+        fcntl.ioctl(fd, IOC_LOGICAL_INO_V2, args)
+    else:
+        ioctl_logical_ino_args.pack_into(args, 0, vaddr, bufsize, inodes_ptr)
+        fcntl.ioctl(fd, IOC_LOGICAL_INO, args)
     bytes_left, bytes_missing, elem_cnt, elem_missed = data_container.unpack_from(inodes_buf, 0)
     inodes = []
     pos = data_container.size
