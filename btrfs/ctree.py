@@ -1237,7 +1237,7 @@ class FileExtentItem(ItemData):
         ret = ["extent data at {self.logical_offset} generation {self.generation} "
                "ram_bytes {self.ram_bytes} "
                "compression {self.compress_str} type {self.type_str}".format(self=self)]
-        if self.type != 0:
+        if self.type != FILE_EXTENT_INLINE:
             ret.append("disk_bytenr {self.disk_bytenr} disk_num_bytes {self.disk_num_bytes} "
                        "offset {self.offset} num_bytes {self.num_bytes}".format(self=self))
         else:
