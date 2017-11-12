@@ -654,3 +654,20 @@ def balance_progress(fd):
     state, = _ioctl_balance_args[1].unpack_from(args, pos)
     pos = sum(x.size for x in _ioctl_balance_args[:5])
     return BalanceProgress(state, *_balance_progress.unpack_from(args, pos))
+
+
+ioctl_received_subvol_args = struct.Struct('=16sQQQLQLQ128x')
+_ioctl_received_subvol_args_in = struct.Struct('=16sQ8xQL148x')
+_ioctl_received_subvol_args_out_up_to_rtime = struct.Struct('=24xQ12x')
+IOC_SET_RECEIVED_SUBVOL = _IOWR(BTRFS_IOCTL_MAGIC, 37, ioctl_received_subvol_args)
+
+
+def set_received_subvol(fd, received_uuid, stransid, stime):
+    args = bytearray(_ioctl_received_subvol_args_in.size)
+    _ioctl_received_subvol_args_in.pack_into(args, 0, received_uuid.bytes, stransid,
+                                             stime.sec, stime.nsec)
+    fcntl.ioctl(fd, IOC_SET_RECEIVED_SUBVOL, args)
+    rtransid, = _ioctl_received_subvol_args_out_up_to_rtime.unpack_from(args, 0)
+    pos = _ioctl_received_subvol_args_out_up_to_rtime.size
+    rtime = btrfs.ctree.TimeSpec(args[pos:pos+btrfs.ctree.TimeSpec.timespec.size])
+    return rtransid, rtime

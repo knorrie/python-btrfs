@@ -899,6 +899,13 @@ class InlineSharedBlockRef(SharedBlockRef):
 class TimeSpec(object):
     timespec = struct.Struct('<QL')
 
+    @staticmethod
+    def from_values(sec, nsec):
+        t = TimeSpec.__new__(TimeSpec)
+        t.sec = sec
+        t.nsec = nsec
+        return t
+
     def __init__(self, data):
         self.sec, self.nsec = TimeSpec.timespec.unpack_from(data)
 
