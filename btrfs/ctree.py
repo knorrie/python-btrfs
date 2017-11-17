@@ -221,11 +221,13 @@ _dir_item_type_str_map = {
 COMPRESS_NONE = 0
 COMPRESS_ZLIB = 1
 COMPRESS_LZO = 2
+COMPRESS_ZSTD = 3
 
 _compress_type_str_map = {
     COMPRESS_NONE: 'none',
     COMPRESS_ZLIB: 'zlib',
     COMPRESS_LZO: 'lzo',
+    COMPRESS_ZSTD: 'zstd',
 }
 
 FILE_EXTENT_INLINE = 0
