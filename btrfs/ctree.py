@@ -341,6 +341,8 @@ def key_offset_str(offset, _type):
         return "{}/{}".format(qgroup_level(offset), qgroup_subvid(offset))
     if _type == UUID_KEY_SUBVOL or _type == UUID_KEY_RECEIVED_SUBVOL:
         return "0x{:0>16x}".format(offset)
+    if _type == ROOT_ITEM_KEY:
+        return _key_objectid_str_map.get(offset, str(offset))
     if offset == ULLONG_MAX:
         return '-1'
 
