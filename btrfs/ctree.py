@@ -635,7 +635,7 @@ class Chunk(ItemData):
         pos = Chunk.chunk.size
         for i in range(self.num_stripes):
             next_pos = pos + Stripe.stripe.size
-            self.stripes.append(Stripe(self, data[pos:next_pos]))
+            self.stripes.append(Stripe(data[pos:next_pos]))
             pos = next_pos
 
     @property
@@ -650,8 +650,7 @@ class Chunk(ItemData):
 class Stripe(object):
     stripe = struct.Struct('<2Q16s')
 
-    def __init__(self, chunk, data):
-        self.chunk = chunk
+    def __init__(self, data):
         self.devid, self.offset, uuid_bytes = Stripe.stripe.unpack(data)
         self.uuid = uuid.UUID(bytes=uuid_bytes)
 
