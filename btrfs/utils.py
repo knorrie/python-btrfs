@@ -17,6 +17,8 @@
 # Boston, MA 02110-1301 USA
 
 import btrfs.ctree
+import collections.abc
+import types
 from btrfs.ctree import (
     BLOCK_GROUP_DATA, BLOCK_GROUP_SYSTEM, BLOCK_GROUP_METADATA,
     SPACE_INFO_GLOBAL_RSV, BLOCK_GROUP_TYPE_MASK,
@@ -181,3 +183,77 @@ def embedded_text_for_str(text):
         return "utf-8 {}".format(text.decode('utf-8'))
     except UnicodeDecodeError:
         return "raw {}".format(repr(text))
+
+
+def _pretty_attr_value(obj, attr_name):
+    cls = obj.__class__
+    attr_name_str = '{}_str'.format(attr_name)
+    stringify_property = getattr(cls, attr_name_str, None)
+    if stringify_property is not None and isinstance(stringify_property, property):
+        return "{}: {}".format(attr_name, getattr(obj, attr_name_str))
+    return "{}: {}".format(attr_name, getattr(obj, attr_name))
+
+
+def pretty_obj_tuples(obj, level=0, seen=None):
+    if seen is None:
+        seen = []
+    cls = obj.__class__
+    if isinstance(obj, btrfs.ctree.ItemData) and \
+            hasattr(obj, 'key') and isinstance(obj.key, btrfs.ctree.Key):
+        yield level, "<{}.{} {}>".format(cls.__module__, cls.__name__, str(obj.key))
+    elif cls.__module__ == 'btrfs.ctree':
+        yield level, "<{}.{}>".format(cls.__module__, cls.__name__)
+    if obj in seen:
+        yield level, "[... object already seen, aborting recursion]"
+        return
+    seen.append(obj)
+    if isinstance(obj, (list, types.GeneratorType)) or \
+            (isinstance(obj, btrfs.ctree.ItemData) and
+             isinstance(obj, collections.abc.MutableSequence)):
+        for item in obj:
+            yield level, '-'
+            yield from pretty_obj_tuples(item, level+1, seen)
+    elif cls.__module__ == 'btrfs.ctree' and \
+            not isinstance(obj, btrfs.ctree.Key):
+        if isinstance(obj, btrfs.ctree.ItemData):
+            objectid_attr, type_attr, offset_attr = obj.key_attrs
+            if objectid_attr is not None:
+                yield level, "{} (key objectid)".format(_pretty_attr_value(obj, objectid_attr))
+            if type_attr is not None:
+                yield level, "{} (key type)".format(_pretty_attr_value(obj, type_attr))
+            if offset_attr is not None:
+                yield level, "{} (key offset)".format(_pretty_attr_value(obj, offset_attr))
+        for attr_name, attr_value in obj.__dict__.items():
+            if attr_name.startswith('_'):
+                continue
+            if isinstance(obj, btrfs.ctree.ItemData):
+                if attr_name in obj.key_attrs:
+                    continue
+                if attr_name == 'key' and isinstance(attr_value, btrfs.ctree.Key):
+                    continue
+            if isinstance(attr_value, list):
+                if len(attr_value) == 0:
+                    continue
+                yield level, "{}:".format(attr_name)
+                for item in attr_value:
+                    yield level, '-'
+                    yield from pretty_obj_tuples(item, level+1, seen)
+            elif attr_value.__class__.__module__ == 'btrfs.ctree' and \
+                    not isinstance(attr_value, (btrfs.ctree.Key, btrfs.ctree.TimeSpec)):
+                yield level, "{}:".format(attr_name)
+                yield from pretty_obj_tuples(attr_value, level+1, seen)
+            else:
+                yield level, _pretty_attr_value(obj, attr_name)
+    else:
+        yield level, str(obj)
+    seen.pop()
+
+
+def pretty_obj_lines(obj, level=0):
+    for level, line in pretty_obj_tuples(obj, level):
+        yield "{}{}".format('  ' * level, line)
+
+
+def pretty_print(obj, level=0):
+    for line in pretty_obj_lines(obj, level):
+        print(line)

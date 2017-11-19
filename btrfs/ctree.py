@@ -611,6 +611,13 @@ class ItemData(object):
             setattr(self, offset_attr, self.key.offset)
         self._key_attrs = objectid_attr, type_attr, offset_attr
 
+    @property
+    def key_attrs(self):
+        try:
+            return self._key_attrs
+        except AttributeError:
+            return None, None, None
+
     def __lt__(self, other):
         return self.key < other.key
 
