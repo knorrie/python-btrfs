@@ -713,7 +713,7 @@ class ExtentItem(ItemData):
     extent_item = struct.Struct('<3Q')
     extent_inline_ref = struct.Struct('<BQ')
 
-    def __init__(self, header, data, load_data_refs=False, load_metadata_refs=False):
+    def __init__(self, header, data, load_data_refs=True, load_metadata_refs=True):
         super().__init__(header)
         self.setattr_from_key(objectid_attr='vaddr', offset_attr='length')
         pos = 0
@@ -835,7 +835,7 @@ class TreeBlockInfo(object):
 
 
 class MetaDataItem(ItemData):
-    def __init__(self, header, data, load_refs=False):
+    def __init__(self, header, data, load_refs=True):
         super().__init__(header)
         self.setattr_from_key(objectid_attr='vaddr', offset_attr='skinny_level')
         self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(data)
