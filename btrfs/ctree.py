@@ -1275,3 +1275,70 @@ class FileExtentItem(ItemData):
         else:
             ret.append("inline_encoded_nbytes {self._inline_encoded_nbytes}".format(self=self))
         return ' '.join(ret)
+
+
+class EmptyItem(ItemData):
+    def __str__(self):
+        return "empty item data"
+
+
+class NotImplementedItem(ItemData):
+    def __init__(self, header, data):
+        super().__init__(header)
+        self._data = bytearray(data)
+
+    def __str__(self):
+        return "not implemented item data ({} bytes)".format(len(self._data))
+
+
+class UnknownItem(ItemData):
+    def __init__(self, header, data):
+        super().__init__(header)
+        self._data = bytearray(data)
+
+    def __str__(self):
+        return "unknown item data ({} bytes)".format(len(self._data))
+
+
+_key_type_class_map = {
+    INODE_ITEM_KEY: InodeItem,
+    INODE_REF_KEY: InodeRefList,
+    INODE_EXTREF_KEY: InodeExtrefList,
+    XATTR_ITEM_KEY: DirItemList,
+    DIR_LOG_ITEM_KEY: NotImplementedItem,
+    DIR_LOG_INDEX_KEY: NotImplementedItem,
+    DIR_ITEM_KEY: DirItemList,
+    DIR_INDEX_KEY: DirIndex,
+    EXTENT_DATA_KEY: FileExtentItem,
+    EXTENT_CSUM_KEY: NotImplementedItem,
+    ROOT_ITEM_KEY: RootItem,
+    ROOT_REF_KEY: NotImplementedItem,
+    ROOT_BACKREF_KEY: NotImplementedItem,
+    EXTENT_ITEM_KEY: ExtentItem,
+    METADATA_ITEM_KEY: MetaDataItem,
+    TREE_BLOCK_REF_KEY: TreeBlockRef,
+    EXTENT_DATA_REF_KEY: ExtentDataRef,
+    SHARED_BLOCK_REF_KEY: SharedBlockRef,
+    SHARED_DATA_REF_KEY: SharedDataRef,
+    BLOCK_GROUP_ITEM_KEY: BlockGroupItem,
+    FREE_SPACE_INFO_KEY: NotImplementedItem,
+    FREE_SPACE_BITMAP_KEY: NotImplementedItem,
+    DEV_EXTENT_KEY: DevExtent,
+    DEV_ITEM_KEY: DevItem,
+    CHUNK_ITEM_KEY: Chunk,
+    QGROUP_STATUS_KEY: NotImplementedItem,
+    QGROUP_INFO_KEY: NotImplementedItem,
+    QGROUP_LIMIT_KEY: NotImplementedItem,
+    BALANCE_ITEM_KEY: NotImplementedItem,
+    DEV_STATS_KEY: NotImplementedItem,
+    DEV_REPLACE_KEY: NotImplementedItem,
+    UUID_KEY_SUBVOL: NotImplementedItem,
+    UUID_KEY_RECEIVED_SUBVOL: NotImplementedItem,
+    STRING_ITEM_KEY: NotImplementedItem,
+}
+
+
+def classify(header, data):
+    if header.len == 0:
+        return EmptyItem(header)
+    return _key_type_class_map.get(header.type, UnknownItem)(header, data)
