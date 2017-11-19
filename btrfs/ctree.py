@@ -1251,7 +1251,7 @@ class FileExtentItem(ItemData):
             self._inline_encoded_nbytes = header.len - FileExtentItem._file_extent_item[0].size
 
     @property
-    def compress_str(self):
+    def compression_str(self):
         return _compress_type_str_map.get(self.compression, 'unknown')
 
     @property
@@ -1261,7 +1261,7 @@ class FileExtentItem(ItemData):
     def __str__(self):
         ret = ["extent data at {self.logical_offset} generation {self.generation} "
                "ram_bytes {self.ram_bytes} "
-               "compression {self.compress_str} type {self.type_str}".format(self=self)]
+               "compression {self.compression_str} type {self.type_str}".format(self=self)]
         if self.type != FILE_EXTENT_INLINE:
             ret.append("disk_bytenr {self.disk_bytenr} disk_num_bytes {self.disk_num_bytes} "
                        "offset {self.offset} num_bytes {self.num_bytes}".format(self=self))
