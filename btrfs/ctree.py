@@ -676,8 +676,11 @@ class DevExtent(ItemData):
         self.setattr_from_key(objectid_attr='devid', offset_attr='paddr')
         self.chunk_tree, self.chunk_objectid, self.chunk_offset, self.length, uuid_bytes = \
             DevExtent.dev_extent.unpack(data)
-        self.vaddr = self.chunk_offset
         self.uuid = uuid.UUID(bytes=uuid_bytes)
+
+    @property
+    def vaddr(self):
+        return self.chunk_offset
 
     def __str__(self):
         return "dev extent devid {self.devid} paddr {self.paddr} length {self.length} " \
