@@ -18,6 +18,7 @@
 
 import collections.abc
 import copy
+import datetime
 import os
 import struct
 import uuid
@@ -912,8 +913,14 @@ class TimeSpec(object):
     def __init__(self, data):
         self.sec, self.nsec = TimeSpec.timespec.unpack_from(data)
 
+    @property
+    def iso8601(self):
+        return datetime.datetime.utcfromtimestamp(
+            float("{self.sec}.{self.nsec}".format(self=self))
+        ).isoformat()
+
     def __str__(self):
-        return "{self.sec}.{self.nsec}".format(self=self)
+        return "{self.sec}.{self.nsec} ({self.iso8601})".format(self=self)
 
 
 class InodeItem(ItemData):
