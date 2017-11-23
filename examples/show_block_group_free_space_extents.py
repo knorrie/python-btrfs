@@ -11,5 +11,9 @@ vaddr = int(sys.argv[1])
 fs = btrfs.FileSystem(sys.argv[2])
 block_group = fs.block_group(vaddr)
 
-for extent in fs.free_space_extents(min_vaddr=vaddr, max_vaddr=vaddr + block_group.length - 1):
-    print(extent)
+try:
+    for extent in fs.free_space_extents(min_vaddr=vaddr, max_vaddr=vaddr + block_group.length - 1):
+        print(extent)
+except FileNotFoundError:
+    print("No Free Space Tree? To run this example you need space_cache=v2")
+    sys.exit(1)
