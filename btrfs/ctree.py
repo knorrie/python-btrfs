@@ -18,6 +18,7 @@
 
 import collections.abc
 import copy
+import datetime
 import os
 import struct
 import uuid
@@ -70,7 +71,6 @@ DIR_LOG_INDEX_KEY = 72
 DIR_ITEM_KEY = 84
 DIR_INDEX_KEY = 96
 EXTENT_DATA_KEY = 108
-CSUM_ITEM_KEY = 120
 EXTENT_CSUM_KEY = 128
 ROOT_ITEM_KEY = 132
 ROOT_BACKREF_KEY = 144
@@ -222,11 +222,13 @@ _dir_item_type_str_map = {
 COMPRESS_NONE = 0
 COMPRESS_ZLIB = 1
 COMPRESS_LZO = 2
+COMPRESS_ZSTD = 3
 
 _compress_type_str_map = {
     COMPRESS_NONE: 'none',
     COMPRESS_ZLIB: 'zlib',
     COMPRESS_LZO: 'lzo',
+    COMPRESS_ZSTD: 'zstd',
 }
 
 FILE_EXTENT_INLINE = 0
@@ -303,7 +305,6 @@ _key_type_str_map = {
     DIR_ITEM_KEY: 'DIR_ITEM',
     DIR_INDEX_KEY: 'DIR_INDEX',
     EXTENT_DATA_KEY: 'EXTENT_DATA',
-    CSUM_ITEM_KEY: 'CSUM_ITEM',
     EXTENT_CSUM_KEY: 'EXTENT_CSUM',
     ROOT_ITEM_KEY: 'ROOT_ITEM',
     ROOT_BACKREF_KEY: 'ROOT_BACKREF',
@@ -343,6 +344,8 @@ def key_offset_str(offset, _type):
         return "{}/{}".format(qgroup_level(offset), qgroup_subvid(offset))
     if _type == UUID_KEY_SUBVOL or _type == UUID_KEY_RECEIVED_SUBVOL:
         return "0x{:0>16x}".format(offset)
+    if _type == ROOT_ITEM_KEY:
+        return _key_objectid_str_map.get(offset, str(offset))
     if offset == ULLONG_MAX:
         return '-1'
 
@@ -599,6 +602,22 @@ class ItemData(object):
         elif header is not None:
             raise TypeError("Not a SearchHeader: {}".format(header))
 
+    def setattr_from_key(self, objectid_attr=None, type_attr=None, offset_attr=None):
+        if objectid_attr is not None:
+            setattr(self, objectid_attr, self.key.objectid)
+        if type_attr is not None:
+            setattr(self, type_attr, self.key.type)
+        if offset_attr is not None:
+            setattr(self, offset_attr, self.key.offset)
+        self._key_attrs = objectid_attr, type_attr, offset_attr
+
+    @property
+    def key_attrs(self):
+        try:
+            return self._key_attrs
+        except AttributeError:
+            return None, None, None
+
     def __lt__(self, other):
         return self.key < other.key
 
@@ -625,7 +644,7 @@ class Chunk(ItemData):
 
     def __init__(self, header, data):
         super().__init__(header)
-        self.vaddr = header.offset
+        self.setattr_from_key(offset_attr='vaddr')
         self.length, self.owner, self.stripe_len, self.type, self.io_align, \
             self.io_width, self.sector_size, self.num_stripes, self.sub_stripes = \
             Chunk.chunk.unpack_from(data)
@@ -633,23 +652,22 @@ class Chunk(ItemData):
         pos = Chunk.chunk.size
         for i in range(self.num_stripes):
             next_pos = pos + Stripe.stripe.size
-            self.stripes.append(Stripe(self, data[pos:next_pos]))
+            self.stripes.append(Stripe(data[pos:next_pos]))
             pos = next_pos
 
     @property
-    def flags_str(self):
+    def type_str(self):
         return btrfs.utils.flags_str(self.type, _block_group_flags_str_map)
 
     def __str__(self):
-        return "chunk vaddr {self.vaddr} type {self.flags_str} length {self.length} " \
+        return "chunk vaddr {self.vaddr} type {self.type_str} length {self.length} " \
             "num_stripes {self.num_stripes}".format(self=self)
 
 
 class Stripe(object):
     stripe = struct.Struct('<2Q16s')
 
-    def __init__(self, chunk, data):
-        self.chunk = chunk
+    def __init__(self, data):
         self.devid, self.offset, uuid_bytes = Stripe.stripe.unpack(data)
         self.uuid = uuid.UUID(bytes=uuid_bytes)
 
@@ -662,12 +680,14 @@ class DevExtent(ItemData):
 
     def __init__(self, header, data):
         super().__init__(header)
-        self.devid = header.objectid
-        self.paddr = header.offset
+        self.setattr_from_key(objectid_attr='devid', offset_attr='paddr')
         self.chunk_tree, self.chunk_objectid, self.chunk_offset, self.length, uuid_bytes = \
             DevExtent.dev_extent.unpack(data)
-        self.vaddr = self.chunk_offset
         self.uuid = uuid.UUID(bytes=uuid_bytes)
+
+    @property
+    def vaddr(self):
+        return self.chunk_offset
 
     def __str__(self):
         return "dev extent devid {self.devid} paddr {self.paddr} length {self.length} " \
@@ -679,8 +699,7 @@ class BlockGroupItem(ItemData):
 
     def __init__(self, header, data):
         super().__init__(header)
-        self.vaddr = header.objectid
-        self.length = header.offset
+        self.setattr_from_key(objectid_attr='vaddr', offset_attr='length')
         self.used, self.chunk_objectid, self.flags = \
             BlockGroupItem.block_group_item.unpack(data)
 
@@ -701,11 +720,10 @@ class ExtentItem(ItemData):
     extent_item = struct.Struct('<3Q')
     extent_inline_ref = struct.Struct('<BQ')
 
-    def __init__(self, header, data, load_data_refs=False, load_metadata_refs=False):
+    def __init__(self, header, data, load_data_refs=True, load_metadata_refs=True):
         super().__init__(header)
+        self.setattr_from_key(objectid_attr='vaddr', offset_attr='length')
         pos = 0
-        self.vaddr = header.objectid
-        self.length = header.offset
         self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(data, pos)
         pos += ExtentItem.extent_item.size
         if self.flags == EXTENT_FLAG_DATA and load_data_refs:
@@ -793,7 +811,7 @@ class SharedDataRef(ItemData):
 
     def __init__(self, header, data):
         super().__init__(header)
-        self.parent = header.offset
+        self.setattr_from_key(offset_attr='parent')
         self.count, = SharedDataRef.shared_data_ref.unpack(data)
 
     def __str__(self):
@@ -824,10 +842,9 @@ class TreeBlockInfo(object):
 
 
 class MetaDataItem(ItemData):
-    def __init__(self, header, data, load_refs=False):
+    def __init__(self, header, data, load_refs=True):
         super().__init__(header)
-        self.vaddr = header.objectid
-        self.skinny_level = header.offset
+        self.setattr_from_key(objectid_attr='vaddr', offset_attr='skinny_level')
         self.refs, self.generation, self.flags = ExtentItem.extent_item.unpack_from(data)
         if load_refs:
             self._load_refs(data[ExtentItem.extent_item.size:])
@@ -867,7 +884,7 @@ class MetaDataItem(ItemData):
 class TreeBlockRef(ItemData):
     def __init__(self, header):
         super().__init__(header)
-        self.root = header.offset
+        self.setattr_from_key(offset_attr='root')
 
     def __str__(self):
         return "tree block backref root {}".format(key_objectid_str(self.root, None))
@@ -884,7 +901,7 @@ class InlineTreeBlockRef(TreeBlockRef):
 class SharedBlockRef(ItemData):
     def __init__(self, header):
         super().__init__(header)
-        self.parent = header.offset
+        self.setattr_from_key(offset_attr='parent')
 
     def __str__(self):
         return "shared block backref parent {}".format(self.parent)
@@ -901,11 +918,24 @@ class InlineSharedBlockRef(SharedBlockRef):
 class TimeSpec(object):
     timespec = struct.Struct('<QL')
 
+    @staticmethod
+    def from_values(sec, nsec):
+        t = TimeSpec.__new__(TimeSpec)
+        t.sec = sec
+        t.nsec = nsec
+        return t
+
     def __init__(self, data):
         self.sec, self.nsec = TimeSpec.timespec.unpack_from(data)
 
+    @property
+    def iso8601(self):
+        return datetime.datetime.utcfromtimestamp(
+            float("{self.sec}.{self.nsec}".format(self=self))
+        ).isoformat()
+
     def __str__(self):
-        return "{self.sec}.{self.nsec}".format(self=self)
+        return "{self.sec}.{self.nsec} ({self.iso8601})".format(self=self)
 
 
 class InodeItem(ItemData):
@@ -1191,8 +1221,8 @@ class RootItem(ItemData):
         return btrfs.utils.flags_str(self.flags, _root_flags_str_map)
 
     def __str__(self):
-        return "root {self.key.objectid} uuid {self.uuid} dirid {self.dirid} " \
-            "gen {self.generation} last_snapshot {self.last_snapshot} " \
+        return "root {self.key.objectid} uuid {self.uuid} " \
+            "generation {self.generation} last_snapshot {self.last_snapshot} " \
             "flags {self.flags:#x}({self.flags_str})".format(self=self)
 
 
@@ -1228,7 +1258,7 @@ class FileExtentItem(ItemData):
             self._inline_encoded_nbytes = header.len - FileExtentItem._file_extent_item[0].size
 
     @property
-    def compress_str(self):
+    def compression_str(self):
         return _compress_type_str_map.get(self.compression, 'unknown')
 
     @property
@@ -1238,10 +1268,77 @@ class FileExtentItem(ItemData):
     def __str__(self):
         ret = ["extent data at {self.logical_offset} generation {self.generation} "
                "ram_bytes {self.ram_bytes} "
-               "compression {self.compress_str} type {self.type_str}".format(self=self)]
-        if self.type != 0:
+               "compression {self.compression_str} type {self.type_str}".format(self=self)]
+        if self.type != FILE_EXTENT_INLINE:
             ret.append("disk_bytenr {self.disk_bytenr} disk_num_bytes {self.disk_num_bytes} "
                        "offset {self.offset} num_bytes {self.num_bytes}".format(self=self))
         else:
             ret.append("inline_encoded_nbytes {self._inline_encoded_nbytes}".format(self=self))
         return ' '.join(ret)
+
+
+class EmptyItem(ItemData):
+    def __str__(self):
+        return "empty item data"
+
+
+class NotImplementedItem(ItemData):
+    def __init__(self, header, data):
+        super().__init__(header)
+        self._data = bytearray(data)
+
+    def __str__(self):
+        return "not implemented item data ({} bytes)".format(len(self._data))
+
+
+class UnknownItem(ItemData):
+    def __init__(self, header, data):
+        super().__init__(header)
+        self._data = bytearray(data)
+
+    def __str__(self):
+        return "unknown item data ({} bytes)".format(len(self._data))
+
+
+_key_type_class_map = {
+    INODE_ITEM_KEY: InodeItem,
+    INODE_REF_KEY: InodeRefList,
+    INODE_EXTREF_KEY: InodeExtrefList,
+    XATTR_ITEM_KEY: DirItemList,
+    DIR_LOG_ITEM_KEY: NotImplementedItem,
+    DIR_LOG_INDEX_KEY: NotImplementedItem,
+    DIR_ITEM_KEY: DirItemList,
+    DIR_INDEX_KEY: DirIndex,
+    EXTENT_DATA_KEY: FileExtentItem,
+    EXTENT_CSUM_KEY: NotImplementedItem,
+    ROOT_ITEM_KEY: RootItem,
+    ROOT_REF_KEY: NotImplementedItem,
+    ROOT_BACKREF_KEY: NotImplementedItem,
+    EXTENT_ITEM_KEY: ExtentItem,
+    METADATA_ITEM_KEY: MetaDataItem,
+    TREE_BLOCK_REF_KEY: TreeBlockRef,
+    EXTENT_DATA_REF_KEY: ExtentDataRef,
+    SHARED_BLOCK_REF_KEY: SharedBlockRef,
+    SHARED_DATA_REF_KEY: SharedDataRef,
+    BLOCK_GROUP_ITEM_KEY: BlockGroupItem,
+    FREE_SPACE_INFO_KEY: NotImplementedItem,
+    FREE_SPACE_BITMAP_KEY: NotImplementedItem,
+    DEV_EXTENT_KEY: DevExtent,
+    DEV_ITEM_KEY: DevItem,
+    CHUNK_ITEM_KEY: Chunk,
+    QGROUP_STATUS_KEY: NotImplementedItem,
+    QGROUP_INFO_KEY: NotImplementedItem,
+    QGROUP_LIMIT_KEY: NotImplementedItem,
+    BALANCE_ITEM_KEY: NotImplementedItem,
+    DEV_STATS_KEY: NotImplementedItem,
+    DEV_REPLACE_KEY: NotImplementedItem,
+    UUID_KEY_SUBVOL: NotImplementedItem,
+    UUID_KEY_RECEIVED_SUBVOL: NotImplementedItem,
+    STRING_ITEM_KEY: NotImplementedItem,
+}
+
+
+def classify(header, data):
+    if header.len == 0:
+        return EmptyItem(header)
+    return _key_type_class_map.get(header.type, UnknownItem)(header, data)

@@ -34,4 +34,6 @@ for header, data in btrfs.ioctl.search_v2(fs.fd, tree, min_key, max_key):
     elif header.type == btrfs.ctree.EXTENT_DATA_KEY:
         print(btrfs.ctree.FileExtentItem(header, data))
     else:
-        raise Exception("Whoa, key {}".format(btrfs.ctree.key_type_str(header.type)))
+        print("Whoa, I didn't expect a {} key. This example can only handle metadata for a "
+              "regular file.".format(btrfs.ctree.key_type_str(header.type)))
+        sys.exit(1)

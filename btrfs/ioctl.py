@@ -150,11 +150,11 @@ class DevStats(object):
     @property
     def counters(self):
         return {
-            'write': self.write_errs,
-            'read': self.read_errs,
-            'flush': self.flush_errs,
-            'generation': self.generation_errs,
-            'corruption': self.corruption_errs,
+            'write_errs': self.write_errs,
+            'read_errs': self.read_errs,
+            'flush_errs': self.flush_errs,
+            'generation_errs': self.generation_errs,
+            'corruption_errs': self.corruption_errs,
         }
 
     def __str__(self):
@@ -287,12 +287,31 @@ Inode = namedtuple('Inode', ['inum', 'offset', 'root'])
 
 
 def logical_to_ino(fd, vaddr, bufsize=4096):
-    bufsize = min(bufsize, 65536)
+    return logical_to_ino_v2(fd, vaddr, bufsize, _v2=False)
+
+
+ioctl_logical_ino_args_v2 = struct.Struct('=QQ24xQQ')
+IOC_LOGICAL_INO_V2 = _IOWR(BTRFS_IOCTL_MAGIC, 59, ioctl_logical_ino_args)
+LOGICAL_INO_ARGS_IGNORE_OFFSET = 1 << 0
+
+
+def logical_to_ino_v2(fd, vaddr, bufsize=4096, ignore_offset=False, _v2=True):
+    if _v2:
+        bufsize = min(bufsize, 16777216)
+    else:
+        bufsize = min(bufsize, 65536)
     inodes_buf = array.array(u'B', bytearray(bufsize))
     inodes_ptr = inodes_buf.buffer_info()[0]
     args = bytearray(ioctl_logical_ino_args.size)
-    ioctl_logical_ino_args.pack_into(args, 0, vaddr, bufsize, inodes_ptr)
-    fcntl.ioctl(fd, IOC_LOGICAL_INO, args)
+    if _v2:
+        flags = 0
+        if ignore_offset:
+            flags |= LOGICAL_INO_ARGS_IGNORE_OFFSET
+        ioctl_logical_ino_args_v2.pack_into(args, 0, vaddr, bufsize, flags, inodes_ptr)
+        fcntl.ioctl(fd, IOC_LOGICAL_INO_V2, args)
+    else:
+        ioctl_logical_ino_args.pack_into(args, 0, vaddr, bufsize, inodes_ptr)
+        fcntl.ioctl(fd, IOC_LOGICAL_INO, args)
     bytes_left, bytes_missing, elem_cnt, elem_missed = data_container.unpack_from(inodes_buf, 0)
     inodes = []
     pos = data_container.size
@@ -654,3 +673,20 @@ def balance_progress(fd):
     state, = _ioctl_balance_args[1].unpack_from(args, pos)
     pos = sum(x.size for x in _ioctl_balance_args[:5])
     return BalanceProgress(state, *_balance_progress.unpack_from(args, pos))
+
+
+ioctl_received_subvol_args = struct.Struct('=16sQQQLQLQ128x')
+_ioctl_received_subvol_args_in = struct.Struct('=16sQ8xQL148x')
+_ioctl_received_subvol_args_out_up_to_rtime = struct.Struct('=24xQ12x')
+IOC_SET_RECEIVED_SUBVOL = _IOWR(BTRFS_IOCTL_MAGIC, 37, ioctl_received_subvol_args)
+
+
+def set_received_subvol(fd, received_uuid, stransid, stime):
+    args = bytearray(_ioctl_received_subvol_args_in.size)
+    _ioctl_received_subvol_args_in.pack_into(args, 0, received_uuid.bytes, stransid,
+                                             stime.sec, stime.nsec)
+    fcntl.ioctl(fd, IOC_SET_RECEIVED_SUBVOL, args)
+    rtransid, = _ioctl_received_subvol_args_out_up_to_rtime.unpack_from(args, 0)
+    pos = _ioctl_received_subvol_args_out_up_to_rtime.size
+    rtime = btrfs.ctree.TimeSpec(args[pos:pos+btrfs.ctree.TimeSpec.timespec.size])
+    return rtransid, rtime
