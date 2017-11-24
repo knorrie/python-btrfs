@@ -1,3 +1,10 @@
+python-btrfs (9-1~mxbp8+1) jessie-backports-sloppy; urgency=medium
+
+  * Rebuild for jessie-backports-sloppy
+  * debian/gbp.conf: jessie-backports-sloppy
+
+ -- Hans van Kranenburg <hans@knorrie.org>  Fri, 24 Nov 2017 19:23:03 +0100
+
 python-btrfs (9-1) unstable; urgency=medium
 
   * New release v9
