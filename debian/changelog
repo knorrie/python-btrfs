@@ -1,3 +1,10 @@
+python-btrfs (9-1) unstable; urgency=medium
+
+  * New release v9
+  * debian/control: Update to standards 4.1.1
+
+ -- Hans van Kranenburg <hans@knorrie.org>  Fri, 24 Nov 2017 14:10:00 +0100
+
 python-btrfs (8-1) unstable; urgency=medium
 
   * New release v8 (Closes: #868370)
