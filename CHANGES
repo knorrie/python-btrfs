@@ -1,6 +1,21 @@
+python-btrfs v9, Nov 23 2017
+  * IOCTLs: IOC_SET_RECEIVED_SUBVOL, IOC_LOGICAL_INO_V2
+  * Add crc32c checksum function for data, thanks Nikolay Borisov
+  * Recognize zstd compression type
+  * Add a tree object pretty printer to dump data for any tree item
+  * Examples added:
+    - Show default subvolume id
+    - Lookup a block checksum in the checksum tree
+    - Determine bad free space fragmentation score for block groups
+    - Set the received_uuid e.a. of a subvolume
+    - Dump an entire metadata tree using the pretty printer
+  * Fixes:
+    - crc32c: add implicit seed truncation to 32 bits value
+  * Small fixes and cosmetic changes
+
 python-btrfs v8, Jul 18 2017
   * Easier handling of multiple appended data structures of the dir item and
-    inode ref families easier. (not backwards compatible!)
+    inode ref families. (not backwards compatible!)
   * Don't keep metadata page transid value when retrieving a BlockGroupItem.
     This was introduced in v4, but it's not technically correct.
   * Improve architecture dependent ioctl number handling.

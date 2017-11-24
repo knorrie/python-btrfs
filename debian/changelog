@@ -1,8 +1,9 @@
-python-btrfs (8-1~bpo9+1) stretch-backports; urgency=medium
+python-btrfs (9-1) unstable; urgency=medium
 
-  * Rebuild for Stretch (no changes)
+  * New release v9
+  * debian/control: Update to standards 4.1.1
 
- -- Hans van Kranenburg <hans@knorrie.org>  Tue, 18 Jul 2017 23:34:42 +0200
+ -- Hans van Kranenburg <hans@knorrie.org>  Fri, 24 Nov 2017 14:10:00 +0100
 
 python-btrfs (8-1) unstable; urgency=medium
 

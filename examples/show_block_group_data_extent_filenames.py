@@ -15,10 +15,40 @@ print(block_group)
 
 path_cache = {}
 
+
+def using_v1(fd, vaddr):
+    return btrfs.ioctl.logical_to_ino(fd, vaddr)
+
+
+def using_v2(fd, vaddr):
+    inodes, bytes_missed = btrfs.ioctl.logical_to_ino_v2(fd, vaddr, ignore_offset=True)
+    if bytes_missed > 0:
+        inodes, bytes_missed = \
+            btrfs.ioctl.logical_to_ino_v2(fd, vaddr, bufsize=65536+bytes_missed,
+                                          ignore_offset=True)
+    return inodes, bytes_missed
+
+
+def find_out_about_v1_or_v2(fd, vaddr):
+    global logical_to_ino_fn
+    try:
+        inodes, bytes_missed = using_v2(fd, vaddr)
+        logical_to_ino_fn = using_v2
+        return inodes, bytes_missed
+    except IOError as e:
+        if e.errno == errno.ENOTTY:
+            inodes, bytes_missed = using_v1(fd, vaddr)
+            logical_to_ino_fn = using_v1
+            return inodes, bytes_missed
+        raise
+
+
+logical_to_ino_fn = find_out_about_v1_or_v2
+
 for extent in fs.extents(vaddr, vaddr + block_group.length - 1):
     if isinstance(extent, btrfs.ctree.ExtentItem) and extent.flags & btrfs.ctree.EXTENT_FLAG_DATA:
         print(extent)
-        inodes, bytes_missed = btrfs.ioctl.logical_to_ino(fs.fd, extent.vaddr)
+        inodes, bytes_missed = logical_to_ino_fn(fs.fd, extent.vaddr)
         for inode in inodes:
             if inode.root == btrfs.ctree.FS_TREE_OBJECTID or \
                 (inode.root >= btrfs.ctree.FIRST_FREE_OBJECTID and
@@ -39,5 +69,10 @@ for extent in fs.extents(vaddr, vaddr + block_group.length - 1):
             else:
                 print("    root {} inode {} offset {}".format(
                     inode.root, inode.inum, inode.offset))
+        if len(inodes) == 0 and logical_to_ino_fn == using_v1:
+            print("    [... no result and no kernel support for LOGICAL_INO_V2]")
         if bytes_missed > 0:
-            print("    [...]")
+            if logical_to_ino_fn == using_v1:
+                print("    [... remainder can't be shown; no kernel support for LOGICAL_INO_V2]")
+            else:
+                print("    [... remainder can't be shown; too many items for buffer size]")

@@ -26,6 +26,13 @@ STATE_WARNING = 1
 STATE_CRITICAL = 2
 STATE_UNKNOWN = 3
 
+state_str_map = {
+    STATE_OK: 'OK',
+    STATE_WARNING: 'WARNING',
+    STATE_CRITICAL: 'CRITICAL',
+    STATE_UNKNOWN: 'UNKNOWN',
+}
+
 
 def get_args():
     parser = argparse.ArgumentParser("Check BTRFS filesystem usage")
@@ -128,17 +135,15 @@ def check_dev_stats(fs):
     devices = list(fs.devices())
     for device in devices:
         stats = fs.dev_stats(device.devid)
-        device_msg = ["{} {}".format(value, counter)
+        device_msg = ["{}: {}".format(counter, value)
                       for counter, value in stats.counters.items()
                       if value != 0]
         if len(device_msg) > 0:
-            msg.append("Critical: Device {} has errors: {}".format(
-                device.devid, ", ".join(device_msg)))
+            msg.append("device {}: {}".format(device.devid, ", ".join(device_msg)))
             state = STATE_CRITICAL
     summary.append("{} device(s)".format(len(devices)))
     if state != STATE_OK:
         return state, msg, summary
-    summary.append("No device errors registered")
     return state, msg, summary
 
 
@@ -163,6 +168,7 @@ def main():
     summary.extend(dev_stats_summary)
 
     if len(msg) > 0:
+        print("BTRFS {}: ".format(state_str_map[state]), end='')
         print(", ".join(msg))
     else:
         print("BTRFS OK")

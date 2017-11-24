@@ -7,13 +7,13 @@ with open('README.md') as f:
 setup(
     name='btrfs',
     packages=['btrfs'],
-    version='8',
+    version='9',
     description='Python module to inspect btrfs filesystems',
     long_description=long_description,
     author='Hans van Kranenburg',
     author_email='hans@knorrie.org',
     url='https://github.com/knorrie/python-btrfs',
-    download_url='https://github.com/knorrie/python-btrfs/tarball/v8',
+    download_url='https://github.com/knorrie/python-btrfs/tarball/v9',
     keywords=['btrfs', 'filesystem'],
     classifiers=[
         'Development Status :: 4 - Beta',
