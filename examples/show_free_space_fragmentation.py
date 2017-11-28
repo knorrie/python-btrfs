@@ -5,10 +5,15 @@ import math
 import sys
 
 if len(sys.argv) < 2:
-    print("Usage: {} <mountpoint>".format(sys.argv[0]))
+    print("Usage: {} [min_score] <mountpoint>".format(sys.argv[0]))
     sys.exit(1)
 
-fs = btrfs.FileSystem(sys.argv[1])
+fs = btrfs.FileSystem(sys.argv[-1])
+if len(sys.argv) == 3:
+    min_score = int(sys.argv[1])
+else:
+    min_score = 250
+print("Showing all block groups with free space fragmentation score >= {}".format(min_score))
 
 
 def extent_tree_free_space_extents(min_vaddr, max_vaddr):
@@ -34,16 +39,13 @@ except:
     print("Falling back to using the extent tree to determine free space extents.")
     free_space_extents = extent_tree_free_space_extents
 
-skipped_max_usage = 0
+bad_chunks = 0
 for chunk in fs.chunks():
     if not chunk.type & btrfs.BLOCK_GROUP_DATA:
         continue
     try:
         block_group = fs.block_group(chunk.vaddr, chunk.length)
     except IndexError:
-        continue
-    if block_group.used_pct >= 90:
-        skipped_max_usage += 1
         continue
 
     min_vaddr = block_group.vaddr
@@ -73,7 +75,10 @@ for chunk in fs.chunks():
     for free_space_extent in free_space_extents(min_vaddr, max_vaddr):
         fragments += 1
         score += 1 - abs((math.log2(free_space_extent.length) - shift) / half_width)
-    print("vaddr {} length {} used_pct {} free space fragments {} score {}".format(
-        chunk.vaddr, chunk.length, block_group.used_pct, fragments, int(score)))
+    if score >= min_score:
+        bad_chunks += 1
+        print("vaddr {} length {} used_pct {} free space fragments {} score {}".format(
+            chunk.vaddr, chunk.length, block_group.used_pct, fragments, int(score)))
 
-print("Skipped because of usage > 90%: {} chunks".format(skipped_max_usage))
+if bad_chunks == 0:
+    print("No block groups found with free space fragmentation score >= {}".format(min_score))
