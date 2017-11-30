@@ -594,6 +594,9 @@ class FileSystem(object):
                 raise Exception("BUG: unexpected object {}".format(
                     Key(header.objectid, header.type, header.offset)))
 
+    def __del__(self):
+        os.close(self.fd)
+
 
 class ItemData(object):
     def __init__(self, header):
