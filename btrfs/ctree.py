@@ -471,6 +471,9 @@ class FileSystem(object):
         self.nodesize = _fs_info.nodesize
         self.sectorsize = _fs_info.sectorsize
 
+    def __enter__(self):
+        return self
+
     def fs_info(self):
         return btrfs.ioctl.fs_info(self.fd)
 
@@ -598,6 +601,9 @@ class FileSystem(object):
             elif header.type != FREE_SPACE_INFO_KEY:
                 raise Exception("BUG: unexpected object {}".format(
                     Key(header.objectid, header.type, header.offset)))
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        os.close(self.fd)
 
 
 class ItemData(object):
