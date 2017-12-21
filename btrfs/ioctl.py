@@ -21,6 +21,7 @@ import array
 import btrfs
 import errno
 import fcntl
+import os
 import platform
 import struct
 import uuid
@@ -696,3 +697,48 @@ IOC_SYNC = _IO(BTRFS_IOCTL_MAGIC, 8)
 
 def sync(fd):
     fcntl.ioctl(fd, IOC_SYNC)
+
+
+file_dedupe_range_info = struct.Struct('=qQQl4x')
+file_dedupe_range = struct.Struct('=QQH6x')
+
+FIDEDUPERANGE = _IOWR(BTRFS_IOCTL_MAGIC, 54, file_dedupe_range)
+
+FILE_DEDUPE_RANGE_SAME = 0
+FILE_DEDUPE_RANGE_DIFFERS = 1
+
+
+class FileDedupeRangeInfo(object):
+    def __init__(self, dest_fd, dest_offset):
+        self.dest_fd = dest_fd
+        self.dest_offset = dest_offset
+        self.bytes_deduped = None
+        self.status = None
+
+    @property
+    def status_str(self):
+        if self.status == btrfs.ioctl.FILE_DEDUPE_RANGE_SAME:
+            return "RANGE_SAME"
+        if self.status == FILE_DEDUPE_RANGE_DIFFERS:
+            return "RANGE_DIFFERS"
+        return "ERROR {}: {}".format(self.status, os.strerror(-self.status))
+
+    def __str__(self):
+        return "dest_fd {self.dest_fd} dest_offset {self.dest_offset} " \
+               "bytes_deduped {self.bytes_deduped} status {self.status_str}".format(self=self)
+
+
+def fideduperange(fd, src_offset, src_length, range_infos):
+    buf = bytearray(file_dedupe_range.size + file_dedupe_range_info.size * len(range_infos))
+    file_dedupe_range.pack_into(buf, 0, src_offset, src_length, len(range_infos))
+    pos = file_dedupe_range.size
+    for info in range_infos:
+        file_dedupe_range_info.pack_into(buf, pos, info.dest_fd, info.dest_offset, 0, 0)
+        pos += file_dedupe_range_info.size
+    fcntl.ioctl(fd, FIDEDUPERANGE, buf)
+    pos = file_dedupe_range.size
+    for info in range_infos:
+        _, _, bytes_deduped, status = file_dedupe_range_info.unpack_from(buf, pos)
+        info.bytes_deduped = bytes_deduped
+        info.status = status
+        pos += file_dedupe_range_info.size
