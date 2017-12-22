@@ -524,6 +524,8 @@ _balance_state_str_map = {
     BALANCE_STATE_CANCEL_REQ: 'CANCEL_REQ',
 }
 
+# These should actually be without leading underscore, but we also have a
+# function named balance_progress...
 _balance_args = struct.Struct('=QLL7Q4L48x')
 _balance_progress = struct.Struct('=3Q')
 
