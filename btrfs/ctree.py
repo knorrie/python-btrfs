@@ -602,6 +602,9 @@ class FileSystem(object):
                 raise Exception("BUG: unexpected object {}".format(
                     Key(header.objectid, header.type, header.offset)))
 
+    def sync(self):
+        btrfs.ioctl.sync(self.fd)
+
     def __exit__(self, exc_type, exc_value, exc_traceback):
         os.close(self.fd)
 
