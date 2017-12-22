@@ -692,3 +692,10 @@ def set_received_subvol(fd, received_uuid, stransid, stime):
     pos = _ioctl_received_subvol_args_out_up_to_rtime.size
     rtime = btrfs.ctree.TimeSpec(args[pos:pos+btrfs.ctree.TimeSpec.timespec.size])
     return rtransid, rtime
+
+
+IOC_SYNC = _IO(BTRFS_IOCTL_MAGIC, 8)
+
+
+def sync(fd):
+    fcntl.ioctl(fd, IOC_SYNC)
