@@ -194,6 +194,9 @@ def _pretty_attr_value(obj, attr_name):
     return "{}: {}".format(attr_name, getattr(obj, attr_name))
 
 
+pretty_print_modules = 'btrfs.ctree', 'btrfs.ioctl'
+
+
 def pretty_obj_tuples(obj, level=0, seen=None):
     if seen is None:
         seen = []
@@ -201,7 +204,7 @@ def pretty_obj_tuples(obj, level=0, seen=None):
     if isinstance(obj, btrfs.ctree.ItemData) and \
             hasattr(obj, 'key') and isinstance(obj.key, btrfs.ctree.Key):
         yield level, "<{}.{} {}>".format(cls.__module__, cls.__name__, str(obj.key))
-    elif cls.__module__ == 'btrfs.ctree':
+    elif cls.__module__ in pretty_print_modules:
         yield level, "<{}.{}>".format(cls.__module__, cls.__name__)
     if obj in seen:
         yield level, "[... object already seen, aborting recursion]"
@@ -213,7 +216,7 @@ def pretty_obj_tuples(obj, level=0, seen=None):
         for item in obj:
             yield level, '-'
             yield from pretty_obj_tuples(item, level+1, seen)
-    elif cls.__module__ == 'btrfs.ctree' and \
+    elif cls.__module__ in pretty_print_modules and \
             not isinstance(obj, btrfs.ctree.Key):
         if isinstance(obj, btrfs.ctree.ItemData):
             objectid_attr, type_attr, offset_attr = obj.key_attrs
@@ -238,7 +241,7 @@ def pretty_obj_tuples(obj, level=0, seen=None):
                 for item in attr_value:
                     yield level, '-'
                     yield from pretty_obj_tuples(item, level+1, seen)
-            elif attr_value.__class__.__module__ == 'btrfs.ctree' and \
+            elif attr_value.__class__.__module__ in pretty_print_modules and \
                     not isinstance(attr_value, (btrfs.ctree.Key, btrfs.ctree.TimeSpec)):
                 yield level, "{}:".format(attr_name)
                 yield from pretty_obj_tuples(attr_value, level+1, seen)
