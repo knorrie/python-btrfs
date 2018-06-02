@@ -361,6 +361,10 @@ def key_offset_str(offset, _type):
     return str(offset)
 
 
+class ItemNotFoundError(IndexError):
+    pass
+
+
 class Key(object):
     def __init__(self, objectid, _type, offset):
         self._objectid = objectid
@@ -517,6 +521,8 @@ class FileSystem(object):
         block_groups = [BlockGroupItem(header, data)
                         for header, data in
                         btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key, nr_items=1)]
+        if len(block_groups) == 0:
+            raise ItemNotFoundError("No block group at vaddr {}".format(vaddr))
         return block_groups[0]
 
     def extents(self, min_vaddr=0, max_vaddr=ULLONG_MAX,
