@@ -194,8 +194,8 @@ class SpaceInfo(object):
 
     def __str__(self):
         return "{0}, {1}: total={2}, used={3}".format(
-            btrfs.utils.block_group_type_str(self.flags),
-            btrfs.utils.block_group_profile_str(self.flags),
+            btrfs.utils.space_type_description(self.flags),
+            btrfs.utils.space_profile_description(self.flags),
             btrfs.utils.pretty_size(self.total_bytes),
             btrfs.utils.pretty_size(self.used_bytes))
 
