@@ -52,7 +52,7 @@ def munin_config(fs, spaces, used_types):
     colour = colours()
     for _type in used_types:
         label = btrfs.utils.block_group_flags_str(_type).lower().replace('|', '_')
-        description = btrfs.utils.block_group_type_str(_type)
+        description = btrfs.utils.space_type_description(_type)
         print("{0}_used.label Used {1}".format(label, description))
         print("{0}_used.draw {1}".format(label, next(draw)))
         print("{0}_used.info Used {1}".format(label, description))

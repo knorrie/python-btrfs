@@ -38,7 +38,7 @@ def mounted_filesystems():
     return list(filesystems.values())
 
 
-_block_group_type_str_map = {
+_space_type_description_map = {
     BLOCK_GROUP_DATA: 'Data',
     BLOCK_GROUP_SYSTEM: 'System',
     BLOCK_GROUP_METADATA: 'Metadata',
@@ -47,14 +47,14 @@ _block_group_type_str_map = {
 }
 
 
-def block_group_type_str(flags):
-    return _block_group_type_str_map.get(
+def space_type_description(flags):
+    return _space_type_description_map.get(
         flags & (BLOCK_GROUP_TYPE_MASK | SPACE_INFO_GLOBAL_RSV),
         'unknown'
     )
 
 
-_block_group_profile_str_map = {
+_space_profile_description_map = {
     BLOCK_GROUP_SINGLE: 'single',
     BLOCK_GROUP_RAID0: 'RAID0',
     BLOCK_GROUP_RAID1: 'RAID1',
@@ -65,8 +65,8 @@ _block_group_profile_str_map = {
 }
 
 
-def block_group_profile_str(flags):
-    return _block_group_profile_str_map.get(
+def space_profile_description(flags):
+    return _space_profile_description_map.get(
         flags & BLOCK_GROUP_PROFILE_MASK,
         'unknown'
     )
@@ -114,6 +114,14 @@ def flags_str(flags, flags_str_map):
 
 def block_group_flags_str(flags):
     return flags_str(flags, btrfs.ctree._block_group_flags_str_map)
+
+
+def block_group_type_str(flags):
+    return block_group_flags_str(flags & BLOCK_GROUP_TYPE_MASK)
+
+
+def block_group_profile_str(flags):
+    return block_group_flags_str(flags & BLOCK_GROUP_PROFILE_MASK)
 
 
 _block_group_profile_ratio_map = {
