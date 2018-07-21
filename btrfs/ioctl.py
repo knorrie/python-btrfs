@@ -177,12 +177,20 @@ SpaceArgs = namedtuple('SpaceArgs', ['space_slots', 'total_spaces'])
 class SpaceInfo(object):
     def __init__(self, buf, pos):
         self.flags, self.total_bytes, self.used_bytes = ioctl_space_info.unpack_from(buf, pos)
-        self.type = self.flags & \
+        self._type = self.flags & \
             (btrfs.ctree.BLOCK_GROUP_TYPE_MASK | btrfs.ctree.SPACE_INFO_GLOBAL_RSV)
-        self.profile = self.flags & btrfs.ctree.BLOCK_GROUP_PROFILE_MASK
+        self._profile = self.flags & btrfs.ctree.BLOCK_GROUP_PROFILE_MASK
         self.ratio = btrfs.utils.block_group_profile_ratio(self.profile)
         self.raw_total_bytes = self.total_bytes * self.ratio
         self.raw_used_bytes = self.used_bytes * self.ratio
+
+    @property
+    def type(self):
+        return self._type
+
+    @property
+    def profile(self):
+        return self._profile
 
     def __str__(self):
         return "{0}, {1}: total={2}, used={3}".format(
