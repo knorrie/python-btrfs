@@ -16,6 +16,7 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
+import btrfs
 import collections.abc
 import copy
 import datetime
@@ -350,10 +351,6 @@ def key_offset_str(offset, _type):
         return '-1'
 
     return str(offset)
-
-
-import btrfs.ioctl  # noqa
-import btrfs.free_space_tree  # noqa
 
 
 class ItemNotFoundError(IndexError):
