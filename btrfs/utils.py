@@ -107,7 +107,10 @@ def flags_str(flags, flags_str_map):
     for flag in sorted(flags_str_map.keys()):
         if flags & flag:
             ret.append(flags_str_map[flag])
-    if len(ret) == 0:
+            flags ^= flag
+    if flags != 0:
+        ret.append("unknown(0x{:0x})".format(flags))
+    elif len(ret) == 0:
         ret.append("none")
     return '|'.join(ret)
 
