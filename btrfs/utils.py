@@ -127,6 +127,21 @@ def block_group_profile_str(flags):
     return block_group_flags_str(flags & BLOCK_GROUP_PROFILE_MASK)
 
 
+_chunk_to_dev_extent_length_fnmap = {
+    BLOCK_GROUP_SINGLE: lambda chunk: chunk.length,
+    BLOCK_GROUP_RAID0: lambda chunk: chunk.length // len(chunk.stripes),
+    BLOCK_GROUP_RAID1: lambda chunk: chunk.length,
+    BLOCK_GROUP_DUP: lambda chunk: chunk.length,
+    BLOCK_GROUP_RAID10: lambda chunk: chunk.length // (len(chunk.stripes) // 2),
+    BLOCK_GROUP_RAID5: lambda chunk: chunk.length // len(chunk.stripes - 1),
+    BLOCK_GROUP_RAID6: lambda chunk: chunk.length // len(chunk.stripes - 2),
+}
+
+
+def chunk_to_dev_extent_length(chunk):
+    return _chunk_to_dev_extent_length_fnmap[chunk.type & BLOCK_GROUP_PROFILE_MASK](chunk)
+
+
 _block_group_profile_ratio_map = {
     BLOCK_GROUP_SINGLE: 1,
     BLOCK_GROUP_RAID0: 1,
