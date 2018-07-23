@@ -180,9 +180,6 @@ class SpaceInfo(object):
         self._type = self.flags & \
             (btrfs.ctree.BLOCK_GROUP_TYPE_MASK | btrfs.ctree.SPACE_INFO_GLOBAL_RSV)
         self._profile = self.flags & btrfs.ctree.BLOCK_GROUP_PROFILE_MASK
-        self.ratio = btrfs.utils.block_group_profile_ratio(self.profile)
-        self.raw_total_bytes = self.total_bytes * self.ratio
-        self.raw_used_bytes = self.used_bytes * self.ratio
 
     @property
     def type(self):

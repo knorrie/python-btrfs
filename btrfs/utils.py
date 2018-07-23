@@ -151,68 +151,6 @@ def block_group_profile_str(flags):
     return block_group_flags_str(flags & BLOCK_GROUP_PROFILE_MASK)
 
 
-_block_group_profile_ratio_map = {
-    BLOCK_GROUP_SINGLE: 1,
-    BLOCK_GROUP_RAID0: 1,
-    BLOCK_GROUP_RAID1: 2,
-    BLOCK_GROUP_DUP: 2,
-    BLOCK_GROUP_RAID10: 2,
-    BLOCK_GROUP_RAID5: 0,
-    BLOCK_GROUP_RAID6: 0,
-    SPACE_INFO_GLOBAL_RSV: 0,
-}
-
-
-def block_group_profile_ratio(flags):
-    return _block_group_profile_ratio_map.get(
-        flags & BLOCK_GROUP_PROFILE_MASK
-    )
-
-
-def wasted_space_raid0_raid1(sizes, chunk_size=1024**3):
-    while len(sizes) > 1:
-        sizes = sorted(sizes)
-        if sizes[-2] < chunk_size:
-            sizes[-1] = sizes[-1] - sizes[-2]
-            sizes[-2] = 0
-        else:
-            sizes[-1] = sizes[-1] - chunk_size
-            sizes[-2] = sizes[-2] - chunk_size
-        sizes = [size for size in sizes if size > 0]
-
-    if len(sizes) == 0:
-        return 0
-    return sizes[0]
-
-
-def fs_usage(fs):
-    spaces = [space for space in fs.space_info()
-              if space.type != btrfs.SPACE_INFO_GLOBAL_RSV]
-    used = sum([space.raw_used_bytes for space in spaces])
-
-    flags_raid0_data = (btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_RAID0)
-    flags_raid1_data = (btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_RAID1)
-    check_wasted = any([space.flags & flags_raid0_data == flags_raid0_data
-                       or space.flags & flags_raid1_data == flags_raid1_data
-                       for space in spaces])
-
-    devices = list(fs.devices())
-
-    if check_wasted:
-        wasted_total = btrfs.utils.wasted_space_raid0_raid1(
-            [device.total_bytes - device.bytes_used for device in devices])
-        wasted_hard = btrfs.utils.wasted_space_raid0_raid1(
-            [device.total_bytes for device in devices])
-        wasted_soft = wasted_total - wasted_hard
-    else:
-        wasted_hard = wasted_soft = 0
-
-    total = sum([device.total_bytes for device in devices])
-    allocated = sum([device.bytes_used for device in devices])
-
-    return total, allocated, used, wasted_hard, wasted_soft
-
-
 def embedded_text_for_str(text):
     try:
         return "utf-8 {}".format(text.decode('utf-8'))
