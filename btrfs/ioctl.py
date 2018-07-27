@@ -192,12 +192,23 @@ class SpaceInfo(object):
     def profile(self):
         return self._profile
 
-    def __str__(self):
-        return "{0}, {1}: total={2}, used={3}".format(
+    @property
+    def flags_str(self):
+        return "{}, {}".format(
             btrfs.utils.space_type_description(self.flags),
-            btrfs.utils.space_profile_description(self.flags),
-            btrfs.utils.pretty_size(self.total_bytes),
-            btrfs.utils.pretty_size(self.used_bytes))
+            btrfs.utils.space_profile_description(self.flags))
+
+    @property
+    def total_bytes_str(self):
+        return btrfs.utils.pretty_size(self.total_bytes)
+
+    @property
+    def used_bytes_str(self):
+        return btrfs.utils.pretty_size(self.used_bytes)
+
+    def __str__(self):
+        return "{}: total={}, used={}".format(
+            self.flags_str, self.total_bytes_str, self.used_bytes_str)
 
 
 def space_args(fd):
