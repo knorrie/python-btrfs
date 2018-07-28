@@ -611,6 +611,9 @@ class FileSystem(object):
     def sync(self):
         btrfs.ioctl.sync(self.fd)
 
+    def features(self):
+        return btrfs.ioctl.get_features(self.fd)
+
     def __exit__(self, exc_type, exc_value, exc_traceback):
         os.close(self.fd)
 
