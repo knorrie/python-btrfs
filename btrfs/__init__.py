@@ -30,6 +30,20 @@ from btrfs.ctree import (  # noqa
 )
 import btrfs.ctree  # noqa
 import btrfs.ioctl  # noqa
+from btrfs.ioctl import (  # noqa
+    FEATURE_COMPAT_RO_FREE_SPACE_TREE,
+    FEATURE_COMPAT_RO_FREE_SPACE_TREE_VALID,
+    FEATURE_INCOMPAT_MIXED_BACKREF,
+    FEATURE_INCOMPAT_DEFAULT_SUBVOL,
+    FEATURE_INCOMPAT_MIXED_GROUPS,
+    FEATURE_INCOMPAT_COMPRESS_LZO,
+    FEATURE_INCOMPAT_COMPRESS_ZSTD,
+    FEATURE_INCOMPAT_BIG_METADATA,
+    FEATURE_INCOMPAT_EXTENDED_IREF,
+    FEATURE_INCOMPAT_RAID56,
+    FEATURE_INCOMPAT_SKINNY_METADATA,
+    FEATURE_INCOMPAT_NO_HOLES,
+)
 import btrfs.utils  # noqa
 import btrfs.crc32c  # noqa
 import btrfs.free_space_tree  # noqa

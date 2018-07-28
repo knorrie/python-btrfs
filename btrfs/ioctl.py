@@ -761,3 +761,68 @@ def fideduperange(fd, src_offset, src_length, range_infos):
         info.bytes_deduped = bytes_deduped
         info.status = status
         pos += file_dedupe_range_info.size
+
+
+ioctl_feature_flags = struct.Struct('=QQQ')
+IOC_GET_FEATURES = _IOR(BTRFS_IOCTL_MAGIC, 57, ioctl_feature_flags)
+
+_feature_compat_str_map = {
+}
+
+FEATURE_COMPAT_RO_FREE_SPACE_TREE = 1 << 0
+FEATURE_COMPAT_RO_FREE_SPACE_TREE_VALID = 1 << 1
+
+_feature_compat_ro_str_map = {
+    FEATURE_COMPAT_RO_FREE_SPACE_TREE: 'free_space_tree',
+    FEATURE_COMPAT_RO_FREE_SPACE_TREE_VALID: 'free_space_tree_valid',
+}
+
+FEATURE_INCOMPAT_MIXED_BACKREF = 1 << 0
+FEATURE_INCOMPAT_DEFAULT_SUBVOL = 1 << 1
+FEATURE_INCOMPAT_MIXED_GROUPS = 1 << 2
+FEATURE_INCOMPAT_COMPRESS_LZO = 1 << 3
+FEATURE_INCOMPAT_COMPRESS_ZSTD = 1 << 4
+FEATURE_INCOMPAT_BIG_METADATA = 1 << 5
+FEATURE_INCOMPAT_EXTENDED_IREF = 1 << 6
+FEATURE_INCOMPAT_RAID56 = 1 << 7
+FEATURE_INCOMPAT_SKINNY_METADATA = 1 << 8
+FEATURE_INCOMPAT_NO_HOLES = 1 << 9
+
+_feature_incompat_str_map = {
+    FEATURE_INCOMPAT_MIXED_BACKREF: 'mixed_backref',
+    FEATURE_INCOMPAT_DEFAULT_SUBVOL: 'default_subvol',
+    FEATURE_INCOMPAT_MIXED_GROUPS: 'mixed_groups',
+    FEATURE_INCOMPAT_COMPRESS_LZO: 'compress_lzo',
+    FEATURE_INCOMPAT_COMPRESS_ZSTD: 'compress_zstd',
+    FEATURE_INCOMPAT_BIG_METADATA: 'big_metadata',
+    FEATURE_INCOMPAT_EXTENDED_IREF: 'extended_iref',
+    FEATURE_INCOMPAT_RAID56: 'raid56',
+    FEATURE_INCOMPAT_SKINNY_METADATA: 'skinny_metadata',
+    FEATURE_INCOMPAT_NO_HOLES: 'no_holes',
+}
+
+
+class Features(object):
+    def __init__(self, compat_flags, compat_ro_flags, incompat_flags):
+        self.compat_flags = compat_flags
+        self.compat_ro_flags = compat_ro_flags
+        self.incompat_flags = incompat_flags
+
+    @property
+    def compat_flags_str(self):
+        return btrfs.utils.flags_str(self.compat_flags, _feature_compat_str_map)
+
+    @property
+    def compat_ro_flags_str(self):
+        return btrfs.utils.flags_str(self.compat_ro_flags, _feature_compat_ro_str_map)
+
+    @property
+    def incompat_flags_str(self):
+        return btrfs.utils.flags_str(self.incompat_flags, _feature_incompat_str_map)
+
+
+def get_features(fd):
+    buf = bytearray(ioctl_feature_flags.size)
+    fcntl.ioctl(fd, IOC_GET_FEATURES, buf)
+    compat_flags, compat_ro_flags, incompat_flags = ioctl_feature_flags.unpack(buf)
+    return Features(compat_flags, compat_ro_flags, incompat_flags)

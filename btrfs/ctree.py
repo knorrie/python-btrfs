@@ -600,6 +600,9 @@ class FileSystem(object):
     def sync(self):
         btrfs.ioctl.sync(self.fd)
 
+    def features(self):
+        return btrfs.ioctl.get_features(self.fd)
+
     def __del__(self):
         os.close(self.fd)
 
