@@ -196,7 +196,9 @@ def embedded_text_for_str(text):
         return "raw {}".format(repr(text))
 
 
-def _pretty_attr_value(obj, attr_name):
+def _pretty_attr_value(obj, attr_name, stringify_fn=None):
+    if stringify_fn is not None:
+        return "{}: {}".format(attr_name, stringify_fn(getattr(obj, attr_name)))
     cls = obj.__class__
     attr_name_str = '{}_str'.format(attr_name)
     stringify_property = getattr(cls, attr_name_str, None)
@@ -252,6 +254,18 @@ def pretty_obj_tuples(obj, level=0, seen=None):
                 for item in attr_value:
                     yield level, '-'
                     yield from pretty_obj_tuples(item, level+1, seen)
+            elif isinstance(attr_value, dict):
+                if len(attr_value) == 0:
+                    continue
+                yield level, "{}:".format(attr_name)
+                for k, v in attr_value.items():
+                    dict_key_str = '{}_key_str'.format(attr_name)
+                    stringify_fn = getattr(cls, dict_key_str, None)
+                    if stringify_fn is not None and callable(stringify_fn):
+                        yield level+1, "{}:".format(stringify_fn(k))
+                    else:
+                        yield level+1, "{}:".format(k)
+                    yield from pretty_obj_tuples(v, level+2, seen)
             elif attr_value.__class__.__module__ in pretty_print_modules and \
                     not isinstance(attr_value, (btrfs.ctree.Key, btrfs.ctree.TimeSpec)):
                 yield level, "{}:".format(attr_name)
