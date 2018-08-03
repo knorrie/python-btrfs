@@ -33,3 +33,4 @@ import btrfs.ioctl  # noqa
 import btrfs.utils  # noqa
 import btrfs.crc32c  # noqa
 import btrfs.free_space_tree  # noqa
+import btrfs.volumes  # noqa
