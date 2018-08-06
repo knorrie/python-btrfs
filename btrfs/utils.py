@@ -211,7 +211,7 @@ def _pretty_attr_value(obj, attr_name, stringify_fn=None):
     return "{}: {}".format(attr_name, getattr(obj, attr_name))
 
 
-pretty_print_modules = 'btrfs.ctree', 'btrfs.ioctl'
+pretty_print_modules = 'btrfs.ctree', 'btrfs.ioctl', 'btrfs.fs_usage'
 
 
 def pretty_obj_tuples(obj, level=0, seen=None):
