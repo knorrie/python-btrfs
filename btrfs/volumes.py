@@ -25,7 +25,10 @@ from btrfs.ctree import (  # noqa
     BLOCK_GROUP_SINGLE,
     BLOCK_GROUP_PROFILE_MASK,
 )
+from btrfs.utils import SZ_1G
 from collections import namedtuple
+
+BTRFS_MAX_DATA_CHUNK_SIZE = 10 * SZ_1G
 
 _RaidAttr = namedtuple('RaidAttr', [
     'sub_stripes', 'dev_stripes', 'devs_max', 'devs_min', 'tolerated_failures',

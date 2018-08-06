@@ -36,6 +36,7 @@ import btrfs.utils  # noqa
 import btrfs.crc32c  # noqa
 import btrfs.free_space_tree  # noqa
 import btrfs.volumes  # noqa
+import btrfs.fs_usage  # noqa
 
 
 # Classes in our modules can define a _pretty_properties class method that
@@ -56,6 +57,7 @@ def _generate_pretty_properties():
         return property_fn
 
     for module in [
+        btrfs.fs_usage,
     ]:
         for name, cls in inspect.getmembers(
             module,

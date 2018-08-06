@@ -617,6 +617,9 @@ class FileSystem(object):
     def mixed_groups(self):
         return self.features().incompat_flags & btrfs.ioctl.FEATURE_INCOMPAT_MIXED_GROUPS != 0
 
+    def usage(self):
+        return btrfs.fs_usage.FsUsage(self)
+
     def __exit__(self, exc_type, exc_value, exc_traceback):
         os.close(self.fd)
 
