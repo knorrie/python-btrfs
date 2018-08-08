@@ -17,62 +17,71 @@
 # Boston, MA 02110-1301 USA
 
 
-from collections import deque
 import btrfs
 import sys
 
 
-def colours():
-    colours = deque([
-        '33FF33', '00CC00',  # green
-        'FFFF33', 'CCCC00',  # yellow
-        '3399FF', '0000CC',  # blue
-        'FF3333', 'CC0000',  # red
-        'FF33FF', 'CC00CC',  # purple
-    ])
-    while True:
-        yield colours[0]
-        colours.rotate(-1)
-
-
-def draw_type():
-    yield 'AREA'
-    while True:
-        yield 'STACK'
-
-
-def munin_config(fs, spaces, used_types):
+def munin_config(fs, usage):
     print("multigraph btrfs_usage_{0}".format(str(fs.fsid).replace('-', '_')))
     print("graph_args --base 1024 -l 0")
     print("graph_vlabel bytes")
     print("graph_title btrfs space usage for {0}".format(fs.path))
     print("graph_category disk")
     print("graph_info This graph shows how btrfs uses available space")
-    draw = draw_type()
-    colour = colours()
-    for _type in used_types:
-        label = btrfs.utils.block_group_flags_str(_type).lower().replace('|', '_')
-        description = btrfs.utils.space_type_description(_type)
-        print("{0}_used.label Used {1}".format(label, description))
-        print("{0}_used.draw {1}".format(label, next(draw)))
-        print("{0}_used.info Used {1}".format(label, description))
-        print("{0}_used.colour {1}".format(label, next(colour)))
-        print("{0}_unused.label Unused {1}".format(label, description))
-        print("{0}_unused.draw {1}".format(label, next(draw)))
-        print("{0}_unused.info Unused {1}".format(label, description))
-        print("{0}_unused.colour {1}".format(label, next(colour)))
+
+    if not fs.mixed_groups():
+        print("data_used.label Used Data")
+        print("data_used.draw AREA")
+        print("data_used.info Used Data")
+        print("data_used.colour 33FF33")
+        print("data_unused.label Unused Data")
+        print("data_unused.draw STACK")
+        print("data_unused.info Unused Data")
+        print("data_unused.colour 00CC00")
+        print("metadata_used.label Used Metadata")
+        print("metadata_used.draw STACK")
+        print("metadata_used.info Used Metadata")
+        print("metadata_used.colour 3399FF")
+        print("metadata_unused.label Unused Metadata")
+        print("metadata_unused.draw STACK")
+        print("metadata_unused.info Unused Metadata")
+        print("metadata_unused.colour 0000CC")
+    else:
+        print("data_metadata_used.label Used Data+Metadata")
+        print("data_metadata_used.draw AREA")
+        print("data_metadata_used.info Used Data+Metadata")
+        print("data_metadata_used.colour 99FFEE")
+        print("data_metadata_unused.label Unused Data+Metadata")
+        print("data_metadata_unused.draw STACK")
+        print("data_metadata_unused.info Unused Data+Metadata")
+        print("data_metadata_unused.colour 669999")
+
+    print("system_used.label Used System")
+    print("system_used.draw STACK")
+    print("system_used.info Used System")
+    print("system_used.colour FFFF33")
+    print("system_unused.label Unused System")
+    print("system_unused.draw STACK")
+    print("system_unused.info Unused System")
+    print("system_unused.colour CCCC00")
+
+    print("parity.label Parity Blocks")
+    print("parity.draw STACK")
+    print("parity.info Parity Blocks")
+    print("parity.colour 9900FF")
+
     print("unallocated.label Unallocated")
     print("unallocated.draw STACK")
     print("unallocated.info Not allocated raw space")
     print("unallocated.colour FFFFFF")
-    print("wasted_soft.label Reclaimable non-alloc")
-    print("wasted_soft.draw STACK")
-    print("wasted_soft.info Reclaimable not allocatable")
-    print("wasted_soft.colour BBBBBB")
-    print("wasted_hard.label Non-allocatable")
-    print("wasted_hard.draw STACK")
-    print("wasted_hard.info Non-allocatable")
-    print("wasted_hard.colour 888888")
+    print("non_alloc_reclaimable.label Reclaimable non-alloc")
+    print("non_alloc_reclaimable.draw STACK")
+    print("non_alloc_reclaimable.info Reclaimable not allocatable")
+    print("non_alloc_reclaimable.colour BBBBBB")
+    print("non_alloc.label Non-allocatable")
+    print("non_alloc.draw STACK")
+    print("non_alloc.info Non-allocatable")
+    print("non_alloc.colour 888888")
     print("total.label Total")
     print("total.draw LINE2")
     print("total.info Total raw space")
@@ -80,40 +89,55 @@ def munin_config(fs, spaces, used_types):
     print("")
 
 
-def munin_values(fs, spaces, used_types):
+def munin_values(fs, usage):
     print("multigraph btrfs_usage_{0}".format(str(fs.fsid).replace('-', '_')))
-    for _type in used_types:
-        label = btrfs.utils.block_group_flags_str(_type).lower().replace('|', '_')
-        used = 0
-        allocated = 0
-        for space in spaces:
-            if space.type == _type:
-                used += space.raw_used_bytes
-                allocated += space.raw_total_bytes
-        print("{0}_used.value {1}".format(label, used))
-        print("{0}_unused.value {1}".format(label, allocated - used))
 
-    total, allocated, used, wasted_hard, wasted_soft = btrfs.utils.fs_usage(fs)
-    unallocated = total - allocated - wasted_soft - wasted_hard
-    print("unallocated.value {0}".format(unallocated))
-    print("wasted_soft.value {0}".format(wasted_soft))
-    print("wasted_hard.value {0}".format(wasted_hard))
-    print("total.value {0}".format(total))
-    print("")
+    # Whatever happens, we should not stack the graph above this. IOW, the
+    # unallocated bytes we end up with is just whatever is left over after
+    # doing all other things.
+    left = usage.total
+
+    if not fs.mixed_groups():
+        data_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_DATA].used
+        data_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_DATA].allocated
+        metadata_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_METADATA].used
+        metadata_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_METADATA].allocated
+        print("data_used.value {}".format(data_used))
+        print("data_unused.value {}".format(data_allocated - data_used))
+        print("metadata_used.value {}".format(metadata_used))
+        print("metadata_unused.value {}".format(metadata_allocated - metadata_used))
+        left = left - data_allocated - metadata_allocated
+    else:
+        mixed_type = btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_METADATA
+        used = usage.block_group_type_usage[mixed_type].used
+        allocated = usage.block_group_type_usage[mixed_type].allocated
+        print("data_metadata_used.value {}".format(used))
+        print("data_metadata_unused.value {}".format(allocated - used))
+        left -= allocated
+    system_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_SYSTEM].used
+    system_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_SYSTEM].allocated
+    print("system_used.value {}".format(system_used))
+    print("system_unused.value {}".format(system_allocated - system_used))
+    left -= system_allocated
+
+    print("parity.value {}".format(usage.parity))
+    left -= usage.parity
+    print("non_alloc_reclaimable.value {}".format(usage.unallocatable_reclaimable))
+    left -= usage.unallocatable_reclaimable
+    print("non_alloc.value {}".format(usage.unallocatable_hard))
+    left = max(left - usage.unallocatable_hard, 0)
+    print("unallocated.value {}".format(left))
+    print("total.value {}".format(usage.total))
 
 
 def main():
     for fs in btrfs.utils.mounted_filesystems():
-        spaces = fs.space_info()
-        used_types = []
-        for space in spaces:
-            if space.type not in used_types and space.type != btrfs.SPACE_INFO_GLOBAL_RSV:
-                used_types.append(space.type)
+        usage = btrfs.FsUsage(fs)
 
         if len(sys.argv) > 1 and sys.argv[1] == "config":
-            munin_config(fs, spaces, used_types)
+            munin_config(fs, usage)
         else:
-            munin_values(fs, spaces, used_types)
+            munin_values(fs, usage)
 
 
 if __name__ == "__main__":
