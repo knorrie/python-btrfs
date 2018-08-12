@@ -209,7 +209,7 @@ def space_info(fd):
 
 ioctl_search_key = struct.Struct('=Q6QLLL4x32x')
 ioctl_search_args = struct.Struct('{0}{1}x'.format(
-    ioctl_search_key.format.decode(), 4096 - ioctl_search_key.size))
+    btrfs.ctree.struct_format(ioctl_search_key), 4096 - ioctl_search_key.size))
 ioctl_search_header = struct.Struct('=3Q2L')
 IOC_TREE_SEARCH = _IOWR(BTRFS_IOCTL_MAGIC, 17, ioctl_search_args)
 SearchHeader = namedtuple('SearchHeader', ['transid', 'objectid', 'offset', 'type', 'len'])
@@ -226,7 +226,7 @@ _ioctl_search_args_v2 = [
     ioctl_search_key,
     struct.Struct('=Q')
 ]
-ioctl_search_args_v2 = struct.Struct('=' + ''.join([s.format[1:].decode()
+ioctl_search_args_v2 = struct.Struct('=' + ''.join([btrfs.ctree.struct_format(s)[1:]
                                                     for s in _ioctl_search_args_v2]))
 IOC_TREE_SEARCH_V2 = _IOWR(BTRFS_IOCTL_MAGIC, 17, ioctl_search_args_v2)
 
@@ -557,7 +557,7 @@ _ioctl_balance_args = [
     _balance_progress,  # 5 - stat - out
     struct.Struct('=576x')
 ]
-ioctl_balance_args = struct.Struct('=' + ''.join([s.format[1:].decode()
+ioctl_balance_args = struct.Struct('=' + ''.join([btrfs.ctree.struct_format(s)[1:]
                                                   for s in _ioctl_balance_args]))
 IOC_BALANCE_V2 = _IOWR(BTRFS_IOCTL_MAGIC, 32, ioctl_balance_args)
 
