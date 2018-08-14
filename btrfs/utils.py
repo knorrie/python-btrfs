@@ -18,6 +18,7 @@
 
 import btrfs
 import collections.abc
+import re
 import types
 from btrfs.ctree import (
     BLOCK_GROUP_DATA, BLOCK_GROUP_SYSTEM, BLOCK_GROUP_METADATA,
@@ -124,6 +125,22 @@ def pretty_size(size, unit=None, binary=True):
     if divide_by > 0:
         size = size / divide_by
     return "{0:.2f}{1}{2}B".format(size, unit, 'i' if base == 1024 and unit != '' else '')
+
+
+_re_parse_pretty_size = re.compile(r'^(?P<size>\d+)(?:(?P<unit>[kMGTPE])((?P<i>i)?B)?)?$')
+
+
+def parse_pretty_size(size_str):
+    match = _re_parse_pretty_size.match(size_str)
+    if match is None:
+        raise ValueError('literal cannot be parsed as pretty size')
+    groupdict = match.groupdict()
+    if groupdict['unit'] is None:
+        return int(size_str)
+    base = 1024 if groupdict['i'] == 'i' else 1000
+    unit_offset = pretty_size_units.index(groupdict['unit'].upper())
+    multiply_by = base ** unit_offset
+    return int(groupdict['size']) * multiply_by
 
 
 def flags_str(flags, flags_str_map):
