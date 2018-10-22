@@ -16,6 +16,7 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
+import btrfs
 import collections.abc
 import copy
 import datetime
@@ -29,6 +30,14 @@ ULONG_MAX = (1 << 32) - 1
 
 def ULL(n):
     return n & ULLONG_MAX
+
+
+def struct_format(s):
+    f = s.format
+    # Python <= 3.6 returns bytes, 3.7 returns str, yay.
+    if type(f) == bytes:
+        return f.decode('utf-8')
+    return f
 
 
 ROOT_TREE_OBJECTID = 1
@@ -350,10 +359,6 @@ def key_offset_str(offset, _type):
         return '-1'
 
     return str(offset)
-
-
-import btrfs.ioctl  # noqa
-import btrfs.free_space_tree  # noqa
 
 
 class Key(object):
@@ -946,7 +951,8 @@ class InodeItem(ItemData):
         TimeSpec.timespec,
         TimeSpec.timespec,
     ]
-    inode_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _inode_item]))
+    inode_item = struct.Struct('<' + ''.join([struct_format(s)[1:]
+                                              for s in _inode_item]))
 
     def __init__(self, header, data):
         super().__init__(header)
@@ -1114,7 +1120,7 @@ class DirItem(object):
         DiskKey.disk_key,
         struct.Struct('<QHHB')
     ]
-    dir_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _dir_item]))
+    dir_item = struct.Struct('<' + ''.join([struct_format(s)[1:] for s in _dir_item]))
 
     def __init__(self, data, pos):
         next_pos = pos + DiskKey.disk_key.size
@@ -1188,7 +1194,8 @@ class RootItem(ItemData):
         TimeSpec.timespec,
         TimeSpec.timespec,
     ]
-    root_item = struct.Struct('<' + ''.join([s.format[1:].decode() for s in _root_item]))
+    root_item = struct.Struct('<' + ''.join([struct_format(s)[1:]
+                                             for s in _root_item]))
 
     def __init__(self, header, data):
         super().__init__(header)
@@ -1231,7 +1238,7 @@ class FileExtentItem(ItemData):
         struct.Struct('<QQBB2xB'),
         struct.Struct('<4Q'),
     ]
-    file_extent_item = struct.Struct('<' + ''.join([s.format[1:].decode()
+    file_extent_item = struct.Struct('<' + ''.join([struct_format(s)[1:]
                                                     for s in _file_extent_item]))
 
     def __init__(self, header, data):

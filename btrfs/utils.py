@@ -16,7 +16,7 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
-import btrfs.ctree
+import btrfs
 import collections.abc
 import types
 from btrfs.ctree import (

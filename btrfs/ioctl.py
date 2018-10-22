@@ -18,6 +18,7 @@
 
 from collections import namedtuple
 import array
+import btrfs
 import errno
 import fcntl
 import platform
@@ -86,11 +87,6 @@ def _IOWR(_type, nr, _struct):
 
 
 DEVICE_PATH_NAME_MAX = 1024
-
-from btrfs.ctree import BLOCK_GROUP_TYPE_MASK, SPACE_INFO_GLOBAL_RSV, BLOCK_GROUP_PROFILE_MASK  # noqa
-from btrfs.ctree import FIRST_FREE_OBJECTID  # noqa
-import btrfs.ctree  # noqa
-
 
 ioctl_fs_info_args = struct.Struct('=QQ16sLLL980x')
 IOC_FS_INFO = _IOR(BTRFS_IOCTL_MAGIC, 31, ioctl_fs_info_args)
@@ -180,8 +176,9 @@ SpaceArgs = namedtuple('SpaceArgs', ['space_slots', 'total_spaces'])
 class SpaceInfo(object):
     def __init__(self, buf, pos):
         self.flags, self.total_bytes, self.used_bytes = ioctl_space_info.unpack_from(buf, pos)
-        self.type = self.flags & (BLOCK_GROUP_TYPE_MASK | SPACE_INFO_GLOBAL_RSV)
-        self.profile = self.flags & BLOCK_GROUP_PROFILE_MASK
+        self.type = self.flags & \
+            (btrfs.ctree.BLOCK_GROUP_TYPE_MASK | btrfs.ctree.SPACE_INFO_GLOBAL_RSV)
+        self.profile = self.flags & btrfs.ctree.BLOCK_GROUP_PROFILE_MASK
         self.ratio = btrfs.utils.block_group_profile_ratio(self.profile)
         self.raw_total_bytes = self.total_bytes * self.ratio
         self.raw_used_bytes = self.used_bytes * self.ratio
@@ -212,7 +209,7 @@ def space_info(fd):
 
 ioctl_search_key = struct.Struct('=Q6QLLL4x32x')
 ioctl_search_args = struct.Struct('{0}{1}x'.format(
-    ioctl_search_key.format.decode(), 4096 - ioctl_search_key.size))
+    btrfs.ctree.struct_format(ioctl_search_key), 4096 - ioctl_search_key.size))
 ioctl_search_header = struct.Struct('=3Q2L')
 IOC_TREE_SEARCH = _IOWR(BTRFS_IOCTL_MAGIC, 17, ioctl_search_args)
 SearchHeader = namedtuple('SearchHeader', ['transid', 'objectid', 'offset', 'type', 'len'])
@@ -229,7 +226,7 @@ _ioctl_search_args_v2 = [
     ioctl_search_key,
     struct.Struct('=Q')
 ]
-ioctl_search_args_v2 = struct.Struct('=' + ''.join([s.format[1:].decode()
+ioctl_search_args_v2 = struct.Struct('=' + ''.join([btrfs.ctree.struct_format(s)[1:]
                                                     for s in _ioctl_search_args_v2]))
 IOC_TREE_SEARCH_V2 = _IOWR(BTRFS_IOCTL_MAGIC, 17, ioctl_search_args_v2)
 
@@ -327,7 +324,7 @@ IOC_INO_LOOKUP = _IOWR(BTRFS_IOCTL_MAGIC, 18, ioctl_ino_lookup_args)
 InoLookupResult = namedtuple('InoLookupResult', ['treeid', 'name_bytes'])
 
 
-def ino_lookup(fd, treeid=0, objectid=FIRST_FREE_OBJECTID):
+def ino_lookup(fd, treeid=0, objectid=btrfs.ctree.FIRST_FREE_OBJECTID):
     args = bytearray(ioctl_ino_lookup_args.size)
     ioctl_ino_lookup_args.pack_into(args, 0, treeid, objectid, b'')
     fcntl.ioctl(fd, IOC_INO_LOOKUP, args)
@@ -560,7 +557,7 @@ _ioctl_balance_args = [
     _balance_progress,  # 5 - stat - out
     struct.Struct('=576x')
 ]
-ioctl_balance_args = struct.Struct('=' + ''.join([s.format[1:].decode()
+ioctl_balance_args = struct.Struct('=' + ''.join([btrfs.ctree.struct_format(s)[1:]
                                                   for s in _ioctl_balance_args]))
 IOC_BALANCE_V2 = _IOWR(BTRFS_IOCTL_MAGIC, 32, ioctl_balance_args)
 
