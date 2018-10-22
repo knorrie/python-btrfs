@@ -1,3 +1,9 @@
+python-btrfs v9.1, Okt 22, 2018
+  * Fix compatibility with Python 3.7, which breaks the struct module API.
+  * Change the bad free space fragmentation example to use a minimal score to
+    filter output. The default value (250) now causes only displaying block
+    groups that look really suspicious.
+
 python-btrfs v9, Nov 23 2017
   * IOCTLs: IOC_SET_RECEIVED_SUBVOL, IOC_LOGICAL_INO_V2
   * Add crc32c checksum function for data, thanks Nikolay Borisov
