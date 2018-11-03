@@ -200,8 +200,12 @@ def _pretty_attr_value(obj, attr_name, stringify_fn=None):
     if stringify_fn is not None:
         return "{}: {}".format(attr_name, stringify_fn(getattr(obj, attr_name)))
     cls = obj.__class__
-    attr_name_str = '{}_str'.format(attr_name)
+    attr_name_str = '_{}_str'.format(attr_name)
     stringify_property = getattr(cls, attr_name_str, None)
+    if stringify_property is None:
+        # try deprecated pattern
+        attr_name_str = '{}_str'.format(attr_name)
+        stringify_property = getattr(cls, attr_name_str, None)
     if stringify_property is not None and isinstance(stringify_property, property):
         return "{}: {}".format(attr_name, getattr(obj, attr_name_str))
     return "{}: {}".format(attr_name, getattr(obj, attr_name))
@@ -259,8 +263,12 @@ def pretty_obj_tuples(obj, level=0, seen=None):
                     continue
                 yield level, "{}:".format(attr_name)
                 for k, v in attr_value.items():
-                    dict_key_str = '{}_key_str'.format(attr_name)
+                    dict_key_str = '_{}_key_str'.format(attr_name)
                     stringify_fn = getattr(cls, dict_key_str, None)
+                    if stringify_fn is None:
+                        # try deprecated pattern
+                        dict_key_str = '{}_key_str'.format(attr_name)
+                        stringify_fn = getattr(cls, dict_key_str, None)
                     if stringify_fn is not None and callable(stringify_fn):
                         yield level+1, "{}:".format(stringify_fn(k))
                     else:
