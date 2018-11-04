@@ -159,20 +159,20 @@ def main():
     if args_state != STATE_OK:
         return args_state
 
-    fs = btrfs.FileSystem(args.mountpoint)
-    state = STATE_OK
-    msg = []
-    summary = []
+    with btrfs.FileSystem(args.mountpoint) as fs:
+        state = STATE_OK
+        msg = []
+        summary = []
 
-    usage_state, usage_msg, usage_summary = check_usage(args, fs)
-    state = max(state, usage_state)
-    msg.extend(usage_msg)
-    summary.extend(usage_summary)
+        usage_state, usage_msg, usage_summary = check_usage(args, fs)
+        state = max(state, usage_state)
+        msg.extend(usage_msg)
+        summary.extend(usage_summary)
 
-    dev_stats_state, dev_stats_msg, dev_stats_summary = check_dev_stats(fs)
-    state = max(state, dev_stats_state)
-    msg.extend(dev_stats_msg)
-    summary.extend(dev_stats_summary)
+        dev_stats_state, dev_stats_msg, dev_stats_summary = check_dev_stats(fs)
+        state = max(state, dev_stats_state)
+        msg.extend(dev_stats_msg)
+        summary.extend(dev_stats_summary)
 
     if len(msg) > 0:
         print("BTRFS {}: ".format(state_str_map[state]), end='')
