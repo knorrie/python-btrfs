@@ -208,14 +208,14 @@ class SpaceInfo(object):
             self.flags_str, self.total_bytes_str, self.used_bytes_str)
 
 
-def space_args(fd):
+def _space_args(fd):
     buf = bytearray(ioctl_space_args.size)
     fcntl.ioctl(fd, IOC_SPACE_INFO, buf)
     return SpaceArgs(*ioctl_space_args.unpack(buf))
 
 
 def space_info(fd):
-    args = space_args(fd)
+    args = _space_args(fd)
     buf_size = ioctl_space_args.size + ioctl_space_info.size * args.total_spaces
     buf = bytearray(buf_size)
     ioctl_space_args.pack_into(buf, 0, args.total_spaces, 0)
