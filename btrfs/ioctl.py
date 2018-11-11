@@ -306,7 +306,7 @@ Inode = namedtuple('Inode', ['inum', 'offset', 'root'])
 
 
 def logical_to_ino(fd, vaddr, bufsize=4096):
-    return logical_to_ino_v2(fd, vaddr, bufsize, _v2=False)
+    return _logical_to_ino(fd, vaddr, bufsize, _v2=False)
 
 
 ioctl_logical_ino_args_v2 = struct.Struct('=QQ24xQQ')
@@ -314,7 +314,11 @@ IOC_LOGICAL_INO_V2 = _IOWR(BTRFS_IOCTL_MAGIC, 59, ioctl_logical_ino_args)
 LOGICAL_INO_ARGS_IGNORE_OFFSET = 1 << 0
 
 
-def logical_to_ino_v2(fd, vaddr, bufsize=4096, ignore_offset=False, _v2=True):
+def logical_to_ino_v2(fd, vaddr, bufsize=4096, ignore_offset=False):
+    return _logical_to_ino(fd, vaddr, bufsize, ignore_offset, _v2=True)
+
+
+def _logical_to_ino(fd, vaddr, bufsize=4096, ignore_offset=False, _v2=True):
     if _v2:
         bufsize = min(bufsize, 16777216)
     else:
