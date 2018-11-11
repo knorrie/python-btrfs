@@ -289,7 +289,7 @@ def _search(fd, tree, min_key=None, max_key=None,
             for i in range(result_nr_items):
                 header = SearchHeader(*ioctl_search_header.unpack_from(buf, pos))
                 pos += ioctl_search_header.size
-                yield((header, buf_view[pos:pos+header.len]))
+                yield header, buf_view[pos:pos+header.len]
                 pos += header.len
                 wanted_nr_items -= 1
                 if wanted_nr_items == 0:
