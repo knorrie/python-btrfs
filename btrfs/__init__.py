@@ -57,6 +57,7 @@ def _generate_pretty_properties():
         return property_fn
 
     for module in [
+        btrfs.ioctl,
         btrfs.fs_usage,
     ]:
         for name, cls in inspect.getmembers(

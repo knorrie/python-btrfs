@@ -104,6 +104,14 @@ class FsInfo(object):
             "clone_alignment {5}".format(self.max_id, self.num_devices, self.fsid, self.nodesize,
                                          self.sectorsize, self.clone_alignment)
 
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (btrfs.utils.pretty_size, 'nodesize'),
+            (btrfs.utils.pretty_size, 'sectorsize'),
+            (btrfs.utils.pretty_size, 'clone_alignment'),
+        ]
+
 
 def fs_info(fd):
     buf = bytearray(ioctl_fs_info_args.size)
@@ -189,23 +197,19 @@ class SpaceInfo(object):
     def profile(self):
         return self._profile
 
-    @property
-    def flags_str(self):
-        return "{}, {}".format(
-            btrfs.utils.space_type_description(self.flags),
-            btrfs.utils.space_profile_description(self.flags))
-
-    @property
-    def total_bytes_str(self):
-        return btrfs.utils.pretty_size(self.total_bytes)
-
-    @property
-    def used_bytes_str(self):
-        return btrfs.utils.pretty_size(self.used_bytes)
-
     def __str__(self):
         return "{}: total={}, used={}".format(
             self.flags_str, self.total_bytes_str, self.used_bytes_str)
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (btrfs.utils.space_flags_description, 'flags'),
+            (btrfs.utils.space_type_description, 'type'),
+            (btrfs.utils.space_profile_description, 'profile'),
+            (btrfs.utils.pretty_size, 'total_bytes'),
+            (btrfs.utils.pretty_size, 'used_bytes'),
+        ]
 
 
 def _space_args(fd):
@@ -504,15 +508,10 @@ class BalanceArgs(object):
             opts.append("soft=True")
         return "BalanceArgs({})".format(', '.join(opts))
 
-    @property
-    def flags_str(self):
-        return btrfs.utils.flags_str(self.flags, _balance_args_flags_str_map)
-
     def __str__(self):
         opts = []
         if self.flags & BALANCE_ARGS_PROFILES:
-            opts.append("profiles={}".format(
-                btrfs.utils.flags_str(self.profiles, btrfs.ctree._balance_args_profiles_str_map)))
+            opts.append("profiles={}".format(self.profiles_str))
         if self.flags & BALANCE_ARGS_USAGE_RANGE:
             opts.append("usage={}..{}".format(self.usage_min, self.usage_max))
         if self.flags & BALANCE_ARGS_DEVID:
@@ -522,8 +521,7 @@ class BalanceArgs(object):
         if self.flags & BALANCE_ARGS_VRANGE:
             opts.append("vrange={}..{}".format(self.vstart, self.vend))
         if self.flags & BALANCE_ARGS_CONVERT:
-            opts.append("target={}".format(
-                btrfs.utils.flags_str(self.target, btrfs.ctree._balance_args_profiles_str_map)))
+            opts.append("target={}".format(self.target_str))
         if self.flags & BALANCE_ARGS_LIMIT_RANGE:
             opts.append("limit={}..{}".format(self.limit_min, self.limit_max))
         if self.flags & BALANCE_ARGS_STRIPES_RANGE:
@@ -531,6 +529,14 @@ class BalanceArgs(object):
         if self.flags & BALANCE_ARGS_SOFT:
             opts.append("soft")
         return "flags({}) {}".format(self.flags_str, ', '.join(opts))
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (_balance_args_flags_str, 'flags'),
+            (_balance_args_profiles_str, 'profiles'),
+            (_balance_args_profiles_str, 'target'),
+        ]
 
 
 BALANCE_DATA = 1 << 0
@@ -550,6 +556,11 @@ _balance_state_str_map = {
     BALANCE_STATE_CANCEL_REQ: 'CANCEL_REQ',
 }
 
+
+def _balance_state_str(state):
+    return btrfs.utils.flags_str(state, _balance_state_str_map)
+
+
 # These should actually be without leading underscore, but we also have a
 # function named balance_progress...
 _balance_args = struct.Struct('=QLL7Q4L48x')
@@ -563,10 +574,6 @@ class BalanceProgress(object):
         self.considered = considered
         self.completed = completed
 
-    @property
-    def state_str(self):
-        return btrfs.utils.flags_str(self.state, _balance_state_str_map)
-
     def __repr__(self):
         return "BalanceProgress(state={self.state:#x}, expected={self.expected}, " \
             "considered={self.considered}, completed={self.completed})".format(self=self)
@@ -574,6 +581,12 @@ class BalanceProgress(object):
     def __str__(self):
         return "state {self.state_str} expected {self.expected} considered {self.considered} " \
             "completed {self.completed}".format(self=self)
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (_balance_state_str, 'state'),
+        ]
 
 
 _ioctl_balance_args = [
@@ -645,8 +658,7 @@ def balance_v2(fd, data_args=None, meta_args=None, sys_args=None, force=False, r
                 msg = "Balance start failed: Already in progress ({})".format(errorcode)
         else:
             msg = "Error during balancing, there may be more info in dmesg: {}, " \
-                "state {}".format(errorcode,
-                                  btrfs.utils.flags_str(state, _balance_state_str_map))
+                "state {}".format(errorcode, _balance_state_str(state))
         raise BalanceError(state, msg) from None
     pos = _ioctl_balance_args[0].size
     state, = _ioctl_balance_args[1].unpack_from(args, pos)
@@ -742,6 +754,7 @@ class FileDedupeRangeInfo(object):
 
     @property
     def status_str(self):
+        """Pretty string representation for the status attribute."""
         if self.status == btrfs.ioctl.FILE_DEDUPE_RANGE_SAME:
             return "RANGE_SAME"
         if self.status == FILE_DEDUPE_RANGE_DIFFERS:
@@ -775,6 +788,11 @@ IOC_GET_FEATURES = _IOR(BTRFS_IOCTL_MAGIC, 57, ioctl_feature_flags)
 _feature_compat_str_map = {
 }
 
+
+def _compat_flags_str(flags):
+    return btrfs.utils.flags_str(flags, _feature_compat_str_map)
+
+
 FEATURE_COMPAT_RO_FREE_SPACE_TREE = 1 << 0
 FEATURE_COMPAT_RO_FREE_SPACE_TREE_VALID = 1 << 1
 
@@ -782,6 +800,11 @@ _feature_compat_ro_str_map = {
     FEATURE_COMPAT_RO_FREE_SPACE_TREE: 'free_space_tree',
     FEATURE_COMPAT_RO_FREE_SPACE_TREE_VALID: 'free_space_tree_valid',
 }
+
+
+def _compat_ro_flags_str(flags):
+    return btrfs.utils.flags_str(flags, _feature_compat_ro_str_map)
+
 
 FEATURE_INCOMPAT_MIXED_BACKREF = 1 << 0
 FEATURE_INCOMPAT_DEFAULT_SUBVOL = 1 << 1
@@ -808,23 +831,23 @@ _feature_incompat_str_map = {
 }
 
 
+def _incompat_flags_str(flags):
+    return btrfs.utils.flags_str(flags, _feature_incompat_str_map)
+
+
 class FeatureFlags(object):
     def __init__(self, compat_flags, compat_ro_flags, incompat_flags):
         self.compat_flags = compat_flags
         self.compat_ro_flags = compat_ro_flags
         self.incompat_flags = incompat_flags
 
-    @property
-    def compat_flags_str(self):
-        return btrfs.utils.flags_str(self.compat_flags, _feature_compat_str_map)
-
-    @property
-    def compat_ro_flags_str(self):
-        return btrfs.utils.flags_str(self.compat_ro_flags, _feature_compat_ro_str_map)
-
-    @property
-    def incompat_flags_str(self):
-        return btrfs.utils.flags_str(self.incompat_flags, _feature_incompat_str_map)
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (_compat_flags_str, 'compat_flags'),
+            (_compat_ro_flags_str, 'compat_ro_flags'),
+            (_incompat_flags_str, 'incompat_flags'),
+        ]
 
 
 def get_features(fd):
