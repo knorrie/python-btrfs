@@ -97,6 +97,12 @@ def space_profile_description(flags):
     )
 
 
+def space_flags_description(flags):
+    return "{}, {}".format(
+        btrfs.utils.space_type_description(flags),
+        btrfs.utils.space_profile_description(flags))
+
+
 pretty_size_units = '_KMGTPE'
 
 
