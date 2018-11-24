@@ -569,7 +569,7 @@ class BalanceProgress(object):
 
     def __repr__(self):
         return "BalanceProgress(state={self.state:#x}, expected={self.expected}, " \
-            "considered={self.considered}, completed={self.completed}".format(self=self)
+            "considered={self.considered}, completed={self.completed})".format(self=self)
 
     def __str__(self):
         return "state {self.state_str} expected {self.expected} considered {self.considered} " \
