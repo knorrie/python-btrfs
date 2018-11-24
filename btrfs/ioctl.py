@@ -476,7 +476,7 @@ class BalanceArgs(object):
         else:
             self.stripes_max = ULONG_MAX
 
-    def for_struct(self):
+    def _for_struct(self):
         return self.profiles, self.usage_min, self.usage_max, self.devid, self.pstart, self.pend, \
             self.vstart, self.vend, self.target, self.flags, self.limit_min, self.limit_max, \
             self.stripes_min, self.stripes_max
@@ -613,15 +613,15 @@ def balance_v2(fd, data_args=None, meta_args=None, sys_args=None, force=False, r
         pos += _ioctl_balance_args[1].size
         if data_args is not None:
             flags |= BALANCE_DATA
-            _balance_args.pack_into(args, pos, *data_args.for_struct())
+            _balance_args.pack_into(args, pos, *data_args._for_struct())
         pos += _balance_args.size
         if meta_args is not None:
             flags |= BALANCE_METADATA
-            _balance_args.pack_into(args, pos, *meta_args.for_struct())
+            _balance_args.pack_into(args, pos, *meta_args._for_struct())
         pos += _balance_args.size
         if sys_args is not None:
             flags |= BALANCE_SYSTEM
-            _balance_args.pack_into(args, pos, *sys_args.for_struct())
+            _balance_args.pack_into(args, pos, *sys_args._for_struct())
         if force:
             flags |= BALANCE_FORCE
         _ioctl_balance_args[0].pack_into(args, 0, flags)
