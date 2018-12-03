@@ -8,7 +8,6 @@ if len(sys.argv) < 3:
     sys.exit(1)
 
 tree = int(sys.argv[1])
-fs = btrfs.FileSystem(sys.argv[2])
-
-for header, _ in btrfs.ioctl.search_v2(fs.fd, tree):
-    print(btrfs.ctree.Key(header.objectid, header.type, header.offset))
+with btrfs.FileSystem(sys.argv[2]) as fs:
+    for header, _ in btrfs.ioctl.search_v2(fs.fd, tree):
+        print(btrfs.ctree.Key(header.objectid, header.type, header.offset))
