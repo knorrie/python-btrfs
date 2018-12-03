@@ -29,12 +29,12 @@ except ValueError:
         print("ERROR: specify tree number or short name (e.g. root, extent, fs)")
         sys.exit(1)
 
-fs = btrfs.FileSystem(sys.argv[2])
-try:
-    btrfs.utils.pretty_print(
-        (btrfs.ctree.classify(header, data)
-         for header, data in btrfs.ioctl.search_v2(fs.fd, tree))
-    )
-except FileNotFoundError:
-    print("ERROR: tree {} does not exist".format(tree))
-    sys.exit(1)
+with btrfs.FileSystem(sys.argv[2]) as fs:
+    try:
+        btrfs.utils.pretty_print(
+            (btrfs.ctree.classify(header, data)
+             for header, data in btrfs.ioctl.search_v2(fs.fd, tree))
+        )
+    except FileNotFoundError:
+        print("ERROR: tree {} does not exist".format(tree))
+        sys.exit(1)

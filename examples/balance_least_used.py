@@ -64,13 +64,13 @@ def balance_one_block_group(fs, block_groups, max_used_pct):
 
 def main():
     max_used_pct = int(sys.argv[1])
-    fs = btrfs.FileSystem(sys.argv[2])
-    min_used_pct, block_groups = load_block_groups(fs, max_used_pct)
-    if len(block_groups) == 0:
-        print("Nothing to do, least used block group has used_pct {}".format(min_used_pct))
-        return
-    while len(block_groups) > 0:
-        balance_one_block_group(fs, block_groups, max_used_pct)
+    with btrfs.FileSystem(sys.argv[2]) as fs:
+        min_used_pct, block_groups = load_block_groups(fs, max_used_pct)
+        if len(block_groups) == 0:
+            print("Nothing to do, least used block group has used_pct {}".format(min_used_pct))
+            return
+        while len(block_groups) > 0:
+            balance_one_block_group(fs, block_groups, max_used_pct)
 
 
 if __name__ == '__main__':
