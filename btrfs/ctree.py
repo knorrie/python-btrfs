@@ -441,6 +441,9 @@ class Key(object):
             return self._key > other._key
         return self._key > other
 
+    def __repr__(self):
+        return "Key({}, {}, {})".format(self._objectid, self._type, self._offset)
+
     def __str__(self):
         return "({} {} {})".format(
             key_objectid_str(self._objectid, self._type),
