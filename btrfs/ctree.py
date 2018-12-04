@@ -24,8 +24,13 @@ import os
 import struct
 import uuid
 
+U8_MAX = (1 << 8) - 1
 ULLONG_MAX = (1 << 64) - 1
 ULONG_MAX = (1 << 32) - 1
+
+
+def U8(n):
+    return n & U8_MAX
 
 
 def ULL(n):
@@ -412,9 +417,9 @@ class Key(object):
         self._key = (self.objectid << 72) + (self._type << 64) + self.offset
 
     def _unpack(self):
-        self._objectid = self._key >> 72
-        self._type = (self._key & ((1 << 72) - 1)) >> 64
-        self._offset = (self._key & ((1 << 64) - 1))
+        self._objectid = ULL(self._key >> 72)
+        self._type = U8(self._key >> 64)
+        self._offset = ULL(self._key)
 
     def __lt__(self, other):
         if isinstance(other, Key):
