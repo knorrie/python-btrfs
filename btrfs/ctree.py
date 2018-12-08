@@ -1019,16 +1019,16 @@ class InodeRefList(ItemData, collections.abc.MutableSequence):
         return self._list[index]
 
     def __setitem__(self, index, value):
-        self._list[index] = value
+        raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __delitem__(self, index):
-        del self._list[index]
+        raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __len__(self):
         return len(self._list)
 
     def insert(self, index, value):
-        self._list.insert(index, value)
+        raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __str__(self):
         return "inode ref list size {}".format(len(self))
@@ -1068,16 +1068,16 @@ class InodeExtrefList(ItemData, collections.abc.MutableSequence):
         return self._list[index]
 
     def __setitem__(self, index, value):
-        self._list[index] = value
+        raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __delitem__(self, index):
-        del self._list[index]
+        raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __len__(self):
         return len(self._list)
 
     def insert(self, index, value):
-        self._list.insert(index, value)
+        raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __str__(self):
         return "inode extref list hash {self.key.offset} size {}".format(len(self), self=self)
@@ -1120,16 +1120,16 @@ class DirItemList(ItemData, collections.abc.MutableSequence):
         return self._list[index]
 
     def __setitem__(self, index, value):
-        self._list[index] = value
+        raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __delitem__(self, index):
-        del self._list[index]
+        raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __len__(self):
         return len(self._list)
 
     def insert(self, index, value):
-        self._list.insert(index, value)
+        raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __str__(self):
         return "dir item list hash {self.key.offset} size {}".format(len(self), self=self)
