@@ -371,9 +371,9 @@ class ItemNotFoundError(IndexError):
 
 
 class Key(object):
-    def __init__(self, objectid, _type, offset):
+    def __init__(self, objectid, type_, offset):
         self._objectid = objectid
-        self._type = _type
+        self._type = type_
         self._offset = offset
         self._pack()
 
