@@ -288,7 +288,7 @@ _key_objectid_str_map = {
 }
 
 
-def key_objectid_str(objectid, _type):
+def _key_objectid_str(objectid, _type):
     if _type == DEV_EXTENT_KEY:
         return str(objectid)
     if _type == QGROUP_RELATION_KEY:
@@ -349,11 +349,11 @@ _key_type_str_map = {
 }
 
 
-def key_type_str(_type):
+def _key_type_str(_type):
     return _key_type_str_map.get(_type, str(_type))
 
 
-def key_offset_str(offset, _type):
+def _key_offset_str(offset, _type):
     if _type == QGROUP_RELATION_KEY or _type == QGROUP_INFO_KEY or _type == QGROUP_LIMIT_KEY:
         return "{}/{}".format(qgroup_level(offset), qgroup_subvid(offset))
     if _type == UUID_KEY_SUBVOL or _type == UUID_KEY_RECEIVED_SUBVOL:
@@ -451,9 +451,9 @@ class Key(object):
 
     def __str__(self):
         return "({} {} {})".format(
-            key_objectid_str(self._objectid, self._type),
-            key_type_str(self._type),
-            key_offset_str(self._offset, self._type),
+            _key_objectid_str(self._objectid, self._type),
+            _key_type_str(self._type),
+            _key_offset_str(self._offset, self._type),
         )
 
     def __add__(self, amount):
@@ -924,7 +924,7 @@ class TreeBlockRef(ItemData):
         self.setattr_from_key(offset_attr='root')
 
     def __str__(self):
-        return "tree block backref root {}".format(key_objectid_str(self.root, None))
+        return "tree block backref root {}".format(_key_objectid_str(self.root, None))
 
 
 class InlineTreeBlockRef(TreeBlockRef):
@@ -932,7 +932,7 @@ class InlineTreeBlockRef(TreeBlockRef):
         self.root = root
 
     def __str__(self):
-        return "inline tree block backref root {}".format(key_objectid_str(self.root, None))
+        return "inline tree block backref root {}".format(_key_objectid_str(self.root, None))
 
 
 class SharedBlockRef(ItemData):

@@ -21,6 +21,19 @@ trees = {
     btrfs.ctree.DATA_RELOC_TREE_OBJECTID: Counter(),
 }
 
+tree_id_str = {
+    btrfs.ctree.ROOT_TREE_OBJECTID: 'ROOT_TREE',
+    btrfs.ctree.EXTENT_TREE_OBJECTID: 'EXTENT_TREE',
+    btrfs.ctree.CHUNK_TREE_OBJECTID: 'CHUNK_TREE',
+    btrfs.ctree.DEV_TREE_OBJECTID: 'DEV_TREE',
+    btrfs.ctree.FS_TREE_OBJECTID: 'FS_TREE',
+    btrfs.ctree.CSUM_TREE_OBJECTID: 'CSUM_TREE',
+    btrfs.ctree.QUOTA_TREE_OBJECTID: 'QUOTA_TREE',
+    btrfs.ctree.UUID_TREE_OBJECTID: 'UUID_TREE',
+    btrfs.ctree.FREE_SPACE_TREE_OBJECTID: 'FREE_SPACE_TREE',
+    btrfs.ctree.DATA_RELOC_TREE_OBJECTID: 'DATA_RELOC_TREE',
+}
+
 
 def _get_metadata_root(extent):
     if extent.refs > 1:
@@ -57,7 +70,7 @@ with btrfs.FileSystem(sys.argv[1]) as fs:
     for root in sorted(trees.keys()):
         counter = trees[root]
         txt = [
-            "{: <16}".format(btrfs.ctree.key_objectid_str(root, None)),
+            "{: <16}".format(tree_id_str[root]),
             "{: >10}".format(btrfs.utils.pretty_size(nodesize * sum(counter.values()))),
         ]
         for level in sorted(counter.keys()):
