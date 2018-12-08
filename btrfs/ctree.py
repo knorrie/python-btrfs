@@ -639,7 +639,7 @@ class ItemData(object):
         elif header is not None:
             raise TypeError("Not a SearchHeader: {}".format(header))
 
-    def setattr_from_key(self, objectid_attr=None, type_attr=None, offset_attr=None):
+    def _setattr_from_key(self, objectid_attr=None, type_attr=None, offset_attr=None):
         if objectid_attr is not None:
             setattr(self, objectid_attr, self.key.objectid)
         if type_attr is not None:
@@ -647,13 +647,6 @@ class ItemData(object):
         if offset_attr is not None:
             setattr(self, offset_attr, self.key.offset)
         self._key_attrs = objectid_attr, type_attr, offset_attr
-
-    @property
-    def key_attrs(self):
-        try:
-            return self._key_attrs
-        except AttributeError:
-            return None, None, None
 
     def __lt__(self, other):
         return self.key < other.key
@@ -681,7 +674,7 @@ class Chunk(ItemData):
 
     def __init__(self, header, data):
         super().__init__(header)
-        self.setattr_from_key(offset_attr='vaddr')
+        self._setattr_from_key(offset_attr='vaddr')
         self.length, self.owner, self.stripe_len, self.type, self.io_align, \
             self.io_width, self.sector_size, self.num_stripes, self.sub_stripes = \
             Chunk._chunk.unpack_from(data)
@@ -717,7 +710,7 @@ class DevExtent(ItemData):
 
     def __init__(self, header, data):
         super().__init__(header)
-        self.setattr_from_key(objectid_attr='devid', offset_attr='paddr')
+        self._setattr_from_key(objectid_attr='devid', offset_attr='paddr')
         self.chunk_tree, self.chunk_objectid, self.chunk_offset, self.length, uuid_bytes = \
             DevExtent._dev_extent.unpack(data)
         self.uuid = uuid.UUID(bytes=uuid_bytes)
@@ -736,7 +729,7 @@ class BlockGroupItem(ItemData):
 
     def __init__(self, header, data):
         super().__init__(header)
-        self.setattr_from_key(objectid_attr='vaddr', offset_attr='length')
+        self._setattr_from_key(objectid_attr='vaddr', offset_attr='length')
         self.used, self.chunk_objectid, self.flags = \
             BlockGroupItem._block_group_item.unpack(data)
 
@@ -848,7 +841,7 @@ class SharedDataRef(ItemData):
 
     def __init__(self, header, data):
         super().__init__(header)
-        self.setattr_from_key(offset_attr='parent')
+        self._setattr_from_key(offset_attr='parent')
         self.count, = SharedDataRef._shared_data_ref.unpack(data)
 
     def __str__(self):
@@ -881,7 +874,7 @@ class TreeBlockInfo(object):
 class MetaDataItem(ItemData):
     def __init__(self, header, data, load_refs=True):
         super().__init__(header)
-        self.setattr_from_key(objectid_attr='vaddr', offset_attr='skinny_level')
+        self._setattr_from_key(objectid_attr='vaddr', offset_attr='skinny_level')
         self.refs, self.generation, self.flags = ExtentItem._extent_item.unpack_from(data)
         if load_refs:
             self._load_refs(data[ExtentItem._extent_item.size:])
@@ -921,7 +914,7 @@ class MetaDataItem(ItemData):
 class TreeBlockRef(ItemData):
     def __init__(self, header):
         super().__init__(header)
-        self.setattr_from_key(offset_attr='root')
+        self._setattr_from_key(offset_attr='root')
 
     def __str__(self):
         return "tree block backref root {}".format(_key_objectid_str(self.root, None))
@@ -938,7 +931,7 @@ class InlineTreeBlockRef(TreeBlockRef):
 class SharedBlockRef(ItemData):
     def __init__(self, header):
         super().__init__(header)
-        self.setattr_from_key(offset_attr='parent')
+        self._setattr_from_key(offset_attr='parent')
 
     def __str__(self):
         return "shared block backref parent {}".format(self.parent)

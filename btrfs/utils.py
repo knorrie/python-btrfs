@@ -221,19 +221,25 @@ def pretty_obj_tuples(obj, level=0, seen=None):
     elif cls.__module__ in pretty_print_modules and \
             not isinstance(obj, btrfs.ctree.Key):
         if isinstance(obj, btrfs.ctree.ItemData):
-            objectid_attr, type_attr, offset_attr = obj.key_attrs
-            if objectid_attr is not None:
-                yield level, "{} (key objectid)".format(_pretty_attr_value(obj, objectid_attr))
-            if type_attr is not None:
-                yield level, "{} (key type)".format(_pretty_attr_value(obj, type_attr))
-            if offset_attr is not None:
-                yield level, "{} (key offset)".format(_pretty_attr_value(obj, offset_attr))
+            try:
+                objectid_attr, type_attr, offset_attr = obj._key_attrs
+                if objectid_attr is not None:
+                    yield level, "{} (key objectid)".format(_pretty_attr_value(obj, objectid_attr))
+                if type_attr is not None:
+                    yield level, "{} (key type)".format(_pretty_attr_value(obj, type_attr))
+                if offset_attr is not None:
+                    yield level, "{} (key offset)".format(_pretty_attr_value(obj, offset_attr))
+            except AttributeError:
+                pass
         for attr_name, attr_value in obj.__dict__.items():
             if attr_name.startswith('_'):
                 continue
             if isinstance(obj, btrfs.ctree.ItemData):
-                if attr_name in obj.key_attrs:
-                    continue
+                try:
+                    if attr_name in obj._key_attrs:
+                        continue
+                except AttributeError:
+                    pass
                 if attr_name == 'key' and isinstance(attr_value, btrfs.ctree.Key):
                     continue
             if isinstance(attr_value, list):
