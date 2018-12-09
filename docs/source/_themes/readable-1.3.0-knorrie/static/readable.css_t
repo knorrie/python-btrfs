@@ -16,8 +16,8 @@
 /* -- page layout --------------------------------------------------------- */
  
 body {
-    font-family: 'Georgia', serif;
-    font-size: 17px;
+    font-family: -apple-system,system-ui,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-size: 16px;
     margin: 0;
     padding: 0;
 }
@@ -344,7 +344,7 @@ table.docutils tfoot {
 table.docutils thead tr th {
     color: #000;
     font-weight: normal;
-    padding: 7px 5px;
+    padding: 2px 2px;
     vertical-align: middle;
 }
 
@@ -352,7 +352,7 @@ table.docutils tbody tr th,
 table.docutils tbody tr td {
     border-bottom: 0;
     border-top: solid 1px #ddd;
-    padding: 7px 5px;
+    padding: 2px 2px;
     vertical-align: top;
 }
 table.docutils tbody tr:last-child th,
