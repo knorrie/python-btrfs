@@ -199,6 +199,8 @@ def file_extent_type_str(type_):
 
 
 def embedded_text_for_str(text):
+    if len(text) == 0:
+        return "<empty>"
     try:
         return "utf-8 {}".format(text.decode('utf-8'))
     except UnicodeDecodeError:
