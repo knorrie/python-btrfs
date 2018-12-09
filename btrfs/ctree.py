@@ -711,9 +711,9 @@ class DevExtent(ItemData):
     def __init__(self, header, data):
         super().__init__(header)
         self._setattr_from_key(objectid_attr='devid', offset_attr='paddr')
-        self.chunk_tree, self.chunk_objectid, self.chunk_offset, self.length, uuid_bytes = \
-            DevExtent._dev_extent.unpack(data)
-        self.uuid = uuid.UUID(bytes=uuid_bytes)
+        self.chunk_tree, self.chunk_objectid, self.chunk_offset, self.length, \
+            chunk_tree_uuid_bytes = DevExtent._dev_extent.unpack(data)
+        self.chunk_tree_uuid = uuid.UUID(bytes=chunk_tree_uuid_bytes)
 
     @property
     def vaddr(self):
