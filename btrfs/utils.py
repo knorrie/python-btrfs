@@ -174,6 +174,30 @@ def block_group_profile_str(flags):
     return block_group_flags_str(flags & BLOCK_GROUP_PROFILE_MASK)
 
 
+def extent_flags_str(flags):
+    return flags_str(flags, btrfs.ctree._extent_flags_str_map)
+
+
+def inode_flags_str(flags):
+    return flags_str(flags, btrfs.ctree._inode_flags_str_map)
+
+
+def dir_item_type_str(type_):
+    return btrfs.ctree._dir_item_type_str_map[type_]
+
+
+def root_item_flags_str(flags):
+    return flags_str(flags, btrfs.ctree._root_flags_str_map)
+
+
+def compress_type_str(compression):
+    return btrfs.ctree._compress_type_str_map.get(compression, 'unknown')
+
+
+def file_extent_type_str(type_):
+    return btrfs.ctree._file_extent_type_str_map.get(type_, 'unknown')
+
+
 def embedded_text_for_str(text):
     try:
         return "utf-8 {}".format(text.decode('utf-8'))

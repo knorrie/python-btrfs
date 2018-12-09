@@ -685,13 +685,15 @@ class Chunk(ItemData):
             self.stripes.append(Stripe(data[pos:next_pos]))
             pos = next_pos
 
-    @property
-    def type_str(self):
-        return btrfs.utils.flags_str(self.type, _block_group_flags_str_map)
-
     def __str__(self):
         return "chunk vaddr {self.vaddr} type {self.type_str} length {self.length} " \
             "num_stripes {self.num_stripes}".format(self=self)
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (btrfs.utils.block_group_flags_str, 'type'),
+        ]
 
 
 class Stripe(object):
@@ -737,13 +739,15 @@ class BlockGroupItem(ItemData):
     def used_pct(self):
         return int(round((self.used * 100) / self.length))
 
-    @property
-    def flags_str(self):
-        return btrfs.utils.flags_str(self.flags, _block_group_flags_str_map)
-
     def __str__(self):
         return "block group vaddr {self.vaddr} length {self.length} " \
             "flags {self.flags_str} used {self.used} used_pct {self.used_pct}".format(self=self)
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (btrfs.utils.block_group_flags_str, 'flags'),
+        ]
 
 
 class ExtentItem(ItemData):
@@ -802,13 +806,15 @@ class ExtentItem(ItemData):
     def _append_shared_block_ref(self, ref):
         self.shared_block_refs.append(ref)
 
-    @property
-    def flags_str(self):
-        return btrfs.utils.flags_str(self.flags, _extent_flags_str_map)
-
     def __str__(self):
         return "extent vaddr {self.vaddr} length {self.length} refs {self.refs} " \
             "gen {self.generation} flags {self.flags_str}".format(self=self)
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (btrfs.utils.extent_flags_str, 'flags'),
+        ]
 
 
 class ExtentDataRef(ItemData):
@@ -902,13 +908,15 @@ class MetaDataItem(ItemData):
     def _append_shared_block_ref(self, ref):
         self.shared_block_refs.append(ref)
 
-    @property
-    def flags_str(self):
-        return btrfs.utils.flags_str(self.flags, _extent_flags_str_map)
-
     def __str__(self):
         return "metadata vaddr {self.vaddr} refs {self.refs} gen {self.generation} " \
             "flags {self.flags_str} skinny level {self.skinny_level}".format(self=self)
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (btrfs.utils.extent_flags_str, 'flags'),
+        ]
 
 
 class TreeBlockRef(ItemData):
@@ -994,15 +1002,17 @@ class InodeItem(ItemData):
         pos, next_pos = next_pos, next_pos + TimeSpec._timespec.size
         self.otime = TimeSpec(data[pos:next_pos])
 
-    @property
-    def flags_str(self):
-        return btrfs.utils.flags_str(self.flags, _inode_flags_str_map)
-
     def __str__(self):
         return "inode generation {self.generation} transid {self.transid} size {self.size} " \
             "nbytes {self.nbytes} block_group {self.block_group} mode {self.mode:05o} " \
             "nlink {self.nlink} uid {self.uid} gid {self.gid} rdev {self.rdev} " \
             "flags {self.flags:#x}({self.flags_str})".format(self=self)
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (btrfs.utils.inode_flags_str, 'flags'),
+        ]
 
 
 class InodeRefList(ItemData, collections.abc.MutableSequence):
@@ -1043,15 +1053,16 @@ class InodeRef(object):
         self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
         self._len = InodeRef._inode_ref.size + self.name_len
 
-    @property
-    def name_str(self):
-        return btrfs.utils.embedded_text_for_str(self.name)
-
     def __len__(self):
         return self._len
 
     def __str__(self):
         return "inode ref index {self.index} name {self.name_str}".format(self=self)
+
+    def _pretty_properties():
+        return [
+            (btrfs.utils.embedded_text_for_str, 'name')
+        ]
 
 
 class InodeExtrefList(ItemData, collections.abc.MutableSequence):
@@ -1093,16 +1104,17 @@ class InodeExtref(object):
         self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
         self._len = InodeExtref._inode_extref.size + self.name_len
 
-    @property
-    def name_str(self):
-        return btrfs.utils.embedded_text_for_str(self.name)
-
     def __len__(self):
         return self._len
 
     def __str__(self):
         return "inode extref parent_objectid {self.parent_objectid} index {self.index} " \
             "name {self.name_str}".format(self=self)
+
+    def _pretty_properties():
+        return [
+            (btrfs.utils.embedded_text_for_str, 'name')
+        ]
 
 
 class DirItemList(ItemData, collections.abc.MutableSequence):
@@ -1160,24 +1172,20 @@ class DirItem(object):
         pos += self.data_len
         self._len = DirItem._dir_item.size + self.name_len + self.data_len
 
-    @property
-    def type_str(self):
-        return _dir_item_type_str_map[self.type]
-
-    @property
-    def name_str(self):
-        return btrfs.utils.embedded_text_for_str(self.name)
-
-    @property
-    def data_str(self):
-        return btrfs.utils.embedded_text_for_str(self.data)
-
     def __len__(self):
         return self._len
 
     def __str__(self):
         return "dir item location {self.location} type {self.type_str} " \
             "name {self.name_str}".format(self=self)
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (btrfs.utils.dir_item_type_str, 'type'),
+            (btrfs.utils.embedded_text_for_str, 'name'),
+            (btrfs.utils.embedded_text_for_str, 'data'),
+        ]
 
 
 class XAttrItem(DirItem):
@@ -1195,17 +1203,16 @@ class DirIndex(ItemData):
         pos += DirItem._dir_item_parts[1].size
         self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
 
-    @property
-    def type_str(self):
-        return _dir_item_type_str_map[self.type]
-
-    @property
-    def name_str(self):
-        return btrfs.utils.embedded_text_for_str(self.name)
-
     def __str__(self):
         return "dir index {self.key.offset} location {self.location} type {self.type_str} " \
             "name {self.name_str}".format(self=self)
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (btrfs.utils.dir_item_type_str, 'type'),
+            (btrfs.utils.embedded_text_for_str, 'name'),
+        ]
 
 
 class RootItem(ItemData):
@@ -1248,14 +1255,16 @@ class RootItem(ItemData):
         pos, next_pos = next_pos, next_pos + TimeSpec._timespec.size
         self.rtime = TimeSpec(data[pos:next_pos])
 
-    @property
-    def flags_str(self):
-        return btrfs.utils.flags_str(self.flags, _root_flags_str_map)
-
     def __str__(self):
         return "root {self.key.objectid} uuid {self.uuid} " \
             "generation {self.generation} last_snapshot {self.last_snapshot} " \
             "flags {self.flags:#x}({self.flags_str})".format(self=self)
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (btrfs.utils.root_item_flags_str, 'flags'),
+        ]
 
 
 class FileExtentItem(ItemData):
@@ -1290,14 +1299,6 @@ class FileExtentItem(ItemData):
             self._inline_encoded_nbytes = \
                 header.len - FileExtentItem._file_extent_item_parts[0].size
 
-    @property
-    def compression_str(self):
-        return _compress_type_str_map.get(self.compression, 'unknown')
-
-    @property
-    def type_str(self):
-        return _file_extent_type_str_map.get(self.type, 'unknown')
-
     def __str__(self):
         ret = ["extent data at {self.logical_offset} generation {self.generation} "
                "ram_bytes {self.ram_bytes} "
@@ -1308,6 +1309,13 @@ class FileExtentItem(ItemData):
         else:
             ret.append("inline_encoded_nbytes {self._inline_encoded_nbytes}".format(self=self))
         return ' '.join(ret)
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (btrfs.utils.compress_type_str, 'compression'),
+            (btrfs.utils.file_extent_type_str, 'type'),
+        ]
 
 
 class EmptyItem(ItemData):

@@ -57,6 +57,7 @@ def _generate_pretty_properties():
         return property_fn
 
     for module in [
+        btrfs.ctree,
         btrfs.ioctl,
         btrfs.fs_usage,
     ]:
