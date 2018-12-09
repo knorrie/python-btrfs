@@ -202,9 +202,9 @@ def embedded_text_for_str(text):
     if len(text) == 0:
         return "<empty>"
     try:
-        return "utf-8 {}".format(text.decode('utf-8'))
+        return "utf-8 '{}'".format(text.decode('utf-8'))
     except UnicodeDecodeError:
-        return "raw {}".format(repr(text))
+        return "raw '{}'".format(repr(text))
 
 
 def _pretty_attr_value(obj, attr_name, stringify_fn=None):
