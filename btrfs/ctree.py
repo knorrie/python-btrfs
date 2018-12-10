@@ -506,7 +506,14 @@ class FileSystem(object):
         for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
             yield DevItem(header, data)
 
-    def chunks(self, min_vaddr=0, max_vaddr=ULLONG_MAX, nr_items=ULONG_MAX):
+    def chunks(self, min_vaddr=0, max_vaddr=ULLONG_MAX, nr_items=None):
+        """
+        :param int min_vaddr: Lowest virtual address to search for.
+        :param int max_vaddr: Highest virtual address to search for.
+        :param int nr_items: Maximum amount of items to return. Defaults to no limit.
+        :returns: Chunk items from the Chunk tree.
+        :rtype: generator of :class:`~btrfs.ctree.Chunk`
+        """
         tree = CHUNK_TREE_OBJECTID
         min_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, min_vaddr)
         max_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, max_vaddr)

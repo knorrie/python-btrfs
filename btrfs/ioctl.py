@@ -359,7 +359,7 @@ SearchHeader = namedtuple('SearchHeader', ['transid', 'objectid', 'offset', 'typ
 
 def search(fd, tree, min_key=None, max_key=None,
            min_transid=0, max_transid=ULLONG_MAX,
-           nr_items=ULONG_MAX):
+           nr_items=None):
     """Call the `BTRFS_IOC_TREE_SEARCH` ioctl.
 
     The `TREE_SEARCH` ioctl allow us to directly read btrfs metadata.
@@ -375,7 +375,8 @@ def search(fd, tree, min_key=None, max_key=None,
         have items included. Defaults to 0.
     :param int max_transid: Maximum transaction id for the metadata leaf to
         have items included. Defaults to 2**64-1.
-    :param int nr_items: Maximum amount of items to fetch. Defaults to 2**32-1.
+    :param int nr_items: Maximum amount of items to fetch. Defaults to no
+        limit.
 
     :returns: An iterator over search results, containing a search header and
         the item data per item.
@@ -396,7 +397,7 @@ IOC_TREE_SEARCH_V2 = _IOWR(BTRFS_IOCTL_MAGIC, 17, ioctl_search_args_v2)
 
 def search_v2(fd, tree, min_key=None, max_key=None,
               min_transid=0, max_transid=ULLONG_MAX,
-              nr_items=ULONG_MAX, buf_size=16384):
+              nr_items=None, buf_size=16384):
     """Call the `BTRFS_IOC_TREE_SEARCH_V2` ioctl.
 
     The `TREE_SEARCH_V2` ioctl allow us to directly read btrfs metadata.
@@ -417,7 +418,8 @@ def search_v2(fd, tree, min_key=None, max_key=None,
         have items included. Defaults to 0.
     :param int max_transid: Maximum transaction id for the metadata leaf to
         have items included. Defaults to 2**64-1.
-    :param int nr_items: Maximum amount of items to fetch. Defaults to 2**32-1.
+    :param int nr_items: Maximum amount of items to fetch. Defaults to no
+        limit.
     :param int buf_size: Buffer size in bytes that will be used for search
         results.
 
@@ -431,14 +433,17 @@ def search_v2(fd, tree, min_key=None, max_key=None,
 
 def _search(fd, tree, min_key=None, max_key=None,
             min_transid=0, max_transid=ULLONG_MAX,
-            nr_items=ULONG_MAX, buf_size=None, _v2=True):
+            nr_items=None, buf_size=None, _v2=True):
     if min_key is None:
         min_key = btrfs.ctree.Key(0, 0, 0)
     if max_key is None:
         max_key = btrfs.ctree.Key(ULLONG_MAX, 255, ULLONG_MAX)
-    wanted_nr_items = nr_items
-    result_nr_items = -1
-    while min_key <= max_key and result_nr_items != 0 and wanted_nr_items > 0:
+    if nr_items is not None:
+        wanted_nr_items = nr_items
+        result_nr_items = -1
+    else:
+        wanted_nr_items = ULONG_MAX
+    while True:
         if _v2:
             buf = bytearray(ioctl_search_args_v2.size + buf_size)
         else:
@@ -464,12 +469,17 @@ def _search(fd, tree, min_key=None, max_key=None,
                 header = SearchHeader(*ioctl_search_header.unpack_from(buf, pos))
                 pos += ioctl_search_header.size
                 yield header, buf_view[pos:pos+header.len]
+                if nr_items is not None:
+                    wanted_nr_items -= 1
+                    if wanted_nr_items == 0:
+                        return
                 pos += header.len
-                wanted_nr_items -= 1
-                if wanted_nr_items == 0:
-                    break
             min_key = btrfs.ctree.Key(header.objectid, header.type, header.offset)
             min_key += 1
+        else:
+            return
+        if min_key > max_key:
+            return
 
 
 data_container = struct.Struct('=LLLL')
