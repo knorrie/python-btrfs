@@ -1017,7 +1017,7 @@ class InodeItem(ItemData):
         if hasattr(self, 'objectid'):
             result.append("objectid {self.objectid}".format(self=self))
         result.append("generation {self.generation} transid {self.transid} size {self.size} "
-                      "nbytes {self.nbytes} block_group {self.block_group} mode {self.mode:05o} "
+                      "nbytes {self.nbytes} block_group {self.block_group} mode {self.mode_str} "
                       "nlink {self.nlink} uid {self.uid} gid {self.gid} rdev {self.rdev} "
                       "flags {self.flags:#x}({self.flags_str})".format(self=self))
         return " ".join(result)
@@ -1026,6 +1026,7 @@ class InodeItem(ItemData):
     def _pretty_properties():
         return [
             (btrfs.utils.inode_flags_str, 'flags'),
+            (btrfs.utils.inode_mode_str, 'mode'),
         ]
 
 

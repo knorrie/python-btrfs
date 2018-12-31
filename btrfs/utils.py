@@ -178,6 +178,10 @@ def extent_flags_str(flags):
     return flags_str(flags, btrfs.ctree._extent_flags_str_map)
 
 
+def inode_mode_str(mode):
+    return "0{:05o}".format(mode)
+
+
 def inode_flags_str(flags):
     return flags_str(flags, btrfs.ctree._inode_flags_str_map)
 
