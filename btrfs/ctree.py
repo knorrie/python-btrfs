@@ -997,6 +997,8 @@ class InodeItem(ItemData):
 
     def __init__(self, header, data):
         super().__init__(header)
+        if header is not None:
+            self._setattr_from_key(objectid_attr='objectid')
         self.generation, self.transid, self.size, self.nbytes, self.block_group, \
             self.nlink, self.uid, self.gid, self.mode, self.rdev, self.flags, self.sequence = \
             InodeItem._inode_item_parts[0].unpack_from(data)
@@ -1011,10 +1013,14 @@ class InodeItem(ItemData):
         self.otime = TimeSpec(data[pos:next_pos])
 
     def __str__(self):
-        return "inode generation {self.generation} transid {self.transid} size {self.size} " \
-            "nbytes {self.nbytes} block_group {self.block_group} mode {self.mode:05o} " \
-            "nlink {self.nlink} uid {self.uid} gid {self.gid} rdev {self.rdev} " \
-            "flags {self.flags:#x}({self.flags_str})".format(self=self)
+        result = ["inode"]
+        if hasattr(self, 'objectid'):
+            result.append("objectid {self.objectid}".format(self=self))
+        result.append("generation {self.generation} transid {self.transid} size {self.size} "
+                      "nbytes {self.nbytes} block_group {self.block_group} mode {self.mode:05o} "
+                      "nlink {self.nlink} uid {self.uid} gid {self.gid} rdev {self.rdev} "
+                      "flags {self.flags:#x}({self.flags_str})".format(self=self))
+        return " ".join(result)
 
     @staticmethod
     def _pretty_properties():
@@ -1026,6 +1032,7 @@ class InodeItem(ItemData):
 class InodeRefList(ItemData, collections.abc.MutableSequence):
     def __init__(self, header, data):
         super().__init__(header)
+        self._setattr_from_key(objectid_attr='objectid', offset_attr='parent_objectid')
         self._list = []
         pos = 0
         while pos < header.len:
@@ -1049,7 +1056,8 @@ class InodeRefList(ItemData, collections.abc.MutableSequence):
         raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __str__(self):
-        return "inode ref list size {}".format(len(self))
+        return "inode ref list objectid {self.objectid} parent_objectid {self.parent_objectid} " \
+            "size {}".format(len(self), self=self)
 
 
 class InodeRef(object):
@@ -1076,6 +1084,7 @@ class InodeRef(object):
 class InodeExtrefList(ItemData, collections.abc.MutableSequence):
     def __init__(self, header, data):
         super().__init__(header)
+        self._setattr_from_key(objectid_attr='objectid', offset_attr='extref_hash')
         self._list = []
         pos = 0
         while pos < header.len:
@@ -1099,7 +1108,8 @@ class InodeExtrefList(ItemData, collections.abc.MutableSequence):
         raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __str__(self):
-        return "inode extref list hash {self.key.offset} size {}".format(len(self), self=self)
+        return "inode extref list objectid {self.objectid} " \
+            "hash {self.extref_hash} size {}".format(len(self), self=self)
 
 
 class InodeExtref(object):
@@ -1128,6 +1138,7 @@ class InodeExtref(object):
 class DirItemList(ItemData, collections.abc.MutableSequence):
     def __init__(self, header, data):
         super().__init__(header)
+        self._setattr_from_key(objectid_attr='objectid', offset_attr='name_hash')
         self._list = []
         pos = 0
         while pos < header.len:
@@ -1152,12 +1163,14 @@ class DirItemList(ItemData, collections.abc.MutableSequence):
         raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __str__(self):
-        return "dir item list hash {self.key.offset} size {}".format(len(self), self=self)
+        return "dir item list objectid {self.objectid} name_hash {self.name_hash} " \
+            "size {}".format(len(self), self=self)
 
 
 class XAttrItemList(DirItemList):
     def __str__(self):
-        return "xattr item list hash {self.key.offset} size {}".format(len(self), self=self)
+        return "xattr item list objectid {self.objectid} name_hash {self.name_hash} " \
+            "size {}".format(len(self), self=self)
 
 
 class DirItem(object):
@@ -1204,6 +1217,7 @@ class XAttrItem(DirItem):
 class DirIndex(ItemData):
     def __init__(self, header, data):
         super().__init__(header)
+        self._setattr_from_key(objectid_attr='objectid', offset_attr='index')
         self.location = DiskKey(data[:DiskKey._disk_key.size])
         pos = DiskKey._disk_key.size
         self.transid, self.data_len, self.name_len, self.type = \
@@ -1212,7 +1226,8 @@ class DirIndex(ItemData):
         self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
 
     def __str__(self):
-        return "dir index {self.key.offset} location {self.location} type {self.type_str} " \
+        return "dir index objectid {self.objectid} index {self.index} " \
+            "location {self.location} type {self.type_str} " \
             "name {self.name_str}".format(self=self)
 
     @staticmethod
