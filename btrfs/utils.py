@@ -238,14 +238,10 @@ def pretty_obj_tuples(obj, level=0, seen=None):
         yield level, "[... object already seen, aborting recursion]"
         return
     seen.append(obj)
-    if isinstance(obj, (list, types.GeneratorType)) or \
-            (isinstance(obj, btrfs.ctree.ItemData) and
-             isinstance(obj, collections.abc.MutableSequence)):
-        for item in obj:
-            yield level, '-'
-            yield from pretty_obj_tuples(item, level+1, seen)
-    elif cls.__module__ in pretty_print_modules and \
+    known = False
+    if cls.__module__ in pretty_print_modules and \
             not isinstance(obj, btrfs.ctree.Key):
+        known = True
         if isinstance(obj, btrfs.ctree.ItemData):
             try:
                 objectid_attr, type_attr, offset_attr = obj._key_attrs
@@ -297,7 +293,14 @@ def pretty_obj_tuples(obj, level=0, seen=None):
                 yield from pretty_obj_tuples(attr_value, level+1, seen)
             else:
                 yield level, _pretty_attr_value(obj, attr_name)
-    else:
+    if isinstance(obj, (list, types.GeneratorType)) or \
+            (isinstance(obj, btrfs.ctree.ItemData) and
+             isinstance(obj, collections.abc.MutableSequence)):
+        known = True
+        for item in obj:
+            yield level, '-'
+            yield from pretty_obj_tuples(item, level+1, seen)
+    if not known:
         yield level, str(obj)
     seen.pop()
 
