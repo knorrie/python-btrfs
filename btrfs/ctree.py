@@ -1259,7 +1259,7 @@ class RootItem(ItemData):
         super().__init__(header)
         self.inode = InodeItem(None, data[:InodeItem._inode_item.size])
         pos = InodeItem._inode_item.size
-        self.generation, self.dirid, self.bytenr, self.byte_limit, self.bytes_used, \
+        self.generation, self.root_dirid, self.bytenr, self.byte_limit, self.bytes_used, \
             self.last_snapshot, self.flags, self.refs = \
             RootItem._root_item_parts[1].unpack_from(data, pos)
         pos += RootItem._root_item_parts[1].size
