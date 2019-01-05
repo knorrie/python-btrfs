@@ -117,8 +117,8 @@ def crc32c_data(data):
 def name_hash(name):
     """
     The name hash function is used to compute a crc32c of a filename. The
-    resulting value is used in the offset field of they key of a dir_item
-    object in subvolume trees.
+    resulting value is used in the offset field of they key of a
+    :class:`~btrfs.ctree.DirItem` object in subvolume trees.
 
     By searching for the numeric value, a file with a certain name can quickly
     be found without searching the whole directory content.
@@ -140,7 +140,7 @@ def extref_hash(parent_objectid, name):
     """
     The extref_hash function uses the crc32c code with the inode number of the
     containing directory, and a filename to compute the offset field for the
-    key of an inode_extref object.
+    key of an :class:`~btrfs.ctree.InodeExtref` objects.
 
     :param int parent_objectid: ObjectID of the containing directory.
     :param bytes name: File name as bytes. For convenience, if a unicode string

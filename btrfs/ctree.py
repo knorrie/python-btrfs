@@ -16,6 +16,13 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
+"""
+This module contains Python object representations for btrfs metadata items.
+
+Additionally, the helper :class:`FileSystem` provides a convenient way to start
+exploring an online btrfs filesystem.
+"""
+
 import btrfs
 import collections.abc
 import copy
@@ -30,10 +37,39 @@ ULONG_MAX = (1 << 32) - 1
 
 
 def U8(n):
+    """
+    :param int n: Any number.
+    :returns: Unsigned 8 bit number.
+    :rtype: int
+
+    Example::
+
+        >>> btrfs.ctree.U8(64)
+        64
+        >>> btrfs.ctree.U8(-1)
+        255
+        >>> btrfs.ctree.U8(0x4000)
+        0
+
+    """
     return n & U8_MAX
 
 
 def ULL(n):
+    """
+    :param int n: Any number.
+    :returns: Unsigned 64 bit number.
+    :rtype: int
+
+    Example::
+
+        >>> btrfs.ctree.ULL(64)
+        64
+        >>> btrfs.ctree.ULL(-1)
+        18446744073709551615
+        >>> btrfs.ctree.ULL(0x4000)
+        16384
+    """
     return n & ULLONG_MAX
 
 
@@ -45,90 +81,90 @@ def _struct_format(s):
     return f
 
 
-ROOT_TREE_OBJECTID = 1
-EXTENT_TREE_OBJECTID = 2
-CHUNK_TREE_OBJECTID = 3
-DEV_TREE_OBJECTID = 4
-FS_TREE_OBJECTID = 5
-ROOT_TREE_DIR_OBJECTID = 6
-CSUM_TREE_OBJECTID = 7
-QUOTA_TREE_OBJECTID = 8
-UUID_TREE_OBJECTID = 9
-FREE_SPACE_TREE_OBJECTID = 10
+ROOT_TREE_OBJECTID = 1  #: Root tree
+EXTENT_TREE_OBJECTID = 2  #: Extent tree
+CHUNK_TREE_OBJECTID = 3  #: Chunk tree
+DEV_TREE_OBJECTID = 4  #: Device tree
+FS_TREE_OBJECTID = 5  #: Top level subvolume tree
+ROOT_TREE_DIR_OBJECTID = 6  #: Used in the root tree to store default subvolume information.
+CSUM_TREE_OBJECTID = 7  #: Checksum tree
+QUOTA_TREE_OBJECTID = 8  #: Quota tree
+UUID_TREE_OBJECTID = 9  #: Subvolume UUID tree
+FREE_SPACE_TREE_OBJECTID = 10  #: Free space tree
 
-DEV_STATS_OBJECTID = 0
-BALANCE_OBJECTID = ULL(-4)
-ORPHAN_OBJECTID = ULL(-5)
+DEV_STATS_OBJECTID = 0  #: Object ID of device statistics in the Device tree.
+BALANCE_OBJECTID = ULL(-4)  #: Object ID to store balance status. (-4)
+ORPHAN_OBJECTID = ULL(-5)  #: Object ID to store orphans that need cleaning. (-5)
 TREE_LOG_OBJECTID = ULL(-6)
 TREE_LOG_FIXUP_OBJECTID = ULL(-7)
 TREE_RELOC_OBJECTID = ULL(-8)
 DATA_RELOC_TREE_OBJECTID = ULL(-9)
-EXTENT_CSUM_OBJECTID = ULL(-10)
-FREE_SPACE_OBJECTID = ULL(-11)
+EXTENT_CSUM_OBJECTID = ULL(-10)  #: Object ID used for checksum items. (-10)
+FREE_SPACE_OBJECTID = ULL(-11)  #: Object ID for free space cache v1 items. (-11)
 FREE_INO_OBJECTID = ULL(-12)
 MULTIPLE_OBJECTIDS = ULL(-255)
 
-FIRST_FREE_OBJECTID = 256
-LAST_FREE_OBJECTID = ULL(-256)
-FIRST_CHUNK_TREE_OBJECTID = 256
+FIRST_FREE_OBJECTID = 256  #: First available Object ID for subvolume trees.
+LAST_FREE_OBJECTID = ULL(-256)  #: Last available Object ID for subvolume trees. (-256)
+FIRST_CHUNK_TREE_OBJECTID = 256  #: Object ID for Chunk objects in the Chunk tree.
 
-DEV_ITEMS_OBJECTID = 1
+DEV_ITEMS_OBJECTID = 1  #: Object ID for Device items in the Device tree.
 
 
-INODE_ITEM_KEY = 1
-INODE_REF_KEY = 12
-INODE_EXTREF_KEY = 13
-XATTR_ITEM_KEY = 24
-ORPHAN_ITEM_KEY = 48
+INODE_ITEM_KEY = 1  #: Key type used by :class:`InodeItem`
+INODE_REF_KEY = 12  #: Key type used by :class:`InodeRefList`
+INODE_EXTREF_KEY = 13  # Key type used by :class:`InodeExtrefList(`
+XATTR_ITEM_KEY = 24  #: Key type used by :class:`XAttrItemList`
+ORPHAN_ITEM_KEY = 48  #: Key type used to track orphaned roots.
 DIR_LOG_ITEM_KEY = 60
 DIR_LOG_INDEX_KEY = 72
-DIR_ITEM_KEY = 84
-DIR_INDEX_KEY = 96
-EXTENT_DATA_KEY = 108
-EXTENT_CSUM_KEY = 128
-ROOT_ITEM_KEY = 132
+DIR_ITEM_KEY = 84  #: Key type used by :class:`DirItemList`
+DIR_INDEX_KEY = 96  #: Key type used by :class:`DirIndex`
+EXTENT_DATA_KEY = 108  #: Key type used by :class:`FileExtentItem`
+EXTENT_CSUM_KEY = 128  #: Key type used for checksum items.
+ROOT_ITEM_KEY = 132  #: Key type used by :class:`RootItem`
 ROOT_BACKREF_KEY = 144
 ROOT_REF_KEY = 156
-EXTENT_ITEM_KEY = 168
-METADATA_ITEM_KEY = 169
-TREE_BLOCK_REF_KEY = 176
-EXTENT_DATA_REF_KEY = 178
-SHARED_BLOCK_REF_KEY = 182
-SHARED_DATA_REF_KEY = 184
-BLOCK_GROUP_ITEM_KEY = 192
-FREE_SPACE_INFO_KEY = 198
-FREE_SPACE_EXTENT_KEY = 199
-FREE_SPACE_BITMAP_KEY = 200
-DEV_EXTENT_KEY = 204
-DEV_ITEM_KEY = 216
-CHUNK_ITEM_KEY = 228
+EXTENT_ITEM_KEY = 168  #: Key type used by :class:`ExtentItem`
+METADATA_ITEM_KEY = 169  #: Key type used by :class:`MetaDataItem`
+TREE_BLOCK_REF_KEY = 176  #: Key type used by :class:`TreeBlockRef`
+EXTENT_DATA_REF_KEY = 178  #: Key type used by :class:`ExtentDataRef`
+SHARED_BLOCK_REF_KEY = 182  #: Key type used by :class:`SharedBlockRef`
+SHARED_DATA_REF_KEY = 184  #: Key type used by :class:`SharedDataRef`
+BLOCK_GROUP_ITEM_KEY = 192  #: Key type used by :class:`BlockGroupItem`
+FREE_SPACE_INFO_KEY = 198  #: Key type used in the Free Space Tree.
+FREE_SPACE_EXTENT_KEY = 199  #: Key type used in the Free Space Tree.
+FREE_SPACE_BITMAP_KEY = 200  #: Key type used in the Free Space Tree.
+DEV_EXTENT_KEY = 204  #: Key type used by :class:`DevExtent`
+DEV_ITEM_KEY = 216  #: Key type used by :class:`DevItem`
+CHUNK_ITEM_KEY = 228  #: Key type used by :class:`Chunk`
 QGROUP_STATUS_KEY = 240
 QGROUP_INFO_KEY = 242
 QGROUP_LIMIT_KEY = 244
 QGROUP_RELATION_KEY = 246
 BALANCE_ITEM_KEY = 248
-DEV_STATS_KEY = 249
+DEV_STATS_KEY = 249  #: Key type used to store Device statistics.
 DEV_REPLACE_KEY = 250
 UUID_KEY_SUBVOL = 251
 UUID_KEY_RECEIVED_SUBVOL = 252
 STRING_ITEM_KEY = 253
 
-BLOCK_GROUP_SINGLE = 0
-BLOCK_GROUP_DATA = 1 << 0
-BLOCK_GROUP_SYSTEM = 1 << 1
-BLOCK_GROUP_METADATA = 1 << 2
-BLOCK_GROUP_RAID0 = 1 << 3
-BLOCK_GROUP_RAID1 = 1 << 4
-BLOCK_GROUP_DUP = 1 << 5
-BLOCK_GROUP_RAID10 = 1 << 6
-BLOCK_GROUP_RAID5 = 1 << 7
-BLOCK_GROUP_RAID6 = 1 << 8
+BLOCK_GROUP_SINGLE = 0  #: Block Group single type. Does not exist in kernel code.
+BLOCK_GROUP_DATA = 1 << 0  #: Block Group DATA type.
+BLOCK_GROUP_SYSTEM = 1 << 1  #: Block Group SYSTEM type.
+BLOCK_GROUP_METADATA = 1 << 2  #: Block Group METADATA type.
+BLOCK_GROUP_RAID0 = 1 << 3  #: Block Group RAID0 profile.
+BLOCK_GROUP_RAID1 = 1 << 4  #: Block Group RAID1 profile.
+BLOCK_GROUP_DUP = 1 << 5  #: Block Group DUP profile.
+BLOCK_GROUP_RAID10 = 1 << 6  #: Block Group RAID10 profile.
+BLOCK_GROUP_RAID5 = 1 << 7  #: Block Group RAID5 profile.
+BLOCK_GROUP_RAID6 = 1 << 8  #: Block Group RAID6 profile.
 
 BLOCK_GROUP_TYPE_MASK = (
     BLOCK_GROUP_DATA |
     BLOCK_GROUP_SYSTEM |
     BLOCK_GROUP_METADATA
-)
+)  #: All Block Group type bits (data, system, metadata).
 
 BLOCK_GROUP_PROFILE_MASK = (
     BLOCK_GROUP_RAID0 |
@@ -137,7 +173,7 @@ BLOCK_GROUP_PROFILE_MASK = (
     BLOCK_GROUP_RAID6 |
     BLOCK_GROUP_DUP |
     BLOCK_GROUP_RAID10
-)
+)  #: All Block Group profile bits (raid1, dup, etc...).
 
 AVAIL_ALLOC_BIT_SINGLE = 1 << 48  # used in balance_args
 SPACE_INFO_GLOBAL_RSV = 1 << 49
@@ -260,10 +296,22 @@ _file_extent_type_str_map = {
 
 
 def qgroup_level(objectid):
+    """Helper to get qgroup level from a qgroup relation objectid.
+
+    :param int objectid: 64-bit object ID field.
+    :returns: qgroup level.
+    :rtype: int
+    """
     return objectid >> QGROUP_LEVEL_SHIFT
 
 
 def qgroup_subvid(objectid):
+    """Helper to get qgroup subvolume ID from a qgroup relation objectid.
+
+    :param int objectid: 64-bit object ID field.
+    :returns: qgroup subvolume ID.
+    :rtype: int
+    """
     return objectid & ((1 << QGROUP_LEVEL_SHIFT) - 1)
 
 
@@ -370,10 +418,74 @@ def _key_offset_str(offset, _type):
 
 
 class ItemNotFoundError(IndexError):
+    """Helper exception for lookup convenience functions.
+
+    If a convenience function on a :class:`btrfs.ctree.FileSystem` object is
+    supposed to return exactly one object at a specific location, and no object
+    is found, this type of exception is raised.
+
+    An example is the :func:`~btrfs.ctree.FileSystem.block_group` helper, which
+    raises this error if no block group item is found at the exact specified
+    location.
+    """
     pass
 
 
 class Key(object):
+    """Btrfs metadata trees have a key space of 136-bit numbers.
+
+    A full 136-bit tree key is composed as:
+      (objectid << 72) + (type << 64) + offset
+
+    :param int objectid: 64-bit object ID field.
+    :param int type\_: 8-bit type field.
+    :param int offset: 64-bit offset field.
+
+    Key objects support sorting and simple addition and subtraction.  Also,
+    when subtracting 1 from a zero key, the value wraps around to the largest
+    value possible, vice versa.
+
+    Example::
+
+        >>> key1 = btrfs.ctree.Key(425, btrfs.ctree.DIR_ITEM_KEY, 17818406)
+        >>> key1
+        Key(425, 84, 17818406)
+        >>> str(key1)
+        '(425 DIR_ITEM 17818406)'
+        >>> key2 = btrfs.ctree.Key(442, btrfs.ctree.EXTENT_DATA_KEY, 0)
+        >>> key2 > key1
+        True
+
+        >>> min_key = btrfs.ctree.Key(0, 0, 0)
+        >>> min_key
+        Key(0, 0, 0)
+        >>> str(min_key)
+        '(0 0 0)'
+        >>> min_key - 1
+        Key(18446744073709551615, 255, 18446744073709551615)
+        >>> str(min_key - 1)
+        '(-1 255 -1)'
+
+    The `-1` value in the string representation is just a convenience way to
+    write the maximum 64 bit number. The actual value is still
+    18446744073709551615.
+
+    For example, when setting up a minimum and maximum key for a metadata
+    search, the arithmetic that can be done helps quickly defining the maximum
+    value. The next example shows the key range for finding all intormation
+    about an inode in a filesystem tree:
+
+    Example::
+
+        >>> inum = 31337
+        >>> min_key = btrfs.ctree.Key(inum, 0, 0)
+        >>> max_key = btrfs.ctree.Key(inum + 1, 0, 0) - 1
+        >>>
+        >>> min_key
+        Key(31337, 0, 0)
+        >>> max_key
+        Key(31337, 255, 18446744073709551615)
+    """
     def __init__(self, objectid, type_, offset):
         self._objectid = ULL(objectid)
         self._type = U8(type_)
@@ -382,6 +494,7 @@ class Key(object):
 
     @property
     def objectid(self):
+        """Key Object ID"""
         return self._objectid
 
     @objectid.setter
@@ -391,6 +504,7 @@ class Key(object):
 
     @property
     def type(self):
+        """Key Type"""
         return self._type
 
     @type.setter
@@ -400,6 +514,7 @@ class Key(object):
 
     @property
     def offset(self):
+        """Key Offset"""
         return self._offset
 
     @offset.setter
@@ -409,6 +524,7 @@ class Key(object):
 
     @property
     def key(self):
+        """Full numeric 136-bit key value."""
         return self._key
 
     @key.setter
@@ -471,6 +587,10 @@ class Key(object):
 
 
 class DiskKey(Key):
+    """Object representation of struct `btrfs_disk_key`.
+
+    Objects of this type are used in metadata search results.
+    """
     _disk_key = struct.Struct('<QBQ')
 
     def __init__(self, data):
@@ -478,6 +598,31 @@ class DiskKey(Key):
 
 
 class FileSystem(object):
+    """The FileSystem object is a bit of a spider in the web of this library.
+    It contains a lot of convenience methods providing quick access to all
+    kinds of functionality.
+
+    :param str path: Path to the mounted filesystem.
+
+    :ivar str path: The filesystem path used to initialize this object.
+    :ivar uuid.UUID fsid: Filesystem ID.
+    :ivar int nodesize: B-tree node size (same as leaf size).
+    :ivar int sectorsize: Smallest allocatable block size in bytes for storing
+        data.
+
+    The fsid, nodesize and sectorsize values are cached from a call to
+    :func:`~btrfs.ctree.FileSystem.fs_info` when initializing the object.
+
+    It is highly recommended to use the built in context manager. Doing so
+    prevents leaking the internal open file descriptor.
+
+    Example::
+
+        >>> with btrfs.ctree.FileSystem('/') as fs:
+        ...     print(fs.top_level().generation)
+        ...
+        3382004
+    """
     def __init__(self, path):
         self.path = path
         self.fd = os.open(path, os.O_RDONLY)
@@ -490,18 +635,43 @@ class FileSystem(object):
         return self
 
     def fs_info(self):
+        """
+        :returns: General filesystem information.
+        :rtype: :class:`btrfs.ioctl.FsInfo`
+        """
         return btrfs.ioctl.fs_info(self.fd)
 
     def dev_info(self, devid):
+        """
+        :param int devid: Device ID.
+        :returns: Device information.
+        :rtype: :class:`btrfs.ioctl.DevInfo`
+        """
         return btrfs.ioctl.dev_info(self.fd, devid)
 
     def dev_stats(self, devid, reset=False):
+        """
+        :param int devid: Device ID.
+        :param bool reset: Reset device error counters to zero.
+        :returns: Device statistics.
+        :rtype: :class:`btrfs.ioctl.DevStats`
+        """
         return btrfs.ioctl.dev_stats(self.fd, devid, reset)
 
     def space_info(self):
+        """
+        :returns: Space information
+        :rtype: List[:class:`btrfs.ioctl.SpaceInfo`]
+        """
         return btrfs.ioctl.space_info(self.fd)
 
     def devices(self, min_devid=1, max_devid=ULLONG_MAX):
+        """
+        :param int min_devid: Lowest Device ID to search for.
+        :param int max_devid: Highest Device ID to search for.
+        :returns: Device Items from the Chunk tree.
+        :rtype: Iterator[:class:`~btrfs.ctree.DevItem`]
+        """
         tree = CHUNK_TREE_OBJECTID
         min_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, min_devid)
         max_key = Key(DEV_ITEMS_OBJECTID, DEV_ITEM_KEY, max_devid)
@@ -514,7 +684,7 @@ class FileSystem(object):
         :param int max_vaddr: Highest virtual address to search for.
         :param int nr_items: Maximum amount of items to return. Defaults to no limit.
         :returns: Chunk items from the Chunk tree.
-        :rtype: generator of :class:`~btrfs.ctree.Chunk`
+        :rtype: Iterator[:class:`~btrfs.ctree.Chunk`]
         """
         tree = CHUNK_TREE_OBJECTID
         min_key = Key(FIRST_CHUNK_TREE_OBJECTID, CHUNK_ITEM_KEY, min_vaddr)
@@ -524,6 +694,12 @@ class FileSystem(object):
             yield Chunk(header, data)
 
     def dev_extents(self, min_devid=1, max_devid=ULLONG_MAX):
+        """
+        :param int min_devid: Lowest Device ID to search for.
+        :param int max_devid: Highest Device ID to search for.
+        :returns: Device Extent Items from the Device tree.
+        :rtype: Iterator[:class:`~btrfs.ctree.DevExtent`]
+        """
         tree = DEV_TREE_OBJECTID
         min_key = btrfs.ctree.Key(min_devid, 0, 0)
         max_key = btrfs.ctree.Key(max_devid, 255, ULLONG_MAX)
@@ -531,6 +707,16 @@ class FileSystem(object):
             yield DevExtent(header, data)
 
     def block_group(self, vaddr, length=None):
+        """
+        :param int vaddr: Starting virtual address of the block group.
+        :param int length: Block group length (optional). If this information
+            is already known, it can be used to construct an exact match for
+            the search key.
+        :returns: Block Group Item
+        :rtype: :class:`~btrfs.ctree.BlockGroupItem`
+        :raises: :class:`ItemNotFoundError` if no Block Group Item can be found
+            at the address.
+        """
         tree = EXTENT_TREE_OBJECTID
         min_offset = length if length is not None else 0
         max_offset = length if length is not None else ULLONG_MAX
@@ -545,6 +731,23 @@ class FileSystem(object):
 
     def extents(self, min_vaddr=0, max_vaddr=ULLONG_MAX,
                 load_data_refs=False, load_metadata_refs=False):
+        """
+        :param int min_vaddr: Lowest virtual address to search for.
+        :param int max_vaddr: Highest virtual address to search for.
+        :param bool load_data_refs: Parse and load backreference information
+            for data extents.
+        :param bool load_metadata_refs: Parse and load backreference
+            information for metadata extents.
+        :returns: Extent and MetaData Items from the Extent tree
+        :rtype: Iterator[Union[:class:`ExtentItem`, :class:`MetaDataItem`]]
+
+        The 'refs' are backreference information. These sub items are stored
+        inside the :class:`ExtentItem` and :class:`MetaDataItem` Items, and
+        overflow to separately indexed items. When dealing with search results
+        in user space, these backreferences are of little use to us, since the
+        search API only allows us to search in tree leaves. So, they're ignored
+        by default.
+        """
         tree = EXTENT_TREE_OBJECTID
         min_key = Key(min_vaddr, 0, 0)
         max_key = Key(max_vaddr, 255, ULLONG_MAX)
@@ -579,9 +782,19 @@ class FileSystem(object):
             yield extent
 
     def top_level(self):
+        """
+        :returns: The top level subvolume with ID 5, a.k.a. `FS_TREE_OBJECTID`.
+        :rtype: :class:`RootItem`
+        """
         return list(self.subvolumes(min_id=FS_TREE_OBJECTID, max_id=FS_TREE_OBJECTID))[0]
 
     def subvolumes(self, min_id=FIRST_FREE_OBJECTID, max_id=LAST_FREE_OBJECTID):
+        """
+        :param int min_id: Lowest subvolume ID to search for.
+        :param int max_id: Highest subvolume ID to search for.
+        :returns: Root Items from the Root tree, containing subvolume information.
+        :rtype: Iterator[:class:`RootItem`]
+        """
         tree = ROOT_TREE_OBJECTID
         if min_id == max_id:
             min_type = ROOT_ITEM_KEY
@@ -605,6 +818,10 @@ class FileSystem(object):
             yield RootItem(cur_header, cur_data)
 
     def orphan_subvol_ids(self):
+        """
+        :returns: ObjectID numbers of orphaned items in the Root tree.
+        :rtype: List[int]
+        """
         tree = ROOT_TREE_OBJECTID
         min_key = Key(ORPHAN_OBJECTID, ORPHAN_ITEM_KEY, 0)
         max_key = Key(ORPHAN_OBJECTID, ORPHAN_ITEM_KEY, ULLONG_MAX)
@@ -613,6 +830,21 @@ class FileSystem(object):
         return subvol_ids
 
     def free_space_extents(self, min_vaddr=0, max_vaddr=ULLONG_MAX):
+        """
+        :param int min_vaddr: Minimum virtual address when searching for free space.
+        :param int max_vaddr: Maximum virtual address when searching for free space.
+        :returns: Free space extent information from the Free Space Tree.
+        :rtype: Iterator[:class:`btrfs.free_space_tree.FreeSpaceExtent`]
+
+        .. note::
+
+            The Free Space Tree can contain both Free Space Extent Items and
+            Free Space Bitmap Items, which contain a more compact
+            representation of free space extents. This helper function will
+            transparently unpack these bitmaps and return one type of helper
+            object, the :class:`~btrfs.free_space_tree.FreeSpaceExtent`
+            object.
+        """
         tree = FREE_SPACE_TREE_OBJECTID
         min_key = Key(min_vaddr, 0, 0)
         max_key = Key(max_vaddr, 255, ULLONG_MAX)
@@ -627,15 +859,29 @@ class FileSystem(object):
                     Key(header.objectid, header.type, header.offset)))
 
     def sync(self):
+        """Call the btrfs sync kernel function, causing a transaction commit."""
         btrfs.ioctl.sync(self.fd)
 
     def features(self):
+        """
+        :returns: Filesystem Features.
+        :rtype: :class:`btrfs.ioctl.FeatureFlags`
+        """
         return btrfs.ioctl.get_features(self.fd)
 
     def mixed_groups(self):
+        """
+        :returns: True if this filesystem used mixed block groups with metadata
+            and data in the same block groups, else False.
+        :rtype: bool
+        """
         return self.features().incompat_flags & btrfs.ioctl.FEATURE_INCOMPAT_MIXED_GROUPS != 0
 
     def usage(self):
+        """
+        :returns: Detailed filesystem usage information.
+        :rtype: :class:`btrfs.fs_usage.FsUsage`
+        """
         return btrfs.fs_usage.FsUsage(self)
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
@@ -643,6 +889,11 @@ class FileSystem(object):
 
 
 class ItemData(object):
+    """ItemData is a base class for all tree item types.
+
+    :ivar key: Key under which this item is stored in the tree.
+    :type key: :class:`~btrfs.ctree.Key`
+    """
     def __init__(self, header):
         if isinstance(header, btrfs.ioctl.SearchHeader):
             self.key = Key(header.objectid, header.type, header.offset)
@@ -663,6 +914,32 @@ class ItemData(object):
 
 
 class DevItem(ItemData):
+    """Object representation of struct `btrfs_dev_item`.
+
+    A `DevItem` contains information about a single block device that is
+    attached to the filesystem.
+
+    * Tree: `CHUNK_TREE_OBJECTID` (3)
+    * Key objectid: `DEV_ITEMS_OBJECTID` (1)
+    * Key type: `DEV_ITEM_KEY` (216)
+    * Key offset: Device ID.
+
+    :ivar int devid: Device ID.
+    :ivar int total_bytes: Total amount of bytes.
+    :ivar int bytes_used: Total amount of allocated bytes.
+    :ivar int io_align: *Not used*, set to same value as sector_size.
+    :ivar int io_width: *Not used*, set to same value as sector_size.
+    :ivar int sector_size: Smallest IO block size to use.
+    :ivar int type: *Not used*
+    :ivar int generation: *Not used*
+    :ivar int start_offset: *Not used*
+    :ivar int dev_group: *Not used*
+    :ivar int seek_speed: *Not used*
+    :ivar int bandwith: *Not used*
+    :ivar uuid.UUID uuid: Device UUID.
+    :ivar uuid.UUID fsid: Filesystem ID.
+
+    """
     _dev_item = struct.Struct('<3Q3L3QL2B16s16s')
 
     def __init__(self, header, data):
@@ -680,6 +957,35 @@ class DevItem(ItemData):
 
 
 class Chunk(ItemData):
+    """Object representation of struct `btrfs_chunk`.
+
+    A `Chunk` is a piece of virtual address space. A `Chunk` has a 1 to 1
+    relationship to a :class:`BlockGroup`, and a 1 to many relationship with a
+    fixed amount of :class:`Stripe` objects.
+
+    * Tree: `CHUNK_TREE_OBJECTID` (3)
+    * Key objectid: `FIRST_CHUNK_TREE_OBJECTID` (256)
+    * Key type: `CHUNK_ITEM_KEY` (228)
+    * Key offset: Virtual address.
+
+    :ivar int vaddr: Virtual address where the Chunk starts (taken from the
+        offset field of the item key).
+    :ivar int length: Chunk length in bytes,
+    :ivar int owner: Extent tree the chunk belongs to. *Not used*, always 2
+        now.
+    :ivar int stripe_len: Hardcoded to `BTRFS_STRIPE_LEN`, which is 64kiB.
+    :ivar int type: Block group flags for the corresponding block group. So, a
+        Chunk **type** contains both Block Group **type** and **profile**.
+    :ivar int io_align: *Not used*, see `stripe_len`.
+    :ivar int io_width: *Not used*, see `stripe_len`.
+    :ivar int sector_size: Smallest IO block size to use.
+    :ivar int num_stripes: Amount of :class:`Stripe` (or, also the amount of
+        :class:`Device Extent`) objects related to this `Chunk`.
+    :ivar int sub_stripes: A hack for `RAID10`. For `RAID10` this value is 2,
+        otherwise 1.
+    :ivar stripes: :class:`Stripe` Items that are stored inside this Chunk Item.
+    :type stripes: List[:class:`Stripe`]
+    """
     _chunk = struct.Struct('<4Q3L2H')
 
     def __init__(self, header, data):
@@ -712,6 +1018,17 @@ class Chunk(ItemData):
 
 
 class Stripe(object):
+    """Object representation of struct `btrfs_stripe`.
+
+    A list of `Stripe` items is hidden inside the `Chunk` item and each of them
+    contains information that points to the beginning of a `Device Extent`,
+    which is an actual allocated piece of physical disk space in which data
+    ends up that is written to the virtual address space of the `Chunk`.
+
+    :ivar int devid: Device ID of the device that holds the `Device Extent`.
+    :ivar int offset: Physical address on the device where the `Device Extent` starts.
+    :ivar uuid.UUID uuid: Device UUID of the device with the above listed devid.
+    """
     _stripe = struct.Struct('<2Q16s')
 
     def __init__(self, data):
@@ -723,6 +1040,27 @@ class Stripe(object):
 
 
 class DevExtent(ItemData):
+    """Object representation of struct `btrfs_dev_extent`.
+
+    The `Device Extent` is a range of physical address space allocated from one
+    of the attached devices and used by a `Chunk` to store data.
+
+    * Tree: `DEV_TREE_OBJECTID` (4)
+    * Key objectid: Device ID.
+    * Key type: `DEV_EXTENT_KEY` (204)
+    * Key offset: Physical address.
+
+    :ivar int devid: Device ID of the device that holds this `Device Extent`
+        (taken from the objectid field of the item key).
+    :ivar int paddr: Physical address on the device where the `Device Extent`
+        starts (taken from the offset field of the item key).
+    :ivar int chunk_tree: Chunk tree the device extent belongs to. This is
+        always 3 now.
+    :ivar int chunk_offset: Virtual address of the related `Chunk`.
+    :ivar int length: Length in physical bytes.
+    :ivar uuid.UUID chunk_tree_uuid: UUID of the chunk tree that this `Device
+        Extent` belongs to. This is currently always the UUID of tree 3.
+    """
     _dev_extent = struct.Struct('<4Q16s')
 
     def __init__(self, header, data):
@@ -734,6 +1072,7 @@ class DevExtent(ItemData):
 
     @property
     def vaddr(self):
+        """Alias for the chunk_offset attribute."""
         return self.chunk_offset
 
     def __str__(self):
@@ -748,6 +1087,26 @@ class DevExtent(ItemData):
 
 
 class BlockGroupItem(ItemData):
+    """Object representation of struct `btrfs_block_group_item`.
+
+    The `Block Group` has a 1 to 1 relationship with a `Chunk` and tracks some
+    usage information about a range of virtual address space.
+
+    * Tree: `EXTENT_TREE_OBJECTID` (2)
+    * Key objectid: Virtual address.
+    * Key type: `BLOCK_GROUP_ITEM_KEY` (192)
+    * Key offset: Block Group length.
+
+    :ivar int vaddr: Virtual address where the Bock Group starts (taken from
+        the objectid field of the item key).
+    :ivar int length: Block Group length in bytes (taken from the offset field
+        of the item key).
+    :ivar int used: Amount of bytes used by Extents in the Block Group.
+    :ivar int chunk_objectid: Object ID of the Chunk this Block Group relates
+        to. Currently always 256.
+    :ivar int flags: Type and profile for this Block Group. e.g. 0x11, which is
+        `DATA|RAID1`.
+    """
     _block_group_item = struct.Struct('<3Q')
 
     def __init__(self, header, data):
@@ -758,6 +1117,7 @@ class BlockGroupItem(ItemData):
 
     @property
     def used_pct(self):
+        """Convenience property that calculates the percentage of usage."""
         return int(round((self.used * 100) / self.length))
 
     def __str__(self):
@@ -774,6 +1134,77 @@ class BlockGroupItem(ItemData):
 
 
 class ExtentItem(ItemData):
+    """Object representation of struct `btrfs_extent_item`.
+
+    An :class:`ExtentItem` lives in the Extent Tree and tracks information
+    about a piece of virtual address space that is in use. A FileExtentItem
+    object from a subvolume tree can point to it, to let us know a file in the
+    filesystem uses part of this extent.
+
+    * Tree: `EXTENT_TREE_OBJECTID` (2)
+    * Key objectid: Virtual address.
+    * Key type: `EXTENT_ITEM_KEY` (168)
+    * Key offset: Extent length.
+
+    If the `skinny_metadata` feature is enabled in the filesystem, then
+    metadata extents are stored separately as :class:`MetaDataItem`.
+
+    An :class:`ExtentItem` includes inline backreference items. In the kernel,
+    this information is used to be able to find out which different inodes in
+    subvolume trees are using data from this extent. For us, in userspace, this
+    information is not very relevant, since we cannot look into B-tree nodes
+    using the kernel search API. So, by default the backreference information
+    is ignored when creating these kind of objects from a metadata search.
+
+    Instead, to find out who is referencing data from an extent, the
+    :func:`btrfs.ioctl.logical_to_ino` and
+    :func:`btrfs.ioctl.logical_to_ino_v2` functions can be used.
+
+    :ivar int vaddr: Virtual address where the Extent starts (taken from the
+        objectid field of the item key).
+    :ivar int length: Length of the extent in bytes (taken from the offset
+        field of the item key).
+    :ivar int refs: Amount of explicit references to this extent.
+    :ivar int generation: Generation of the filesystem when this extent was
+        created.
+    :ivar int flags: Some flags describing which type of extent this is.
+
+    The flags are an or-ed combination of one or more of the following values
+    (available as attribute of this module):
+
+    - EXTENT_FLAG_DATA: This extent contains data.
+    - EXTENT_FLAG_TREE_BLOCK: This extent contains a metadata tree block.
+    - BLOCK_FLAG_FULL_BACKREF: The tree block backreference contains a full
+      back reference.
+
+    When backreference information is being loaded, there are a few additional
+    lists present in this object. Also, when using the
+    :func:`FileSystem.extents` helper to retrieve extent information, then
+    separately stored backreference items which do not fit into the extent item
+    itself any more are also appended to these lists:
+
+    If the extent is a data extent, then this object contains:
+
+    :ivar extent_data_refs: Indirect back references.
+    :vartype extent_data_refs: List[Union[:class:`InlineExtentDataRef`,
+        :class:`ExtentDataRef`]]
+    :ivar shared_data_refs: Shared back references.
+    :vartype shared_data_refs: List[Union[:class:`InlineSharedDataRef`,
+        :class:`SharedDataRef`]]
+
+    If the extent is a metadata tree block, then this object contains:
+
+    :ivar tree_block_refs: Tree block backreferences.
+    :vartype tree_block_refs: List[Union[:class:`InlineTreeBlockRef`,
+        :class:`TreeBlockRef`]]
+    :ivar shared_block_refs: Shared tree block backreferences.
+    :vartype shared_block_refs: List[Union[:class:`InlineSharedBlockRef`,
+        :class:`SharedBlockRef`]]
+
+    Further documentation of backreferences is out of scope for this module.
+    Please refer to the btrfs wiki about resolving extent backreferences for
+    more information.
+    """
     _extent_item = struct.Struct('<3Q')
     _extent_inline_ref = struct.Struct('<BQ')
 
@@ -841,6 +1272,19 @@ class ExtentItem(ItemData):
 
 
 class ExtentDataRef(ItemData):
+    """Object representation of struct `btrfs_extent_data_ref`.
+
+    Documentation of this item is out of scope for this module. Please refer to
+    the btrfs wiki about resolving extent backreferences for more information.
+
+    * Tree: `EXTENT_TREE_OBJECTID` (2)
+    * Key type: `EXTENT_DATA_REF_KEY` (178)
+
+    :ivar int root: root
+    :ivar int objectid: objectid
+    :ivar int offset: offset
+    :ivar int count: count
+    """
     _extent_data_ref = struct.Struct('<3QL')
 
     def __init__(self, header, data):
@@ -854,6 +1298,8 @@ class ExtentDataRef(ItemData):
 
 
 class InlineExtentDataRef(ExtentDataRef):
+    """Identical content to :class:`ExtentDataRef`, but the backreference was
+    inlined in the extent item."""
     _inline_extent_data_ref = ExtentDataRef._extent_data_ref
 
     def __init__(self, data):
@@ -866,6 +1312,17 @@ class InlineExtentDataRef(ExtentDataRef):
 
 
 class SharedDataRef(ItemData):
+    """Object representation of struct `btrfs_shared_data_ref`.
+
+    Documentation of this item is out of scope for this module. Please refer to
+    the btrfs wiki about resolving extent backreferences for more information.
+
+    * Tree: `EXTENT_TREE_OBJECTID` (2)
+    * Key type: `SHARED_DATA_REF_KEY` (184)
+
+    :ivar int parent: parent
+    :ivar int count: count
+    """
     _shared_data_ref = struct.Struct('<L')
 
     def __init__(self, header, data):
@@ -878,6 +1335,8 @@ class SharedDataRef(ItemData):
 
 
 class InlineSharedDataRef(SharedDataRef):
+    """Identical content to :class:`SharedDataRef`, but the backreference was
+    inlined in the extent item."""
     _inline_shared_data_ref = struct.Struct('<QL')
 
     def __init__(self, data):
@@ -889,6 +1348,15 @@ class InlineSharedDataRef(SharedDataRef):
 
 
 class TreeBlockInfo(object):
+    """Object representation of struct `btrfs_tree_block_info`.
+
+    Documentation of this item is out of scope for this module. Please refer to
+    the btrfs wiki about resolving extent backreferences for more information.
+
+    :ivar key: key
+    :vartype key: :class:`Key`
+    :ivar int level: level
+    """
     _tree_block_info = struct.Struct('<QBQB')
 
     def __init__(self, data):
@@ -901,6 +1369,54 @@ class TreeBlockInfo(object):
 
 
 class MetaDataItem(ItemData):
+    """Object representation of struct `btrfs_metadata_item`.
+
+    A :class:`MetaDataItem` lives in the Extent Tree and tracks information
+    about a piece of virtual address space that is in use to store a metadata
+    tree block.
+
+    * Tree: `EXTENT_TREE_OBJECTID` (2)
+    * Key objectid: Virtual address.
+    * Key type: `METADATA_ITEM_KEY` (169)
+    * Key offset: Extent length.
+
+    If the `skinny_metadata` filesystem feature is enabled, metadata extents
+    are tracked using this item type, which encodes all necessecary data in a
+    more compact way than using a regular extent item.
+
+    :ivar int vaddr: Virtual address where the Extent starts (taken from the
+        objectid field of the item key).
+    :ivar int skinny_level: Tree level.
+        field of the item key).
+    :ivar int refs: Amount of explicit references to this extent.
+    :ivar int generation: Generation of the filesystem when this extent was
+        created.
+    :ivar int flags: See below.
+
+    The flags are an or-ed combination of one or more of the following values
+    (available as attribute of this module):
+
+    - EXTENT_FLAG_TREE_BLOCK: This extent contains a metadata tree block.
+    - BLOCK_FLAG_FULL_BACKREF: The tree block backreference contains a full
+      back reference.
+
+    When backreference information is being loaded, there are a few additional
+    lists present in this object. Also, when using the
+    :func:`FileSystem.extents` helper to retrieve extent information, then
+    separately stored backreference items which do not fit into the extent item
+    itself any more are also appended to these lists:
+
+    :ivar tree_block_refs: Tree block backreferences.
+    :vartype tree_block_refs: List[Union[:class:`InlineTreeBlockRef`,
+        :class:`TreeBlockRef`]]
+    :ivar shared_block_refs: Shared tree block backreferences.
+    :vartype shared_block_refs: List[Union[:class:`InlineSharedBlockRef`,
+        :class:`SharedBlockRef`]]
+
+    Further documentation of backreferences is out of scope for this module.
+    Please refer to the btrfs wiki about resolving extent backreferences for
+    more information.
+    """
     def __init__(self, header, data, load_refs=True):
         super().__init__(header)
         self._setattr_from_key(objectid_attr='vaddr', offset_attr='skinny_level')
@@ -943,6 +1459,16 @@ class MetaDataItem(ItemData):
 
 
 class TreeBlockRef(ItemData):
+    """Tree block reference
+
+    Documentation of this item is out of scope for this module. Please refer to
+    the btrfs wiki about resolving extent backreferences for more information.
+
+    * Tree: `EXTENT_TREE_OBJECTID` (2)
+    * Key type: `TREE_BLOCK_REF_KEY` (176)
+
+    :ivar int root: root
+    """
     def __init__(self, header):
         super().__init__(header)
         self._setattr_from_key(offset_attr='root')
@@ -952,6 +1478,8 @@ class TreeBlockRef(ItemData):
 
 
 class InlineTreeBlockRef(TreeBlockRef):
+    """Identical content to :class:`TreeBlockRef`, but the backreference was
+    inlined in the extent item."""
     def __init__(self, root):
         self.root = root
 
@@ -960,6 +1488,16 @@ class InlineTreeBlockRef(TreeBlockRef):
 
 
 class SharedBlockRef(ItemData):
+    """Shared tree block reference
+
+    Documentation of this item is out of scope for this module. Please refer to
+    the btrfs wiki about resolving extent backreferences for more information.
+
+    * Tree: `EXTENT_TREE_OBJECTID` (2)
+    * Key type: `SHARED_BLOCK_REF_KEY` (182)
+
+    :ivar int parent: parent
+    """
     def __init__(self, header):
         super().__init__(header)
         self._setattr_from_key(offset_attr='parent')
@@ -969,6 +1507,8 @@ class SharedBlockRef(ItemData):
 
 
 class InlineSharedBlockRef(SharedBlockRef):
+    """Identical content to :class:`SharedBlockRef`, but the backreference was
+    inlined in the extent item."""
     def __init__(self, parent):
         self.parent = parent
 
@@ -977,10 +1517,39 @@ class InlineSharedBlockRef(SharedBlockRef):
 
 
 class TimeSpec(object):
+    """Object representation of struct `btrfs_timespec`.
+
+    The :class:`TimeSpec` type of item is used embedded in other metadata items
+    when a time value needs to be stored. Examples are the mtime, ctime etc
+    fields in an inode item.
+
+    It's also possible to create objects of this type manually. To do so, use
+    the static :func:`~TimeSpec.from_values` helper function. (The regular
+    object constructor is reserved for the code parsing metadata items from
+    search queries.)
+
+    :ivar int sec: seconds
+    :ivar int nsec: nanoseconds
+
+    Example::
+
+        >>> my_time = btrfs.ctree.TimeSpec.from_values(1546280270, 4044945)
+        >>> my_time.sec
+        1546280270
+        >>> my_time.nsec
+        4044945
+        >>> my_time.iso8601
+        '2018-12-31T18:17:50.404495'
+    """
     _timespec = struct.Struct('<QL')
 
     @staticmethod
     def from_values(sec, nsec):
+        """Create a Timespec object
+
+        :param int sec: seconds
+        :param int nsec: nanoseconds
+        """
         t = TimeSpec.__new__(TimeSpec)
         t.sec = sec
         t.nsec = nsec
@@ -991,6 +1560,7 @@ class TimeSpec(object):
 
     @property
     def iso8601(self):
+        """Return the timestamp as ISO8601 formatted string."""
         return datetime.datetime.utcfromtimestamp(
             float("{self.sec}.{self.nsec}".format(self=self))
         ).isoformat()
@@ -1000,6 +1570,59 @@ class TimeSpec(object):
 
 
 class InodeItem(ItemData):
+    """Object representation of struct `btrfs_inode_item`.
+
+    The inode item stores information of a single file or directory. Not the
+    name, because a file can have multiple names.
+
+    * Tree: `FS_TREE_OBJECTID` (5) or any other subvolume tree.
+    * Key objectid: Inode number.
+    * Key type: `INODE_ITEM_KEY` (1)
+    * Key offset: 0
+
+    :ivar int objectid: The inode number. (taken from the objectid field of the
+        item key).
+    :ivar int generation: Generation of the filesystem when the inode was
+        created.
+    :ivar int transid: Generation of the filesystem when the inode was last
+        changed.
+    :ivar int size: File size in bytes.
+    :ivar int nbytes: Allocated disk blocks for this file in bytes.
+    :ivar int block_group: Only used for free space cache v1, for which it's
+        the related block group virtual address.
+    :ivar int nlink: Amount of hardlinks the file has.
+    :ivar int uid: Numerical user id of the owner of the file.
+    :ivar int gid: Numerical group id of the owner of the file.
+    :ivar int mode: File permissions.
+    :ivar int rdev: Major and minor device numbers for special files.
+    :ivar int flags: Inode flags, see below.
+    :ivar int sequence: Sequence number for NFS.
+    :ivar atime: Time of last access.
+    :vartype atime: :class:`~btrfs.ctree.TimeSpec`
+    :ivar ctime: Time of last file metadata change. Also updated when file
+        contents change.
+    :vartype ctime: :class:`~btrfs.ctree.TimeSpec`
+    :ivar mtime: Time of last modification to file contents.
+    :vartype mtime: :class:`~btrfs.ctree.TimeSpec`
+    :ivar otime: Time of file birth.
+    :vartype otime: :class:`~btrfs.ctree.TimeSpec`
+
+    The flags are an or-ed combination of one or more of the following values
+    (available as attribute of this module):
+
+    - INODE_NODATASUM
+    - INODE_NODATACOW
+    - INODE_READONLY
+    - INODE_NOCOMPRESS
+    - INODE_PREALLOC
+    - INODE_SYNC
+    - INODE_IMMUTABLE
+    - INODE_APPEND
+    - INODE_NODUMP
+    - INODE_NOATIME
+    - INODE_DIRSYNC
+    - INODE_COMPRESS
+    """
     _inode_item_parts = [
         struct.Struct('<5Q4L3Q32x'),
         TimeSpec._timespec,
@@ -1046,6 +1669,29 @@ class InodeItem(ItemData):
 
 
 class InodeRefList(ItemData, collections.abc.MutableSequence):
+    """A collection of struct `btrfs_inode_ref` indexed under a single tree
+    key.
+
+    A :class:`InodeRefList` is a list of :class:`InodeRef` objects which
+    contain information about every name the inode is known under in a single
+    directory. So, when we already know the inode number of a file, we can find
+    in which places it has hardlinks pointing at it.
+
+    * Tree: `FS_TREE_OBJECTID` (5) or any other subvolume tree.
+    * Key objectid: Inode number.
+    * Key type: `INODE_REF_KEY` (12)
+    * Key offset: Inode number of the containing directory.
+
+    This class is a helper that does not exist in Btrfs itself.
+
+    Besides acting as an immutable list of :class:`InodeRef` objects, there are
+    some additional attributes:
+
+    :ivar int objectid: Inode number of the file. (taken from the objectid
+        field of the item key)
+    :ivar int parent_objectid: Inode number of the containing directory. (taken
+        from the offset field of the item key)
+    """
     def __init__(self, header, data):
         super().__init__(header)
         self._setattr_from_key(objectid_attr='objectid', offset_attr='parent_objectid')
@@ -1069,6 +1715,7 @@ class InodeRefList(ItemData, collections.abc.MutableSequence):
         return len(self._list)
 
     def insert(self, index, value):
+        """Not implemented."""
         raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __str__(self):
@@ -1077,6 +1724,17 @@ class InodeRefList(ItemData, collections.abc.MutableSequence):
 
 
 class InodeRef(object):
+    """Object representation of struct `btrfs_inode_ref`.
+
+    Also see :class:`InodeRefList`.
+
+    :ivar int index: Directory index number in the containing directory. Refer
+        to the `parent_objectid` attribute of the :class:`InodeRefList` object
+        that contains this :class:`InodeRef` to find the inode number of the
+        directory.
+    :ivar int name_len: Amount of bytes used to store the filename.
+    :ivar bytes name: Filename as bytes.
+    """
     _inode_ref = struct.Struct('<QH')
 
     def __init__(self, data, pos):
@@ -1098,6 +1756,33 @@ class InodeRef(object):
 
 
 class InodeExtrefList(ItemData, collections.abc.MutableSequence):
+    """A collection of struct `btrfs_inode_extref` indexed under a single tree
+    key.
+
+    A :class:`InodeExtrefList` is a list of :class:`InodeExtref` objects. By
+    default, names under which a file is known are stored in the
+    :class:`InodeRefList` of :class:`InodeRef`. However, if a file has so many
+    hardlinks that that item would become bigger than a metadata page, the rest
+    of the items are stored separately.
+
+    * Tree: `FS_TREE_OBJECTID` (5) or any other subvolume tree.
+    * Key objectid: Inode number.
+    * Key type: `INODE_EXTREF_KEY` (13)
+    * Key offset: :func:`~btrfs.crc32.extref_hash` of the filename.
+
+    The :class:`InodeExtref` item is a list because multiple different
+    filenames can end up having the same crc32 value.
+
+    This class is a helper that does not exist in Btrfs itself.
+
+    Besides acting as an immutable list of :class:`InodeExtRef` objects, there
+    are some additional attributes:
+
+    :ivar int objectid: Inode number of the file. (taken from the objectid
+        field of the item key)
+    :ivar int extref_hash: :func:`~btrfs.crc32.extref_hash` of the filename.
+        (taken from the offset field of the item key)
+    """
     def __init__(self, header, data):
         super().__init__(header)
         self._setattr_from_key(objectid_attr='objectid', offset_attr='extref_hash')
@@ -1121,6 +1806,7 @@ class InodeExtrefList(ItemData, collections.abc.MutableSequence):
         return len(self._list)
 
     def insert(self, index, value):
+        """Not implemented."""
         raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __str__(self):
@@ -1129,6 +1815,15 @@ class InodeExtrefList(ItemData, collections.abc.MutableSequence):
 
 
 class InodeExtref(object):
+    """Object representation of struct `btrfs_inode_extref`.
+
+    Also see :class:`InodeExtrefList`.
+
+    :ivar int parent_objectid: Inode number of the containing directory.
+    :ivar int index: Directory index number in the containing directory.
+    :ivar int name_len: Amount of bytes used to store the filename.
+    :ivar bytes name: Filename as bytes.
+    """
     _inode_extref = struct.Struct('<QQH')
 
     def __init__(self, data, pos):
@@ -1152,6 +1847,28 @@ class InodeExtref(object):
 
 
 class DirItemList(ItemData, collections.abc.MutableSequence):
+    """A collection of struct `btrfs_dir_item` indexed under a single tree key.
+
+    A :class:`DirItemList` is a list of :class:`DirItem` objects. Based on a
+    filename hash, they point to the inode item for the corresponding file.
+    Since multiple different filenames can end up having the same name hash,
+    this item can contain multiple :class:`DirItem` objects.
+
+    * Tree: `FS_TREE_OBJECTID` (5) or any other subvolume tree.
+    * Key objectid: Inode number of the directory.
+    * Key type: `DIR_ITEM_KEY` (84)
+    * Key offset: :func:`~btrfs.crc32.name_hash` of the filename.
+
+    This class is a helper that does not exist in Btrfs itself.
+
+    Besides acting as an immutable list of :class:`DirItem` objects, there are
+    some additional attributes:
+
+    :ivar int objectid: Inode number of the directory. (taken from the objectid
+        field of the item key)
+    :ivar int name_hash: :func:`~btrfs.crc32.name_hash` of the filename.
+        (taken from the offset field of the item key)
+    """
     def __init__(self, header, data):
         super().__init__(header)
         self._setattr_from_key(objectid_attr='objectid', offset_attr='name_hash')
@@ -1176,6 +1893,7 @@ class DirItemList(ItemData, collections.abc.MutableSequence):
         return len(self._list)
 
     def insert(self, index, value):
+        """Not implemented."""
         raise NotImplementedError("{} objects should not be changed.".format(type(self).__name__))
 
     def __str__(self):
@@ -1184,12 +1902,67 @@ class DirItemList(ItemData, collections.abc.MutableSequence):
 
 
 class XAttrItemList(DirItemList):
+    """A collection of struct `btrfs_dir_item`, used to store extended
+    attributes and indexed under a single tree key.
+
+    An :class:`XAttrItemList` is a list of :class:`XAttrItem` objects, which
+    contain key value pairs in the `name` and `data` fields of the dir_item
+    struct.  Since multiple different keys can end up having the same name
+    hash, this item can contain multiple :class:`XAttrItem` objects.
+
+    * Tree: `FS_TREE_OBJECTID` (5) or any other subvolume tree.
+    * Key objectid: Inode number of a file on which the xattr is set.
+    * Key type: `XATTR_ITEM_KEY` (24)
+    * Key offset: :func:`~btrfs.crc32.name_hash` of the key.
+
+    This class is a helper that does not exist in Btrfs itself.
+
+    Besides acting as an immutable list of :class:`XAttrItem` objects, there
+    are some additional attributes:
+
+    :ivar int objectid: Inode number of a file on which the xattr is set.
+        (taken from the objectid field of the item key)
+    :ivar int name_hash: :func:`~btrfs.crc32.name_hash` of the xattr key.
+        (taken from the offset field of the item key)
+    """
     def __str__(self):
         return "xattr item list objectid {self.objectid} name_hash {self.name_hash} " \
             "size {}".format(len(self), self=self)
 
 
 class DirItem(object):
+    """Object representation of struct `btrfs_dir_item`.
+
+    Based on the name hash of a filename, this object directly points to the
+    inode item for the corresponding file. Using this mapping allows quick file
+    access when the name is known, even in directories with a large amount of
+    files in them.
+
+    Also see :class:`DirItemList`.
+
+    :ivar location: Key of the file inode item.
+    :vartype location: :class:`DiskKey`
+    :ivar int transid: Generation of the filesystem when this item was created.
+    :ivar int data_len: *Not used*, always 0.
+    :ivar int name_len: Amount of bytes used to store the filename.
+    :ivar int type: File type that is represented by the inode item that is
+        being referenced.
+    :ivar bytes name: Filename as bytes.
+
+    File type is one of the following values (available as attribute of this
+    module):
+
+    - FT_UNKNOWN
+    - FT_REG_FILE
+    - FT_DIR
+    - FT_CHRDEV
+    - FT_BLKDEV
+    - FT_FIFO
+    - FT_SOCK
+    - FT_SYMLINK
+    - FT_XATTR
+    - FT_MAX
+    """
     _dir_item_parts = [
         DiskKey._disk_key,
         struct.Struct('<QHHB')
@@ -1226,11 +1999,63 @@ class DirItem(object):
 
 
 class XAttrItem(DirItem):
+    """Object representation of struct `btrfs_dir_item`, used to store extended
+    attribute information.
+
+    This object contains a key and value for an extended attribute on a file.
+    It reuses the `dir_item` data structure.
+
+    Also see :class:`XattrItemList`.
+
+    :ivar int transid: Generation of the filesystem when this item was created.
+    :ivar int name_len: Amount of bytes used to store the key.
+    :ivar int data_len: Amount of bytes used to store the value.
+    :ivar bytes name: Key as bytes.
+    :ivar bytes data: Value as bytes.
+    """
     def __str__(self):
         return "xattr item name {self.name_str} data {self.data_str}".format(self=self)
 
 
 class DirIndex(ItemData):
+    """Object representation of struct `btrfs_dir_item`, but used to store
+    filenames ordered on directory index.
+
+    The :class:`DirIndex` objects list the contents of a directory in the order
+    in which items were added.
+
+    * Tree: `FS_TREE_OBJECTID` (5) or any other subvolume tree.
+    * Key objectid: Inode number of the directory.
+    * Key type: `DIR_INDEX_KEY` (96)
+    * Key offset: Index in the directory.
+
+    :ivar int objectid: Inode number of the directory. (taken from the objectid
+        field of the item key)
+    :ivar int index: Index in the directory. (taken from the offset field of
+        the item key)
+    :ivar location: Key of the file inode item.
+    :vartype location: :class:`DiskKey`
+    :ivar int transid: Generation of the filesystem when this item was created.
+    :ivar int data_len: *Not used*, always 0.
+    :ivar int name_len: Amount of bytes used to store the filename.
+    :ivar int type: File type that is represented by the inode item that is
+        being referenced.
+    :ivar bytes name: Filename as bytes.
+
+    File type is one of the following values (available as attribute of this
+    module):
+
+    - FT_UNKNOWN
+    - FT_REG_FILE
+    - FT_DIR
+    - FT_CHRDEV
+    - FT_BLKDEV
+    - FT_FIFO
+    - FT_SOCK
+    - FT_SYMLINK
+    - FT_XATTR
+    - FT_MAX
+    """
     def __init__(self, header, data):
         super().__init__(header)
         self._setattr_from_key(objectid_attr='objectid', offset_attr='index')
@@ -1255,6 +2080,69 @@ class DirIndex(ItemData):
 
 
 class RootItem(ItemData):
+    """Object representation of struct `btrfs_root_item`.
+
+    The :class:`RootItem` lives in the root tree, a.k.a. the 'tree of trees'.
+    It contains information about the root metadata node of another tree.
+
+    * Tree: `ROOT_TREE_OBJECTID` (1).
+    * Key objectid: Tree ID.
+    * Key type: `ROOT_ITEM_KEY` (132)
+    * Key offset: Index in the directory.
+
+    :ivar inode: Embedded inode item. Only the flags field of it is used.
+    :vartype inode: :class:`InodeItem`
+    :ivar int generation: Generation of the filesystem when this root was
+        created.
+    :ivar int root_dirid: Objectid for the root directory in a subvolume tree
+        (always 256 in that case). 0 for other trees.
+    :ivar int bytenr: Virtual address of the root node of this tree.
+    :ivar int byte_limit: *Not used*
+    :ivar int bytes_used: *Not used*
+    :ivar int last_snapshot: The generation of the filesystem when the most
+        recent snapshot of a subvolume was made.
+    :ivar int flags: See below.
+    :ivar int refs: *Not used*, either 0 or 1.
+    :ivar drop_progress: Key of the last removed item during cleanup of a
+        removed subvolume.
+    :vartype drop_progress: :class:`DiskKey`
+    :ivar int drop_level: The tree level of the metadata node or leaf that
+        contains the key from drop_progress.
+    :ivar int level: The height of the tree that this root item refers to.
+
+    The flags are an or-ed combination of one or more of the following values
+    (available as attribute of this module):
+
+    - ROOT_SUBVOL_RDONLY: The subvolume is read only.
+
+    The following fields were introduced in Linux 3.6. Btrfs would still allow
+    using the filesystem with an older kernel, but if the content of
+    generation_v2 does not match generation, all new fields would be
+    invalidated:
+
+    :ivar int generation_v2: Same value as generation.
+    :ivar uuid: Subvolume UUID.
+    :vartype uuid: :class:`uuid.UUID`
+    :ivar parent_uuid: Subvolume UUID that this subvolume is a snapshot of.
+    :vartype parent_uuid: :class:`uuid.UUID`
+    :ivar received_uuid: Subvolume UUID of the subvolume that this subvolume
+        was duplicated from using send/receive.
+    :vartype received_uuid: :class:`uuid.UUID`
+    :ivar int ctransid: Generation when the tree was last modified.
+    :ivar int otransid: Generation when the tree was created.
+    :ivar int stransid: Generation of the filesystem from which a subvolume was
+        sent. Only used if this is a received subvolume.
+    :ivar int rtransid: Generation of this filesystem when the subvolume was
+        received.
+    :ivar ctime: Timestamp for ctransid.
+    :vartype ctime: :class:`TimeSpec`
+    :ivar otime: Timestamp for otransid.
+    :vartype otime: :class:`TimeSpec`
+    :ivar stime: Timestamp for stransid.
+    :vartype stime: :class:`TimeSpec`
+    :ivar rtime: Timestamp for rtransid.
+    :vartype rtime: :class:`TimeSpec`
+    """
     _root_item_parts = [
         InodeItem._inode_item,
         struct.Struct('<7QL'),
@@ -1307,6 +2195,62 @@ class RootItem(ItemData):
 
 
 class FileExtentItem(ItemData):
+    """Object representation of `btrfs_file_extent_item`.
+
+    For every piece of a file, the :class:`FileExtentItem` points to the data
+    extent where the actual data is stored. A :class:`FileExtentItem` does not
+    have to reference a complete extent. It can also use part of it.
+
+    * Tree: `FS_TREE_OBJECTID` (5) or any other subvolume tree.
+    * Key objectid: Inode number of the file.
+    * Key type: `EXTENT_DATA_KEY` (108)
+    * Key offset: Logical offset in the file where the referenced data appears.
+
+    :ivar int logical_offset: Logical offset in the file where the referenced
+        data appears. (taken from the offset field of the item key).
+    :ivar int generation: Generation of the filesystem when this file extent
+        was created.
+    :ivar int ram_bytes: Upper limit on the memory needed in bytes to store the
+        extent after decompression.
+    :ivar int compression: Compression type, see below.
+
+    The compression field can have one of the following values (available as
+    attribute of this module):
+
+    - COMPRESS_NONE
+    - COMPRESS_ZLIB
+    - COMPRESS_LZO
+    - COMPRESS_ZSTD
+
+    :ivar int encryption: *Not used* Encryption type, always 0.
+    :ivar int other_encoding: *Not used*
+    :ivar int type: Type of extent, see below.
+
+    The extent type can be one of the following:
+
+    - FILE_EXTENT_INLINE: This is an inline extent. The data is stored inside
+        the metadata leaf, right after the type field.
+    - FILE_EXTENT_REG: This is a regular extent.
+    - FILE_EXTENT_PREALLOC: Preallocated extent (for which no actual data is
+        written yet).
+
+    If the extent type is FILE_EXTENT_INLINE, the following fields are *not*
+    available:
+
+    :ivar int disk_bytenr: Virtual address of the data extent we reference a
+        range from.
+    :ivar int disk_num_bytes: Size of the data extent we reference a range
+        from.
+    :ivar int offset: The offset inside the data extent where the data we need
+        starts.
+    :ivar int num_bytes: The amount of bytes to be used from that offset
+        onwards.
+
+    This means that (disk_bytenr EXTENT_ITEM disk_num_bytes) is the tree key of
+    the extent item in the extent tree. Also, remember that these numbers will
+    always be multiples of disk block sizes, because that's how it gets cowed.
+    We don't just use 1 or 2 bytes from another extent.
+    """
     _file_extent_item_parts = [
         struct.Struct('<QQBB2xB'),
         struct.Struct('<4Q'),
@@ -1316,21 +2260,10 @@ class FileExtentItem(ItemData):
 
     def __init__(self, header, data):
         super().__init__(header)
-        self.logical_offset = header.offset
+        self._setattr_from_key(offset_attr='logical_offset')
         self.generation, self.ram_bytes, self.compression, self.encryption, self.type = \
             FileExtentItem._file_extent_item_parts[0].unpack_from(data)
         if self.type != FILE_EXTENT_INLINE:
-            # These are confusing, so they deserve a comment in the code:
-            # (disk_bytenr EXTENT_ITEM disk_num_bytes) is the tree key of
-            # the extent item storing the actual data.
-            #
-            # The third one, offset is the offset inside that extent where the
-            # data we need starts. num_bytes is the amount of bytes to be used
-            # from that offset onwards.
-            #
-            # Remember that these numbers always be multiples of disk block
-            # sizes, because that's how it gets cowed. We don't just use 1 or 2
-            # bytes from another extent.
             pos = FileExtentItem._file_extent_item_parts[0].size
             self.disk_bytenr, self.disk_num_bytes, self.offset, self.num_bytes = \
                 FileExtentItem._file_extent_item_parts[1].unpack_from(data, pos)
@@ -1358,11 +2291,13 @@ class FileExtentItem(ItemData):
 
 
 class EmptyItem(ItemData):
+    """Helper object for metadata keys without item data."""
     def __str__(self):
         return "empty item data"
 
 
 class NotImplementedItem(ItemData):
+    """Placeholder object for metadata item types that have not been implemented yet."""
     def __init__(self, header, data):
         super().__init__(header)
         self._data = bytearray(data)
@@ -1372,6 +2307,7 @@ class NotImplementedItem(ItemData):
 
 
 class UnknownItem(ItemData):
+    """Placeholder object for metadata item types that are unrecognized."""
     def __init__(self, header, data):
         super().__init__(header)
         self._data = bytearray(data)
@@ -1419,6 +2355,29 @@ _key_type_class_map = {
 
 
 def classify(header, data):
+    """
+    Convenience function to automatically convert an item header and data into
+    one of the object types in this module.
+
+    :param header: Search header.
+    :type header: :class:`btrfs.ioctl.SearchHeader`
+    :param bytes data: Item data.
+    :returns: Object representing the metadata item.
+    :rtype: Subclass of :class:`ItemData`
+
+    Example::
+
+        >>> with btrfs.FileSystem('/') as fs:
+        ...     chunk_tree_objects = btrfs.ioctl.search_v2(fs.fd, 3)
+        ...     btrfs.utils.pretty_print(
+        ...         (btrfs.ctree.classify(header, data)
+        ...          for header, data in chunk_tree_objects)
+        ...     )
+
+    The search function returns a generator, which we name chunk_tree_objects.
+    The pretty printer can handle any iterable, so the above fragment will, in
+    a 'streaming' way, dump the chunk tree on the screen.
+    """
     if header.len == 0:
         return EmptyItem(header)
     return _key_type_class_map.get(header.type, UnknownItem)(header, data)
