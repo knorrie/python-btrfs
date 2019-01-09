@@ -229,7 +229,7 @@ def _pretty_attr_value(obj, attr_name, stringify_fn=None):
 pretty_print_modules = 'btrfs.ctree', 'btrfs.ioctl', 'btrfs.fs_usage'
 
 
-def pretty_obj_tuples(obj, level=0, seen=None):
+def _pretty_obj_tuples(obj, level=0, seen=None):
     if seen is None:
         seen = []
     cls = obj.__class__
@@ -274,7 +274,7 @@ def pretty_obj_tuples(obj, level=0, seen=None):
                 yield level, "{}:".format(attr_name)
                 for item in attr_value:
                     yield level, '-'
-                    yield from pretty_obj_tuples(item, level+1, seen)
+                    yield from _pretty_obj_tuples(item, level+1, seen)
             elif isinstance(attr_value, dict):
                 if len(attr_value) == 0:
                     continue
@@ -290,11 +290,11 @@ def pretty_obj_tuples(obj, level=0, seen=None):
                         yield level+1, "{}:".format(stringify_fn(k))
                     else:
                         yield level+1, "{}:".format(k)
-                    yield from pretty_obj_tuples(v, level+2, seen)
+                    yield from _pretty_obj_tuples(v, level+2, seen)
             elif attr_value.__class__.__module__ in pretty_print_modules and \
                     not isinstance(attr_value, (btrfs.ctree.Key, btrfs.ctree.TimeSpec)):
                 yield level, "{}:".format(attr_name)
-                yield from pretty_obj_tuples(attr_value, level+1, seen)
+                yield from _pretty_obj_tuples(attr_value, level+1, seen)
             else:
                 yield level, _pretty_attr_value(obj, attr_name)
     if isinstance(obj, (list, types.GeneratorType)) or \
@@ -303,17 +303,21 @@ def pretty_obj_tuples(obj, level=0, seen=None):
         known = True
         for item in obj:
             yield level, '-'
-            yield from pretty_obj_tuples(item, level+1, seen)
+            yield from _pretty_obj_tuples(item, level+1, seen)
     if not known:
         yield level, str(obj)
     seen.pop()
 
 
-def pretty_obj_lines(obj, level=0):
-    for level, line in pretty_obj_tuples(obj, level):
+def _pretty_obj_lines(obj, level=0):
+    for level, line in _pretty_obj_tuples(obj, level):
         yield "{}{}".format('  ' * level, line)
 
 
-def pretty_print(obj, level=0):
-    for line in pretty_obj_lines(obj, level):
+def _pretty_print(obj, level=0):
+    for line in _pretty_obj_lines(obj, level):
         print(line)
+
+
+def pretty_print(obj):
+    _pretty_print(obj)
