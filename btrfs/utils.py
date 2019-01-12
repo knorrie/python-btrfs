@@ -16,6 +16,13 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
+"""
+This module contains miscellanious collection of things, like the
+:func:`pretty_print` function which provides a quick readable textual dump of
+most of the object types in this library. Besides that, some functions to
+pretty print and parse size strings and some other stuff.
+"""
+
 import btrfs
 import collections.abc
 import re
@@ -55,6 +62,11 @@ SZ_1G = 0x40000000
 
 
 def mounted_filesystem_paths():
+    """Discover mountpoints for online btrfs filesystems
+
+    :returns: Filesystem paths where btrfs filesystems are mounted.
+    :rtype: List[str]
+    """
     filesystems = {}
     mounts = [line.split() for line in open('/proc/self/mounts', 'r').read().splitlines()]
     for path in [mount[1] for mount in mounts if mount[2] == 'btrfs']:
@@ -73,6 +85,16 @@ _space_type_description_map = {
 
 
 def space_type_description(flags):
+    """
+    :param int flags: Space flags.
+    :returns: String representation of the space type only.
+    :rtype: str
+
+    Example::
+
+        >>> btrfs.utils.space_type_description(0x14)
+        'Metadata'
+    """
     return _space_type_description_map.get(
         flags & (BLOCK_GROUP_TYPE_MASK | SPACE_INFO_GLOBAL_RSV),
         'unknown'
@@ -91,6 +113,16 @@ _space_profile_description_map = {
 
 
 def space_profile_description(flags):
+    """
+    :param int flags: Space flags.
+    :returns: String representation of the space profile only.
+    :rtype: str
+
+    Example::
+
+        >>> btrfs.utils.space_profile_description(0x14)
+        'RAID1'
+    """
     return _space_profile_description_map.get(
         flags & BLOCK_GROUP_PROFILE_MASK,
         'unknown'
@@ -98,6 +130,16 @@ def space_profile_description(flags):
 
 
 def space_flags_description(flags):
+    """
+    :param int flags: Space flags.
+    :returns: String representation of the space type and profile.
+    :rtype: str
+
+    Example::
+
+        >>> btrfs.utils.space_flags_description(0x14)
+        'Metadata, RAID1'
+    """
     return "{}, {}".format(
         btrfs.utils.space_type_description(flags),
         btrfs.utils.space_profile_description(flags))
@@ -107,6 +149,16 @@ pretty_size_units = '_KMGTPE'
 
 
 def pretty_size(size, unit=None, binary=True):
+    """
+    :param int size: Size in bytes.
+    :param str unit: Target unit to display the size in. One of 'kMGTPE'.
+    :param bool binary: If True, use base 1024, else base 1000.
+
+    Example::
+
+        >>> btrfs.utils.pretty_size(1610612736, unit='G')
+        '1.50GiB'
+    """
     if unit == '':
         return str(size)
     base = 1024 if binary else 1000
@@ -137,6 +189,26 @@ _re_parse_pretty_size = re.compile(r'^(?P<size>\d+)(?:(?P<unit>[kMGTPE])((?P<i>i
 
 
 def parse_pretty_size(size_str):
+    """Parse pretty printed size strings.
+
+    This is the opposite of the :func:`pretty_size` function, but not 100%.
+
+    :param str size_str: String literal to be parsed.
+    :raises ValueError: If the input cannot be parsed as pretty size.
+
+    Example::
+
+            >>> btrfs.utils.parse_pretty_size('234MB')
+            234000000
+            >>> btrfs.utils.parse_pretty_size('234MiB')
+            245366784
+            >>> btrfs.utils.parse_pretty_size('234TB')
+            234000000000000
+            >>> btrfs.utils.parse_pretty_size('234TiB')
+            257285720899584
+            >>> btrfs.utils.parse_pretty_size('1048576')
+            1048576
+    """
     match = _re_parse_pretty_size.match(size_str)
     if match is None:
         raise ValueError('literal cannot be parsed as pretty size')
@@ -150,6 +222,15 @@ def parse_pretty_size(size_str):
 
 
 def flags_str(flags, flags_str_map):
+    """Generic helper to convert flags to a description.
+
+    This function is used by more specific helper functions below. You probably
+    don't need to call it directly.
+
+    :param int flags: Flags.
+    :param flags_str_map: Mapping from flag bit value to description.
+    :type flags_str_map: dict(int, str)
+    """
     ret = []
     for flag in sorted(flags_str_map.keys()):
         if flags & flag:
@@ -163,46 +244,164 @@ def flags_str(flags, flags_str_map):
 
 
 def block_group_flags_str(flags):
+    """
+    :param int flags: Block Group flags.
+    :returns: String representation of the block group type and profile.
+    :rtype: str
+
+    Example::
+
+        >>> btrfs.utils.block_group_flags_str(0x14)
+        'METADATA|RAID1'
+    """
     return flags_str(flags, btrfs.ctree._block_group_flags_str_map)
 
 
 def block_group_type_str(flags):
+    """
+    :param int flags: Block Group flags.
+    :returns: String representation of the block group type only.
+    :rtype: str
+
+    Example::
+
+        >>> btrfs.utils.block_group_type_str(0x14)
+        'METADATA'
+    """
     return block_group_flags_str(flags & BLOCK_GROUP_TYPE_MASK)
 
 
 def block_group_profile_str(flags):
+    """
+    :param int flags: Block Group flags.
+    :returns: String representation of the block group profile only.
+    :rtype: str
+
+    Example::
+
+        >>> btrfs.utils.block_group_profile_str(0x14)
+        'RAID1'
+    """
     return block_group_flags_str(flags & BLOCK_GROUP_PROFILE_MASK)
 
 
 def extent_flags_str(flags):
+    """
+    :param int flags: :class:`~btrfs.ctree.ExtentItem` flags.
+    :returns: String representation of the extent item flags.
+    :rtype: str
+
+    Example::
+
+        >>> btrfs.utils.extent_flags_str(0x102)
+        'TREE_BLOCK|FULL_BACKREF'
+    """
     return flags_str(flags, btrfs.ctree._extent_flags_str_map)
 
 
 def inode_mode_str(mode):
+    """
+    :param int mode: File mode as number.
+    :returns: String representation of file mode in octal format.
+    :rtype: str
+
+    Example::
+
+        >>> btrfs.utils.inode_mode_str(16877)
+        '040755'
+
+    """
     return "0{:05o}".format(mode)
 
 
 def inode_flags_str(flags):
+    """
+    :param int flags: :class:`~btrfs.ctree.InodeItem` flags.
+    :returns: String representation of the inode item flags.
+    :rytpe: str
+
+    Example::
+
+        >>> btrfs.utils.inode_flags_str(72)
+        'NOCOMPRESS|IMMUTABLE'
+    """
     return flags_str(flags, btrfs.ctree._inode_flags_str_map)
 
 
 def dir_item_type_str(type_):
+    """
+    :param int type_: :class:`~btrfs.ctree.DirItem` type.
+    :returns: String representation of DirItem type.
+    :rtype: str
+
+    Example::
+
+        >>> btrfs.utils.dir_item_type_str(4)
+        'BLKDEV'
+    """
     return btrfs.ctree._dir_item_type_str_map[type_]
 
 
 def root_item_flags_str(flags):
+    """
+    :param int flags: :class:`~btrfs.ctree.RootItem` flags.
+    :returns: String representation of RootItem flags.
+    :rtype: str
+
+    Example::
+
+        >>> btrfs.utils.root_item_flags_str(1)
+        'RDONLY'
+    """
     return flags_str(flags, btrfs.ctree._root_flags_str_map)
 
 
 def compress_type_str(compression):
+    """
+    :param int compression: :class:`~btrfs.ctree.FileExtentItem` compression
+        type.
+    :returns: String representation of compression type.
+    :rtype: str
+
+    Example::
+
+        >>> btrfs.utils.compress_type_str(3)
+        'zstd'
+    """
     return btrfs.ctree._compress_type_str_map.get(compression, 'unknown')
 
 
 def file_extent_type_str(type_):
+    """
+    :param int type_: :class:`~btrfs.ctree.FileExtentItem` type.
+    :returns: String representation of FileExtentItem type.
+    :rtype: str
+
+    Example::
+
+        >>> btrfs.utils.file_extent_type_str(0)
+        'inline'
+    """
     return btrfs.ctree._file_extent_type_str_map.get(type_, 'unknown')
 
 
 def embedded_text_for_str(text):
+    """
+    :param bytes text: bytes from a name of data field of an object from the
+        :class:`btrfs.ctree.DirItem` family.
+    :returns: String representation of the bytes.
+    :rtype: str
+
+    This function is not intended to be used for anything else than a
+    convienient way of displaying filenames and xattr keys and values in the
+    pretty printer.
+
+    Example::
+
+        >>> name_bytes = b'\\xce\\xbc\\xce\\xbf\\xcf\\x85\\xcf\\x84\\xce\\xbf\\xce\\xbd'
+        >>> btrfs.utils.embedded_text_for_str(name_bytes)
+        "utf-8 'μουτον'"
+    """
     if len(text) == 0:
         return "<empty>"
     try:
@@ -320,4 +519,25 @@ def _pretty_print(obj, level=0):
 
 
 def pretty_print(obj):
+    """
+    The pretty printer dumps content of objects on the screen. It is mainly
+    designed to work with objects from the btrfs library. It is also possible
+    to provide a lists of objects, or a generator, or even nested structures.
+
+    :param obj: An objects to pretty print, or a collection of them.
+    :type obj: anything goes
+
+    Example::
+
+        >>> import btrfs
+        >>> with btrfs.FileSystem('/') as fs:
+        ...     btrfs.utils.pretty_print(fs.block_group(1687427219456))
+        ...
+        <btrfs.ctree.BlockGroupItem (1687427219456 BLOCK_GROUP_ITEM 1073741824)>
+        vaddr: 1687427219456 (key objectid)
+        length: 1.00GiB (key offset)
+        flags: DATA
+        chunk_objectid: 256
+        used: 960.50MiB
+    """
     _pretty_print(obj)
