@@ -130,7 +130,7 @@ todo_include_todos = False
 #    html_theme = 'readable'
 #    html_theme_path = ['_themes']
 
-html_theme = 'readable-1.3.0'
+html_theme = 'readable-1.3.0-knorrie'
 html_theme_path = ['_themes']
 
 # Theme options are theme-specific and customize the look and feel of a theme
