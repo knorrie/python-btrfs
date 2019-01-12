@@ -696,12 +696,17 @@ class Chunk(ItemData):
             pos = next_pos
 
     def __str__(self):
-        return "chunk vaddr {self.vaddr} type {self.type_str} length {self.length} " \
+        return "chunk vaddr {self.vaddr} type {self.type_str} length {self.length_str} " \
             "num_stripes {self.num_stripes}".format(self=self)
 
     @staticmethod
     def _pretty_properties():
         return [
+            (btrfs.utils.pretty_size, 'length'),
+            (btrfs.utils.pretty_size, 'stripe_len'),
+            (btrfs.utils.pretty_size, 'io_align'),
+            (btrfs.utils.pretty_size, 'io_width'),
+            (btrfs.utils.pretty_size, 'sector_size'),
             (btrfs.utils.block_group_flags_str, 'type'),
         ]
 
@@ -732,8 +737,14 @@ class DevExtent(ItemData):
         return self.chunk_offset
 
     def __str__(self):
-        return "dev extent devid {self.devid} paddr {self.paddr} length {self.length} " \
+        return "dev extent devid {self.devid} paddr {self.paddr} length {self.length_str} " \
             "chunk {self.chunk_offset}".format(self=self)
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (btrfs.utils.pretty_size, 'length'),
+        ]
 
 
 class BlockGroupItem(ItemData):
@@ -756,6 +767,8 @@ class BlockGroupItem(ItemData):
     @staticmethod
     def _pretty_properties():
         return [
+            (btrfs.utils.pretty_size, 'length'),
+            (btrfs.utils.pretty_size, 'used'),
             (btrfs.utils.block_group_flags_str, 'flags'),
         ]
 
