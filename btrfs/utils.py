@@ -436,7 +436,10 @@ def _pretty_attr_value(obj, attr_name, stringify_fn=None):
         stringify_property = getattr(cls, attr_name_str, None)
     if stringify_property is not None and isinstance(stringify_property, property):
         return "{}: {}".format(attr_name, getattr(obj, attr_name_str))
-    return "{}: {}".format(attr_name, getattr(obj, attr_name))
+    value = getattr(obj, attr_name)
+    if isinstance(value, (memoryview, bytes)):
+        return "{}: {} bytes of data".format(attr_name, len(value))
+    return "{}: {}".format(attr_name, value)
 
 
 pretty_print_modules = 'btrfs.ctree', 'btrfs.ioctl', 'btrfs.fs_usage'
