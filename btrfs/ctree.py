@@ -2290,12 +2290,6 @@ class FileExtentItem(ItemData):
         ]
 
 
-class EmptyItem(ItemData):
-    """Helper object for metadata keys without item data."""
-    def __str__(self):
-        return "empty item data"
-
-
 class NotImplementedItem(ItemData):
     """Placeholder object for metadata item types that have not been implemented yet."""
     def __init__(self, header, data):
@@ -2378,6 +2372,4 @@ def classify(header, data):
     The pretty printer can handle any iterable, so the above fragment will, in
     a 'streaming' way, dump the chunk tree on the screen.
     """
-    if header.len == 0:
-        return EmptyItem(header)
     return _key_type_class_map.get(header.type, UnknownItem)(header, data)
