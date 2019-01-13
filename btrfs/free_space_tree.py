@@ -16,22 +16,17 @@
 # Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA 02110-1301 USA
 
+"""
+This module contains a small helper, which is used by the
+:func:`~btrfs.ctree.FreeSpaceBitmap.unpack` function of a
+:class:`btrfs.ctree.FreeSpaceBitmap`. It's also used by the
+:func:`~btrfs.ctree.FileSystem.free_space_extents` convenience method of a
+:class:`btrfs.ctree.FileSystem` object for generating a simple stream of free
+space extent info transparently unpacking bitmaps.
+"""
+
+
 from collections import namedtuple
 
 
 FreeSpaceExtent = namedtuple('FreeSpaceExtent', ['vaddr', 'length'])
-
-
-def unpack_bitmap(offset, sectorsize, bitmap):
-    prev_bit = 0
-    for cur_byte in bitmap:
-        for bitnr in range(8):
-            bit = 1 & (cur_byte >> bitnr)
-            if prev_bit == 0 and bit == 1:
-                extent_start = offset
-            elif prev_bit == 1 and bit == 0:
-                yield FreeSpaceExtent(extent_start, offset - extent_start)
-            prev_bit = bit
-            offset += sectorsize
-    if prev_bit == 1:
-        yield FreeSpaceExtent(extent_start, offset - extent_start)

@@ -385,6 +385,20 @@ def file_extent_type_str(type_):
     return btrfs.ctree._file_extent_type_str_map.get(type_, 'unknown')
 
 
+def free_space_info_flags_str(flags):
+    """
+    :param int flags: :class:`~btrfs.ctree.FreeSpaceInfo` flags.
+    :returns: String representation of FreeSpaceInfo flags.
+    :rtype: str
+
+    Example::
+
+        >>> btrfs.utils.free_space_info_flags_str(1)
+        'bitmaps'
+    """
+    return flags_str(flags, btrfs.ctree._free_space_info_flags_str_map)
+
+
 def embedded_text_for_str(text):
     """
     :param bytes text: bytes from a name of data field of an object from the

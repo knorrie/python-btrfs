@@ -132,9 +132,9 @@ EXTENT_DATA_REF_KEY = 178  #: Key type used by :class:`ExtentDataRef`
 SHARED_BLOCK_REF_KEY = 182  #: Key type used by :class:`SharedBlockRef`
 SHARED_DATA_REF_KEY = 184  #: Key type used by :class:`SharedDataRef`
 BLOCK_GROUP_ITEM_KEY = 192  #: Key type used by :class:`BlockGroupItem`
-FREE_SPACE_INFO_KEY = 198  #: Key type used in the Free Space Tree.
-FREE_SPACE_EXTENT_KEY = 199  #: Key type used in the Free Space Tree.
-FREE_SPACE_BITMAP_KEY = 200  #: Key type used in the Free Space Tree.
+FREE_SPACE_INFO_KEY = 198  #: Key type used by :class:`FreeSpaceInfo`
+FREE_SPACE_EXTENT_KEY = 199  #: Key type used by :class:`FreeSpaceExtent`
+FREE_SPACE_BITMAP_KEY = 200  #: Key type used by :class:`FreeSpaceBitmap`
 DEV_EXTENT_KEY = 204  #: Key type used by :class:`DevExtent`
 DEV_ITEM_KEY = 216  #: Key type used by :class:`DevItem`
 CHUNK_ITEM_KEY = 228  #: Key type used by :class:`Chunk`
@@ -292,6 +292,12 @@ _file_extent_type_str_map = {
     FILE_EXTENT_INLINE: 'inline',
     FILE_EXTENT_REG: 'regular',
     FILE_EXTENT_PREALLOC: 'prealloc',
+}
+
+FREE_SPACE_USING_BITMAPS = 1
+
+_free_space_info_flags_str_map = {
+    FREE_SPACE_USING_BITMAPS: 'bitmaps',
 }
 
 
@@ -852,8 +858,7 @@ class FileSystem(object):
             if header.type == FREE_SPACE_EXTENT_KEY:
                 yield btrfs.free_space_tree.FreeSpaceExtent(header.objectid, header.offset)
             elif header.type == FREE_SPACE_BITMAP_KEY:
-                yield from btrfs.free_space_tree.unpack_bitmap(
-                    header.objectid, self.sectorsize, data)
+                yield from FreeSpaceBitmap(header, data).unpack(self.sectorsize)
             elif header.type != FREE_SPACE_INFO_KEY:
                 raise Exception("BUG: unexpected object {}".format(
                     Key(header.objectid, header.type, header.offset)))
@@ -2290,6 +2295,124 @@ class FileExtentItem(ItemData):
         ]
 
 
+class FreeSpaceInfo(ItemData):
+    """Object representation of struct `btrfs_free_space_info`.
+
+    The free space tree contains a free space info item for every block group.
+
+    * Tree: `FREE_SPACE_TREE_OBJECTID` (10).
+    * Key objectid: Virtual address.
+    * Key type: `FREE_SPACE_INFO_KEY` (198)
+    * Key offset: Block Group length.
+
+    :ivar int vaddr: Virtual address. (taken from the objectid field of the
+        item key)
+    :ivar int length: Block Group length. (taken from the offset field of the
+        item key)
+    :ivar int extent_count: Amount of free space extents in the Block Group.
+    :ivar int flags: A flag indicating if the free space for this Block Group
+        is stored as bitmap. The flag is `FREE_SPACE_USING_BITMAPS`, available
+        as attribute of this module.
+    """
+    _free_space_info = struct.Struct('<LL')
+
+    def __init__(self, header, data):
+        super().__init__(header)
+        self._setattr_from_key(objectid_attr='vaddr', offset_attr='length')
+        self.extent_count, self.flags = FreeSpaceInfo._free_space_info.unpack(data)
+
+    def __str__(self):
+        return "free space info vaddr {self.vaddr} length {self.length_str} " \
+            "extent_count {self.extent_count} flags {self.flags_str}".format(self=self)
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (btrfs.utils.pretty_size, 'length'),
+            (btrfs.utils.free_space_info_flags_str, 'flags'),
+        ]
+
+
+class FreeSpaceExtent(ItemData):
+    """Object representation for free space extent information.
+
+    * Tree: `FREE_SPACE_TREE_OBJECTID` (10).
+    * Key objectid: Virtual address of the start of the free space.
+    * Key type: `FREE_SPACE_EXTENT_KEY` (199)
+    * Key offset: Length of the free space.
+
+    Note that this metadata object type does not have actual item data. All
+    needed information is encoded in the item key.
+
+    :ivar int vaddr: Virtual address of the start of the free space. (taken
+        from the objectid field of the item key)
+    :ivar int length: Length of the free space. (taken from the offset field of
+        the item key)
+    """
+    def __init__(self, header, data):
+        super().__init__(header)
+        self._setattr_from_key(objectid_attr='vaddr', offset_attr='length')
+
+    def __str__(self):
+        return "free space extent vaddr {self.vaddr} length {self.length}".format(self=self)
+
+    @staticmethod
+    def _pretty_properties():
+        return [
+            (btrfs.utils.pretty_size, 'length'),
+        ]
+
+
+class FreeSpaceBitmap(ItemData):
+    """Object representation for free space bitmap information.
+
+    * Tree: `FREE_SPACE_TREE_OBJECTID` (10).
+    * Key objectid: Virtual address of the start of the free space bitmap.
+    * Key type: `FREE_SPACE_BITMAP_KEY` (200)
+    * Key offset: Length of the covered virtual address space.
+
+    The bitmap can be unpacked by the
+    :func:`btrfs.free_space_tree.unpack_bitmap` helper function.
+
+    :ivar int vaddr: Virtual address of the start of the free space bitmap.
+        (taken from the objectid field of the item key)
+    :ivar int length: Length of the covered virtual address space. (taken from
+        the offset field of the item key)
+    :ivar bytes bitmap: The free space bitmap.
+    """
+    def __init__(self, header, data):
+        super().__init__(header)
+        self._setattr_from_key(objectid_attr='vaddr', offset_attr='length')
+        self.bitmap = data
+
+    def unpack(self, sectorsize):
+        """Unpack the free space bitmap.
+
+        :param int sectorsize: sectorsize property of the filesystem.
+
+        :returns: A generator of :class:`btrfs.free_space_tree.FreeSpaceExtent`
+            tuples.
+        :rtype: Iterator[:class:`btrfs.free_space_tree.FreeSpaceExtent`]
+        """
+        offset = self.vaddr
+        prev_bit = 0
+        for cur_byte in self.bitmap:
+            for bitnr in range(8):
+                bit = 1 & (cur_byte >> bitnr)
+                if prev_bit == 0 and bit == 1:
+                    extent_start = offset
+                elif prev_bit == 1 and bit == 0:
+                    yield btrfs.free_space_tree.FreeSpaceExtent(
+                        extent_start, offset - extent_start)
+                prev_bit = bit
+                offset += sectorsize
+        if prev_bit == 1:
+            yield btrfs.free_space_tree.FreeSpaceExtent(extent_start, offset - extent_start)
+
+    def __str__(self):
+        return "free space bitmap for vaddr {self.vaddr} length {self.length}".format(self=self)
+
+
 class NotImplementedItem(ItemData):
     """Placeholder object for metadata item types that have not been implemented yet."""
     def __init__(self, header, data):
@@ -2331,8 +2454,9 @@ _key_type_class_map = {
     SHARED_BLOCK_REF_KEY: SharedBlockRef,
     SHARED_DATA_REF_KEY: SharedDataRef,
     BLOCK_GROUP_ITEM_KEY: BlockGroupItem,
-    FREE_SPACE_INFO_KEY: NotImplementedItem,
-    FREE_SPACE_BITMAP_KEY: NotImplementedItem,
+    FREE_SPACE_INFO_KEY: FreeSpaceInfo,
+    FREE_SPACE_EXTENT_KEY: FreeSpaceExtent,
+    FREE_SPACE_BITMAP_KEY: FreeSpaceBitmap,
     DEV_EXTENT_KEY: DevExtent,
     DEV_ITEM_KEY: DevItem,
     CHUNK_ITEM_KEY: Chunk,
