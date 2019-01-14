@@ -154,6 +154,21 @@ def _raid_attrs(flags):
 
 
 def chunk_length_to_dev_extent_length(flags, num_stripes, chunk_length):
+    """Given information about a :class:`~btrfs.ctree.Chunk`, calculate the
+    length of :class:`~btrfs.ctree.DevExtent` objects that store the Chunk
+    data.
+
+    For example, a Data, RAID6 block group of 8GiB, distributed over 6 devices,
+    will occupy 2GiB * (4+2) = 12 GiB physical allocated bytes since it has
+    4GiB of allocated bytes reserved for parity:
+
+    Example::
+
+        >>> btrfs.utils.pretty_size(
+        ...     btrfs.volumes.chunk_length_to_dev_extent_length(
+        ...         btrfs.ctree.BLOCK_GROUP_RAID6, 6, 8 * btrfs.utils.SZ_1G))
+        '2.00GiB'
+    """
     # So, we start with a chunk length, which is the amount of usable virtual
     # space.
     attrs = _raid_attrs(flags & BLOCK_GROUP_PROFILE_MASK)
@@ -180,12 +195,36 @@ def chunk_length_to_dev_extent_length(flags, num_stripes, chunk_length):
 
 
 def chunk_to_dev_extent_length(chunk):
+    """Given a :class:`~btrfs.ctree.Chunk` object, calculate the length of
+    :class:`~btrfs.ctree.DevExtent` objects that store the chunk data.
+
+    Example::
+
+        >>> with btrfs.FileSystem('/') as fs:
+        ...     chunk = list(fs.chunks(min_vaddr=3250585600, nr_items=1))[0]
+        ...     print(chunk)
+        ...     dev_extent_length = btrfs.volumes.chunk_to_dev_extent_length(chunk)
+        ...     print("device extent length is {}".format(
+        ...         btrfs.utils.pretty_size(dev_extent_length)))
+        ...
+        chunk vaddr 3250585600 type DATA|RAID5 length 2147483648 num_stripes 3
+        device extent length is 1.00GiB
+    """
     return chunk_length_to_dev_extent_length(chunk.type, chunk.num_stripes, chunk.length)
 
 
 def dev_extent_length_to_chunk_length(flags, num_stripes, stripe_size):
-    # In here, we simply reverse the calculation of chunk length to dev extent
-    # length.
+    """This function simply reverses the calculation of
+    :class:`~btrfs.ctree.Chunk` length to :class:`~btrfs.ctree.DevExtent`
+    length.
+
+    Example::
+
+        >>> btrfs.utils.pretty_size(
+        ...     btrfs.volumes.dev_extent_length_to_chunk_length(
+        ...         btrfs.ctree.BLOCK_GROUP_RAID6, 6, 2 * btrfs.utils.SZ_1G))
+        '8.00GiB'
+    """
     attrs = _raid_attrs(flags & BLOCK_GROUP_PROFILE_MASK)
     num_data_stripes = num_stripes - attrs.nparity
     # stripe_size is a synonym for device extent length.
@@ -195,11 +234,40 @@ def dev_extent_length_to_chunk_length(flags, num_stripes, stripe_size):
 
 
 def chunk_to_raw_parity_bytes(chunk):
+    """Given a :class:`~btrfs.ctree.Chunk` object, calculate how many bytes are
+    reserved for storing parity data for RAID56 profiles.
+
+    This number is relevant to understand how much raw disk space that is
+    allocated but not used is actually not usable for data, because it's
+    reserved for parity.
+
+    Example::
+
+        >>> with btrfs.FileSystem('/mnt/tutorial') as fs:
+        ...  chunk = list(fs.chunks(min_vaddr=3250585600, nr_items=1))[0]
+        ...  print(chunk)
+        ...  parity_bytes = btrfs.volumes.chunk_to_raw_parity_bytes(chunk)
+        ...  print("amount of raw parity bytes: {}".format(
+        ...      btrfs.utils.pretty_size(parity_bytes)))
+        ...
+        chunk vaddr 3250585600 type DATA|RAID5 length 2147483648 num_stripes 3
+        amount of raw parity bytes: 1.00GiB
+    """
     dev_extent_length = chunk_to_dev_extent_length(chunk)
     attrs = _raid_attrs(chunk.type & BLOCK_GROUP_PROFILE_MASK)
     return dev_extent_length * attrs.nparity
 
 
 def block_group_profile_ncopies(flags):
+    """This function returns how many times the actual data is replicated on
+    disk given block group flags as input. E.g. for RAID1 this is 2, but for
+    RAID5, this is just 1. The actual data is stored once in case of RAID5, and
+    the redundancy is done using parity blocks, not data itself.
+
+    Example::
+
+        >>> btrfs.volumes.block_group_profile_ncopies(btrfs.ctree.BLOCK_GROUP_RAID10)
+        2
+    """
     attrs = _raid_attrs(flags & BLOCK_GROUP_PROFILE_MASK)
     return attrs.ncopies
