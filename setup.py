@@ -16,7 +16,7 @@ setup(
     download_url='https://github.com/knorrie/python-btrfs/tarball/v9.1',
     keywords=['btrfs', 'filesystem'],
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
         'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',
