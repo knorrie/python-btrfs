@@ -135,11 +135,12 @@ def munin_values(fs):
 
 
 def main():
-    for fs in btrfs.utils.mounted_filesystems():
-        if len(sys.argv) > 1 and sys.argv[1] == "config":
-            munin_config(fs)
-        else:
-            munin_values(fs)
+    for path in btrfs.utils.mounted_filesystem_paths():
+        with btrfs.FileSystem(path) as fs:
+            if len(sys.argv) > 1 and sys.argv[1] == "config":
+                munin_config(fs)
+            else:
+                munin_values(fs)
 
 
 if __name__ == "__main__":

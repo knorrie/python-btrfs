@@ -53,12 +53,12 @@ SZ_512M = 0x20000000
 SZ_1G = 0x40000000
 
 
-def mounted_filesystems():
+def mounted_filesystem_paths():
     filesystems = {}
     mounts = [line.split() for line in open('/proc/self/mounts', 'r').read().splitlines()]
     for path in [mount[1] for mount in mounts if mount[2] == 'btrfs']:
-        fs = btrfs.ctree.FileSystem(path)
-        filesystems.setdefault(fs.fsid, fs)
+        with btrfs.ctree.FileSystem(path) as fs:
+            filesystems.setdefault(fs.fsid, path)
     return list(filesystems.values())
 
 
