@@ -96,13 +96,13 @@ def main():
         parser.print_help(sys.stderr)
         return
 
-    fs = btrfs.FileSystem(args.path[0])
-    for space in fs.space_info():
-        print("{}, {}: total={}, used={}".format(
-              btrfs.utils.block_group_type_str(space.flags),
-              btrfs.utils.block_group_profile_str(space.flags),
-              btrfs.utils.pretty_size(space.total_bytes, unit, binary),
-              btrfs.utils.pretty_size(space.used_bytes, unit, binary)))
+    with btrfs.FileSystem(args.path[0]) as fs:
+        for space in fs.space_info():
+            print("{}, {}: total={}, used={}".format(
+                  btrfs.utils.space_type_description(space.flags),
+                  btrfs.utils.space_profile_description(space.flags),
+                  btrfs.utils.pretty_size(space.total_bytes, unit, binary),
+                  btrfs.utils.pretty_size(space.used_bytes, unit, binary)))
 
 
 if __name__ == '__main__':

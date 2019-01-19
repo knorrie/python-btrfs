@@ -2,19 +2,18 @@
 #
 # This file is part of the python-btrfs module.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public
-# License v2 as published by the Free Software Foundation.
+# python-btrfs is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# python-btrfs is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public
-# License along with this program; if not, write to the
-# Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-# Boston, MA 02110-1301 USA
+# You should have received a copy of the GNU Lesser General Public License
+# along with python-btrfs.  If not, see <http://www.gnu.org/licenses/>.
 
 table = (
     0x00000000, 0xf26b8303, 0xe13b70f7, 0x1350f3f4,
@@ -85,6 +84,15 @@ table = (
 
 
 def crc32c(crc, data):
+    """
+    General crc32c function. You likely don't need to call this one, but use
+    one of the more specific helpers in this module.
+
+    :param int crc: Seed value.
+    :param bytes data: Bytes to checksum.
+    :returns: A 32 bit checksum.
+    :rtype: int
+    """
     if not isinstance(data, (bytes, bytearray)):
         data = bytes(data, 'utf-8')
     crc = crc & 0xffffffff
@@ -94,12 +102,54 @@ def crc32c(crc, data):
 
 
 def crc32c_data(data):
+    """
+    Compute the checksum for a sectorsize block of bytes. These are the kind of
+    checksum that go into the CSUM tree.
+
+    :param bytes data: A single disk block of data.
+    :returns: Btrfs checksum for the data.
+    :rtype: int
+    """
     return 0xffffffff ^ crc32c(~0, data)
 
 
 def name_hash(name):
+    """
+    The name hash function is used to compute a crc32c of a filename. The
+    resulting value is used in the offset field of they key of a
+    :class:`~btrfs.ctree.DirItem` object in subvolume trees.
+
+    By searching for the numeric value, a file with a certain name can quickly
+    be found without searching the whole directory content.
+
+    :param bytes name: File name as bytes. For convenience, if a unicode string
+        is provided, it will be encoded as utf-8.
+    :returns: A btrfs name hash.
+    :rtype: int
+
+    Example::
+
+        >>> btrfs.crc32c.name_hash('mouton')
+        3786996654
+    """
     return crc32c(~1, name)
 
 
 def extref_hash(parent_objectid, name):
+    """
+    The extref_hash function uses the crc32c code with the inode number of the
+    containing directory, and a filename to compute the offset field for the
+    key of an :class:`~btrfs.ctree.InodeExtref` objects.
+
+    :param int parent_objectid: ObjectID of the containing directory.
+    :param bytes name: File name as bytes. For convenience, if a unicode string
+        is provided, it will be encoded as utf-8.
+    :returns: A btrfs extref hash.
+    :rtype: int
+
+    Example::
+
+        >>> btrfs.crc32c.extref_hash(256, 'mouton')
+        1903957879
+    """
     return crc32c(parent_objectid, name)

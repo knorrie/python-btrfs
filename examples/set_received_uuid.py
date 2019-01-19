@@ -36,17 +36,16 @@ def print_subvol_info(root):
     print()
 
 
-fs = btrfs.FileSystem(subvol_path)
+with btrfs.FileSystem(subvol_path) as fs:
+    print("Current subvolume information:")
+    root = list(fs.subvolumes(min_id=tree, max_id=tree))[0]
+    print_subvol_info(root)
 
-print("Current subvolume information:")
-root = list(fs.subvolumes(min_id=tree, max_id=tree))[0]
-print_subvol_info(root)
+    print("Setting received subvolume...")
+    print()
+    rtransid, rtime = btrfs.ioctl.set_received_subvol(subvol_fd, received_uuid, stransid, stime)
+    os.close(subvol_fd)
 
-print("Setting received subvolume...")
-print()
-rtransid, rtime = btrfs.ioctl.set_received_subvol(subvol_fd, received_uuid, stransid, stime)
-os.close(subvol_fd)
-
-print("Resulting subvolume information:")
-root = list(fs.subvolumes(min_id=tree, max_id=tree))[0]
-print_subvol_info(root)
+    print("Resulting subvolume information:")
+    root = list(fs.subvolumes(min_id=tree, max_id=tree))[0]
+    print_subvol_info(root)
