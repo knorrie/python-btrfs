@@ -15,7 +15,7 @@ python-btrfs v10, Jan 18, 2019
   * Add the fs_usage module, containing the FsUsage class, providing
     detailed usage reporting for a filesystem. This code replaces old
     similar functions, which were incomplete and buggy.
-  * Adopt munin and nagios plugins to use the new FsUsage object.
+  * Adapt munin and nagios plugins to use the new FsUsage object.
   * IOCTLs: IOC_SYNC, FIDEDUPERANGE, IOC_GET_FEATURES
   * Data structures: FreeSpaceInfo, FreeSpaceExtent, FreeSpaceBitmap.
   * Introduce ItemNotFoundError, currently only raised by the block
