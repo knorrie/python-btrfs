@@ -29,5 +29,5 @@ Documentation
 
 Reference documentation of the stable API of the library is written in Sphinx
 autodoc format. An [online version of the HTML
-documentation](https://python-btrfs.readthedocs.io/en/latest/btrfs.html) is also
+documentation](https://python-btrfs.readthedocs.io/en/stable/btrfs.html) is also
 available.
