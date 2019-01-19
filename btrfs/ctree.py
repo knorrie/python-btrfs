@@ -939,7 +939,7 @@ class DevItem(ItemData):
     :ivar int start_offset: *Not used*
     :ivar int dev_group: *Not used*
     :ivar int seek_speed: *Not used*
-    :ivar int bandwith: *Not used*
+    :ivar int bandwidth: *Not used*
     :ivar uuid.UUID uuid: Device UUID.
     :ivar uuid.UUID fsid: Filesystem ID.
 
