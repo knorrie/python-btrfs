@@ -1,8 +1,19 @@
-python-btrfs (9-1~bpo9+1) stretch-backports; urgency=medium
+python-btrfs (10-1) unstable; urgency=medium
 
-  * Rebuild for stretch-backports.
+  * New release v10
+  * debian/copyright: change to LGPL-3
+  * debian/copyright: add license for sphinx theme
+  * d/control: munin/nagios: depend on same version
+  * debian/control: update description
+  * debian/control: bump Standards-Version to 4.3.0
 
- -- Hans van Kranenburg <hans@knorrie.org>  Fri, 24 Nov 2017 14:22:44 +0100
+ -- Hans van Kranenburg <hans@knorrie.org>  Fri, 25 Jan 2019 20:34:00 +0100
+
+python-btrfs (9.1-1) unstable; urgency=medium
+
+  * New release v9.1
+
+ -- Hans van Kranenburg <hans@knorrie.org>  Mon, 22 Oct 2018 21:03:14 +0200
 
 python-btrfs (9-1) unstable; urgency=medium
 
