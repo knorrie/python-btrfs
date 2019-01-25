@@ -12,8 +12,8 @@ administration.
 Project Goal
 ------------
 
-The primary goal of this module is to be able to inspect the internals of an
-existing filesystem for educational purposes.
+The primary goal of this module is to be able to inspect the internals of a
+mounted, online, filesystem for educational purposes.
 
 A second goal is to provide a nicer way for automating administration tasks and
 writing monitoring scripts by being able to just programmatically access the
