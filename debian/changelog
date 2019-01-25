@@ -1,3 +1,9 @@
+python-btrfs (10-1~bpo9+1) stretch-backports; urgency=medium
+
+  * Rebuild for stretch-backports.
+
+ -- Hans van Kranenburg <hans@knorrie.org>  Fri, 25 Jan 2019 20:50:04 +0100
+
 python-btrfs (10-1) unstable; urgency=medium
 
   * New release v10
