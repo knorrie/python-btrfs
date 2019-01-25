@@ -2370,9 +2370,6 @@ class FreeSpaceBitmap(ItemData):
     * Key type: `FREE_SPACE_BITMAP_KEY` (200)
     * Key offset: Length of the covered virtual address space.
 
-    The bitmap can be unpacked by the
-    :func:`btrfs.free_space_tree.unpack_bitmap` helper function.
-
     :ivar int vaddr: Virtual address of the start of the free space bitmap.
         (taken from the objectid field of the item key)
     :ivar int length: Length of the covered virtual address space. (taken from
