@@ -1,3 +1,14 @@
+python-btrfs (10-1) unstable; urgency=medium
+
+  * New release v10
+  * debian/copyright: change to LGPL-3
+  * debian/copyright: add license for sphinx theme
+  * d/control: munin/nagios: depend on same version
+  * debian/control: update description
+  * debian/control: bump Standards-Version to 4.3.0
+
+ -- Hans van Kranenburg <hans@knorrie.org>  Fri, 25 Jan 2019 20:34:00 +0100
+
 python-btrfs (9.1-1) unstable; urgency=medium
 
   * New release v9.1
