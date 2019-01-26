@@ -88,7 +88,7 @@ class FakeFileSystem(object):
         return self._chunks
 
 
-def arg_parser():
+def parse_args():
     parser = argparse.ArgumentParser(description="Calculate usable and unallocatable disk space")
     parser.add_argument(
         '-m', '--metadata',
@@ -119,7 +119,7 @@ def arg_parser():
         nargs='*',
         help="disk sizes, e.g. 2TB 500G 1TiB",
     )
-    return parser
+    return parser.parse_args()
 
 
 _str_to_profile_map = {
@@ -134,8 +134,7 @@ _str_to_profile_map = {
 
 
 def main():
-    parser = arg_parser()
-    args = parser.parse_args()
+    args = parse_args()
 
     device_sizes = []
     for size in args.sizes:

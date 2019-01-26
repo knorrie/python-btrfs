@@ -21,10 +21,16 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+import argparse
 import btrfs
+import errno
 import heapq
 import sys
 import time
+
+
+class Bork(Exception):
+    pass
 
 
 def load_block_groups(fs, max_used_pct):
@@ -83,27 +89,53 @@ def balance_one_block_group(fs, block_groups, max_used_pct):
         raise
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-u',
+        '--usage',
+        type=int,
+        default=100,
+        help="Only consider block groups with less than this percentage used",
+    )
+    parser.add_argument(
+        'mountpoint',
+        help="Btrfs filesystem mountpoint",
+    )
+    return parser.parse_args()
+
+
 def main():
-    max_used_pct = int(sys.argv[1])
-    with btrfs.FileSystem(sys.argv[2]) as fs:
-        min_used_pct, block_groups = load_block_groups(fs, max_used_pct)
-        if len(block_groups) == 0:
-            print("Nothing to do, least used block group has used_pct {}".format(min_used_pct))
-            return
-        while len(block_groups) > 0:
-            balance_one_block_group(fs, block_groups, max_used_pct)
+    args = parse_args()
+    max_used_pct = args.usage
+    path = args.mountpoint
+
+    try:
+        with btrfs.FileSystem(path) as fs:
+            min_used_pct, block_groups = load_block_groups(fs, max_used_pct)
+            if len(block_groups) == 0:
+                print("Nothing to do, least used block group has used_pct {}".format(min_used_pct))
+                return
+            while len(block_groups) > 0:
+                balance_one_block_group(fs, block_groups, max_used_pct)
+    except OSError as e:
+        if e.errno == errno.EPERM:
+            raise Bork("Insufficient permissions to use the btrfs kernel API. "
+                       "Hint: Try running the script as root user.".format(e))
+        elif e.errno == errno.ENOTTY:
+            raise Bork("Unable to retrieve data. Hint: Not a mounted btrfs file system?")
+        raise
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print("Usage: {} <max_used_pct> <mountpoint>".format(sys.argv[0]))
-        sys.exit(1)
-
     try:
         main()
     except KeyboardInterrupt:
         print("Exiting...")
         sys.exit(130)  # 128 + SIGINT
+    except Bork as e:
+        print("Error: {0}".format(e), file=sys.stderr)
+        sys.exit(1)
     except Exception as e:
         print(e)
         sys.exit(1)
