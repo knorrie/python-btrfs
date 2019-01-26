@@ -3,11 +3,17 @@ python-btrfs
 
 Python 3 module to inspect btrfs filesystems.
 
-License: LGPL-3.0
-
 Btrfs is a copy on write (COW) filesystem for Linux aimed at implementing
 advanced features while focusing on fault tolerance, repair and easy
 administration.
+
+License
+-------
+
+The python-btrfs library itself is licensed under the LGPL-3.0.
+
+Example scripts in the bin directory are licensed under the MIT License
+(Expat).
 
 Project Goal
 ------------
