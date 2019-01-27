@@ -45,15 +45,57 @@ def report_usage(path):
         mixed_groups = fs.mixed_groups()
         usage = fs.usage()
 
+        print("Btrfs usage report for {}".format(path))
+        print("Filesystem ID: {}".format(fs.fsid))
         print("Mixed groups: {}".format(mixed_groups))
-        print("Target profile for System (chunk tree): {}".format(usage.target_profile_system_str))
-        if not mixed_groups:
-            print("Target profile for Metadata: {}".format(usage.target_profile_metadata_str))
-            print("Target profile for Data: {}".format(usage.target_profile_data_str))
-        else:
-            print("Target profile for Data+Metadata: {}".format(
-                usage.target_profile_data_metadata_str))
         print()
+
+        print("Total physical space usage:")
+        print("| ")
+        print("| Total filesystem size: {}".format(usage.total_str))
+        print("| Allocated bytes: {}".format(usage.allocated_str))
+        print("| Allocatable bytes remaining: {}".format(usage.allocatable_left_str))
+        print()
+
+        print("Target profiles:")
+        print("|")
+        target_profiles = [
+            ('type', 'profile'),
+            ('----', '-------'),
+            ('System', usage.target_profile_system_str),
+        ]
+        if not mixed_groups:
+            target_profiles.extend([
+                ('Metadata', usage.target_profile_metadata_str),
+                ('Data', usage.target_profile_data_str),
+            ])
+        else:
+            target_profiles.extend([
+                ('Data+Metadata', usage.target_profile_data_metadata_str),
+            ])
+        for target_profile in target_profiles:
+            print("| {: <12} {: <12}".format(*target_profile))
+        print()
+
+        print("Estimated virtual space left for use:")
+        print("|")
+        virtual_estims = [
+            ('type', 'free'),
+            ('----', '----'),
+        ]
+        if not mixed_groups:
+            virtual_estims.extend([
+                ('Data', usage.free_data_str),
+                ('MetaData', usage.free_metadata_str),
+            ])
+        else:
+            virtual_estims.extend([
+                ('Data+Metadata', usage.free_str),
+            ])
+        for virtual_estim in virtual_estims:
+            print("| {: <12} {: <12}".format(*virtual_estim))
+        print()
+
         print("Virtual space usage by block group type:")
         print("|")
         virtual_block_group_type_usage_table_values = [
@@ -68,33 +110,14 @@ def report_usage(path):
             ))
         for virtual_block_group_type_usage_table_value in \
                 virtual_block_group_type_usage_table_values:
-            print("| {: <16} {: >12} {: >12}".format(*virtual_block_group_type_usage_table_value))
+            print("| {: <12} {: >12} {: >12}".format(*virtual_block_group_type_usage_table_value))
         print()
 
-        print("Total raw filesystem size: {}".format(usage.total_str))
-        print("Total raw allocated bytes: {}".format(usage.allocated_str))
-        print("Allocatable bytes remaining: {}".format(usage.allocatable_left_str))
-        print("Unallocatable bytes that can be reclaimed by balancing: {}".format(
-            usage.unallocatable_reclaimable_str))
-        print("Unallocatable bytes because of unbalanced device sizes: {}".format(
-            usage.unallocatable_hard_str))
-        print()
-
-        if not mixed_groups:
-            print("Estimated virtual space left to use for metadata: {}".format(
-                usage.free_metadata_str))
-            print("Estimated virtual space left to use for data: {}".format(usage.free_data_str))
-        else:
-            print("Estimated virtual space left to use for metadata and data: {}".format(
-                usage.free_str))
-        print()
-
-        print("Allocated raw disk bytes by chunk type. Parity is a reserved part of the \n"
-              "allocated bytes, limiting the amount that can be used for data or metadata:")
+        print("Allocated raw disk bytes by chunk type.")
         print("|")
         raw_space_usage_table_values = [
-            ('flags', 'allocated', 'used', 'parity'),
-            ('-----', '---------', '----', '------'),
+            ('flags', 'allocated', 'used', 'parity *)'),
+            ('-----', '---------', '----', '---------'),
         ]
         for _, raw_space_usage in usage.raw_space_usage.items():
             raw_space_usage_table_values.append((
@@ -105,6 +128,9 @@ def report_usage(path):
             ))
         for raw_space_usage_table_value in raw_space_usage_table_values:
             print("| {: <16} {: >12} {: >12} {: >12}".format(*raw_space_usage_table_value))
+        print("|")
+        print("| *) Parity is a reserved part of the allocated bytes, limiting the")
+        print("|    amount that can be used for data or metadata.")
         print()
 
         print("Allocated bytes per device:")
@@ -125,15 +151,14 @@ def report_usage(path):
             print("| {: <8} {: >12} {: >12} {}".format(*dev_usage_table_value))
         print()
 
-        print("Allocated bytes per device, split up per chunk type. Parity bytes are again\n"
-              "part of the total amount of allocated bytes.")
+        print("Allocated bytes per device, split up by chunk type.")
         for devid in sorted(usage.dev_usage.keys()):
             print("|")
             print("| Device ID: {}".format(devid))
             dev_usage = usage.dev_usage[devid]
             dev_space_usage_table_values = [
-                ('flags', 'allocated', 'parity'),
-                ('-----', '---------', '------'),
+                ('flags', 'allocated', 'parity *)'),
+                ('-----', '---------', '---------'),
             ]
             for _, dev_space_usage in dev_usage.dev_space_usage.items():
                 dev_space_usage_table_values.append((
@@ -143,13 +168,23 @@ def report_usage(path):
                 ))
             for dev_space_usage_table_value in dev_space_usage_table_values:
                 print("| | {: <16} {: >12} {: >12}".format(*dev_space_usage_table_value))
+        print("|")
+        print("| *) Parity is a reserved part of the allocated bytes, limiting the")
+        print("|    amount that can be used for data or metadata.")
         print()
 
-        print("Unallocatable bytes per device:")
+        print("Unallocatable raw disk space:")
+        print("|")
+        print("| Reclaimable (by using balance): {}".format(usage.unallocatable_reclaimable_str))
+        print("| Not reclaimable (because of different disk sizes): {}".format(
+            usage.unallocatable_hard_str))
+        print()
+
+        print("Unallocatable bytes per device, given current target profiles:")
         print("|")
         wasted_sizes_table_values = [
-            ('devid', 'soft', 'hard', 'reclaimable'),
-            ('-----', '----', '----', '-----------'),
+            ('devid', 'soft *)', 'hard **)', 'reclaimable ***)'),
+            ('-----', '-------', '--------', '----------------'),
         ]
         for devid in sorted(usage.dev_usage.keys()):
             dev_usage = usage.dev_usage[devid]
@@ -160,7 +195,12 @@ def report_usage(path):
                 dev_usage.unallocatable_reclaimable_str,
             ))
         for wasted_sizes_table_value in wasted_sizes_table_values:
-            print("| {: <8} {: >12} {: >12} {: >12}".format(*wasted_sizes_table_value))
+            print("| {: <8} {: >12} {: >12} {: >16}".format(*wasted_sizes_table_value))
+        print("|")
+        print("|   *) Because allocations in the filesystem are unbalanced.")
+        print("|  **) Because of having different sizes of devices attached.")
+        print("| ***) Amount of 'soft' unallocatable space that can be reclaimed,")
+        print("|      before hitting the 'hard' limit.")
 
 
 def main():
