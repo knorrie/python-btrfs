@@ -105,13 +105,20 @@ def parse_args():
     return parser.parse_args()
 
 
+def permission_check(fs):
+    """This is a simple canary function that explodes if the user does not have
+    enough permissions to use the search ioctl.
+    """
+    fs.top_level()
+
+
 def main():
     args = parse_args()
     max_used_pct = args.usage
     path = args.mountpoint
-
     try:
         with btrfs.FileSystem(path) as fs:
+            permission_check(fs)
             min_used_pct, block_groups = load_block_groups(fs, max_used_pct)
             if len(block_groups) == 0:
                 print("Nothing to do, least used block group has used_pct {}".format(min_used_pct))
@@ -120,7 +127,7 @@ def main():
                 balance_one_block_group(fs, block_groups, max_used_pct)
     except OSError as e:
         if e.errno == errno.EPERM:
-            raise Bork("Insufficient permissions to use the btrfs kernel API. "
+            raise Bork("Insufficient permissions to use the btrfs kernel API.\n"
                        "Hint: Try running the script as root user.".format(e))
         elif e.errno == errno.ENOTTY:
             raise Bork("Unable to retrieve data. Hint: Not a mounted btrfs file system?")
