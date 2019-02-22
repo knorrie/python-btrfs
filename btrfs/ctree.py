@@ -919,6 +919,10 @@ class ItemData(object):
         return self.key < other.key
 
 
+class SubItem(object):
+    pass
+
+
 class DevItem(ItemData):
     """Object representation of struct `btrfs_dev_item`.
 
@@ -1023,7 +1027,7 @@ class Chunk(ItemData):
         ]
 
 
-class Stripe(object):
+class Stripe(SubItem):
     """Object representation of struct `btrfs_stripe`.
 
     A list of `Stripe` items is hidden inside the `Chunk` item and each of them
@@ -1353,7 +1357,7 @@ class InlineSharedDataRef(SharedDataRef):
             "count {self.count}".format(self=self)
 
 
-class TreeBlockInfo(object):
+class TreeBlockInfo(SubItem):
     """Object representation of struct `btrfs_tree_block_info`.
 
     Documentation of this item is out of scope for this module. Please refer to
@@ -1729,7 +1733,7 @@ class InodeRefList(ItemData, collections.abc.MutableSequence):
             "size {}".format(len(self), self=self)
 
 
-class InodeRef(object):
+class InodeRef(SubItem):
     """Object representation of struct `btrfs_inode_ref`.
 
     Also see :class:`InodeRefList`.
@@ -1936,7 +1940,7 @@ class XAttrItemList(DirItemList):
             "size {}".format(len(self), self=self)
 
 
-class DirItem(object):
+class DirItem(SubItem):
     """Object representation of struct `btrfs_dir_item`.
 
     Based on the name hash of a filename, this object directly points to the
