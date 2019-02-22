@@ -557,3 +557,55 @@ def pretty_print(obj):
         used: 960.50MiB
     """
     _pretty_print(obj)
+
+
+def _str_obj_tuples(obj, level=0, seen=None):
+    if seen is None:
+        seen = []
+    if isinstance(obj, (btrfs.ctree.ItemData, btrfs.ctree.SubItem)):
+        yield level, str(obj)
+    if obj in seen:
+        yield level, "[... object already seen, aborting recursion]"
+        return
+    seen.append(obj)
+    if isinstance(obj, btrfs.ctree.ItemData):
+        for attr_name, attr_value in obj.__dict__.items():
+            if attr_name.startswith('_'):
+                continue
+            if isinstance(obj, (btrfs.ctree.ItemData, btrfs.ctree.SubItem)):
+                yield from _str_obj_tuples(attr_value, level+1, seen)
+            elif isinstance(attr_value, list):
+                for item in attr_value:
+                    yield from _str_obj_tuples(item, level+1, seen)
+    if isinstance(obj, (list, types.GeneratorType)):
+        for item in obj:
+            yield from _str_obj_tuples(item, level, seen)
+    elif isinstance(obj, btrfs.ctree.ItemData) and \
+            isinstance(obj, collections.abc.MutableSequence):
+        for item in obj:
+            yield from _str_obj_tuples(item, level+1, seen)
+    seen.pop()
+
+
+def _str_print_lines(obj, level=0):
+    for level, line in _str_obj_tuples(obj, level):
+        yield "{}{}".format('  ' * level, line)
+
+
+def str_print(obj):
+    """
+    Print the usual str() of an object, but look inside to see if more ItemData
+    objects are hidden there. If so, also print their str().
+
+    :param obj: An object to pretty print, or a collection of them.
+    :type obj: anything goes
+
+    Example::
+
+        >>> with btrfs.FileSystem('/') as fs:
+        ...      btrfs.utils.str_print(fs.block_group(63381176320))
+        ...
+        block group vaddr 63381176320 length 1073741824 flags DATA used 1073741824 used_pct 100
+    """
+    for line in _str_print_lines(obj):
+        print(line)
