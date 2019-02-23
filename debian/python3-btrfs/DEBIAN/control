@@ -1,10 +1,10 @@
 Package: python3-btrfs
 Source: python-btrfs
-Version: 10-1
+Version: 10-1~bpo9+1
 Architecture: all
 Maintainer: Hans van Kranenburg <hans@knorrie.org>
 Installed-Size: 296
-Depends: python3:any
+Depends: python3:any (>= 3.3.2-2~)
 Breaks: monitoring-plugins-btrfs (<< 10), munin-plugins-btrfs (<< 10)
 Section: python
 Priority: optional

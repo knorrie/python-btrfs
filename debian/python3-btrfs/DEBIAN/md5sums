@@ -8,7 +8,7 @@ f75bb112a43ecd912281983fa9c4b834  usr/lib/python3/dist-packages/btrfs/ioctl.py
 7a806ee58e6aada549ddf5db161f3e3a  usr/lib/python3/dist-packages/btrfs/utils.py
 1f96130d566134e448fe42846eb524a8  usr/lib/python3/dist-packages/btrfs/volumes.py
 f4b7864762d950d2ea4c9390024071b9  usr/share/doc/python3-btrfs/README.md
-90ce07f43b39621ba4f57a1a229b525d  usr/share/doc/python3-btrfs/changelog.Debian.gz
+8a1ad1ced313f3e86ae19bde7e4fffbc  usr/share/doc/python3-btrfs/changelog.Debian.gz
 d74470a2da98bdbbdc3dce660e494f31  usr/share/doc/python3-btrfs/changelog.gz
 dcedb8cf3aa4adef3c8547055d2baf26  usr/share/doc/python3-btrfs/copyright
 d108c96d0c9f66a0de2e37f54aa203f9  usr/share/doc/python3-btrfs/examples/README.txt

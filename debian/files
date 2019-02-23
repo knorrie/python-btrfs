@@ -1,4 +1,4 @@
-monitoring-plugins-btrfs_10-1_all.deb net optional
-munin-plugins-btrfs_10-1_all.deb net optional
-python-btrfs_10-1_amd64.buildinfo python optional
-python3-btrfs_10-1_all.deb python optional
+monitoring-plugins-btrfs_10-1~bpo9+1_all.deb net optional
+munin-plugins-btrfs_10-1~bpo9+1_all.deb net optional
+python-btrfs_10-1~bpo9+1_amd64.buildinfo python optional
+python3-btrfs_10-1~bpo9+1_all.deb python optional
