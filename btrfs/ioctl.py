@@ -173,7 +173,7 @@ class DevInfo(object):
     def __init__(self, buf):
         self.devid, uuid_bytes, self.bytes_used, self.total_bytes, path_bytes = \
             ioctl_dev_info_args.unpack(buf)
-        self.path = path_bytes.decode()
+        self.path = path_bytes.split(b'\0', 1)[0].decode()
         self.uuid = uuid.UUID(bytes=uuid_bytes)
 
     def __str__(self):

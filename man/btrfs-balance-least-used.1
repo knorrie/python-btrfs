@@ -1,0 +1,78 @@
+.TH BTRFS\-BALANCE\-LEAST\-USED 1 "2017" "" "Btrfs Balance Least Used Block Groups"
+.nh
+.ad l
+
+.SH "NAME"
+btrfs\-balance\-least\-used \- Feed least used data block groups to btrfs
+balance first.
+
+.SH SYNOPSIS
+.B btrfs\-balance\-least\-used
+[\fIargs\fR]
+.IR mountpoint
+
+.SH DESCRIPTION
+The \fBbtrfs\-balance\-least\-used\fR program is an example of a user space
+defined way to implement btrfs balance filters. It looks at the data block
+groups present in the file system and asks btrfs to empty them in order of
+actual usage, lowest usage first.
+
+In most cases (when not being in the process of conversion between block group
+profiles) this will result in the most optimal and quickest way to reclaim
+physical disk space because data will be rewritten into empty space into
+already existing block groups.
+
+What btrfs balance effectively does is just taking the data and feeding it back
+to the allocator of the filesystem as new writes, blacklisting their current
+location. Implementing user space balance filters can result in a higly
+optimized workflow to reclaim physical space, or to minimize the amount of data
+that has to be rewritten to rebalance complex filesystems with multiple
+devices.
+
+Usage of \fBbtrfs\-balance\-least\-used\fR can replace repeated invocations of
+\fBbtrfs balance\fR with increased usage values. Additionally, the program will
+show live progress of the balance operation.
+
+Because the needed information is retrieved using the btrfs kernel API, and
+because btrfs balance is a privileged operation, it has to be run as root.
+
+Example output:
+
+    -# balance_least_used.py -u 40 /
+    Loading block group objects with used_pct <= 40 ... found 20
+    Balance block group vaddr 603497431040 used_pct 19 ... duration 2 sec total 212
+    Balance block group vaddr 488607055872 used_pct 21 ... duration 2 sec total 211
+    Balance block group vaddr 576653885440 used_pct 21 ... duration 3 sec total 210
+    [...]
+    Postponing block group vaddr 659332005888 used_pct changed 24 -> 36
+    Balance block group vaddr 560547758080 used_pct 25 ... duration 3 sec total 206
+    [...]
+    Ignoring block group vaddr 606718656512 used_pct changed 34 -> 63
+    Balance block group vaddr 714126393344 used_pct 35 ... duration 3 sec total 196
+
+This clearly shows that balance packs data into existing other block groups,
+since the total amount of block groups is going down all the time.
+
+Also, along the way we see that usage of block groups we found when starting
+has gone up, so if they're still in the usage range, we just postpone them
+again, throwing them back into the work queue. If their usage has gone up above
+the usage limit, ignore them.
+
+When there's nothing to do, the output reports the lowest used_pct found:
+
+    -# balance_least_used.py -u 10 /
+    Loading block group objects with used_pct <= 10 ... found 0
+    Nothing to do, least used block group has used_pct 12
+
+.SH OPTIONS
+.TP
+.BR \-h ", " \-\-help
+Show the built\-in help message and exit.
+.TP
+.BR \-u ", " "\-\-usage " \fIUSAGE
+Only consider block groups with usage less than or equal to this percentage.
+
+.SH "SEE ALSO"
+This program is an example of what can be done using the python-btrfs library.
+
+Source and documentation on github: https://github.com/knorrie/python-btrfs

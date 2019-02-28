@@ -141,8 +141,10 @@ QGROUP_STATUS_KEY = 240
 QGROUP_INFO_KEY = 242
 QGROUP_LIMIT_KEY = 244
 QGROUP_RELATION_KEY = 246
-BALANCE_ITEM_KEY = 248
-DEV_STATS_KEY = 249  #: Key type used to store Device statistics.
+BALANCE_ITEM_KEY = 248  #: Balance status item key. Replaced by `TEMPORARY_ITEM_KEY`.
+TEMPORARY_ITEM_KEY = 248  #: Key for various short term persistent stored items.
+DEV_STATS_KEY = 249  #: Device statistics key. Replaced by `PERSISTENT_ITEM_KEY`.
+PERSISTENT_ITEM_KEY = 249  #: Key for various long term persistent stored items.
 DEV_REPLACE_KEY = 250
 UUID_KEY_SUBVOL = 251
 UUID_KEY_RECEIVED_SUBVOL = 252
@@ -354,7 +356,7 @@ def _key_objectid_str(objectid, _type):
 
     if objectid == ROOT_TREE_OBJECTID and _type == DEV_ITEM_KEY:
         return 'DEV_ITEMS'
-    if objectid == DEV_STATS_OBJECTID and _type == DEV_STATS_KEY:
+    if objectid == DEV_STATS_OBJECTID and _type == PERSISTENT_ITEM_KEY:
         return 'DEV_STATS'
     if objectid == FIRST_CHUNK_TREE_OBJECTID and _type == CHUNK_ITEM_KEY:
         return 'FIRST_CHUNK_TREE'
@@ -396,12 +398,12 @@ _key_type_str_map = {
     QGROUP_INFO_KEY: 'QGROUP_INFO',
     QGROUP_LIMIT_KEY: 'QGROUP_LIMIT',
     QGROUP_RELATION_KEY: 'QGROUP_RELATION',
-    BALANCE_ITEM_KEY: 'BALANCE_ITEM',
-    DEV_STATS_KEY: 'DEV_STATS',
     DEV_REPLACE_KEY: 'DEV_REPLACE',
     UUID_KEY_SUBVOL: 'UUID_SUBVOL',
     UUID_KEY_RECEIVED_SUBVOL: 'RECEIVED_SUBVOL',
     STRING_ITEM_KEY: 'STRING_ITEM',
+    TEMPORARY_ITEM_KEY: 'TEMPORARY_ITEM',
+    PERSISTENT_ITEM_KEY: 'PERSISTENT_ITEM',
 }
 
 
@@ -414,10 +416,10 @@ def _key_offset_str(offset, _type):
         return "{}/{}".format(qgroup_level(offset), qgroup_subvid(offset))
     if _type == UUID_KEY_SUBVOL or _type == UUID_KEY_RECEIVED_SUBVOL:
         return "0x{:0>16x}".format(offset)
-    if _type == ROOT_ITEM_KEY:
-        return _key_objectid_str_map.get(offset, str(offset))
     if offset == ULLONG_MAX:
         return '-1'
+    if _type == ROOT_ITEM_KEY:
+        return _key_objectid_str_map.get(offset, str(offset))
 
     return str(offset)
 
@@ -939,7 +941,7 @@ class DevItem(ItemData):
     :ivar int start_offset: *Not used*
     :ivar int dev_group: *Not used*
     :ivar int seek_speed: *Not used*
-    :ivar int bandwith: *Not used*
+    :ivar int bandwidth: *Not used*
     :ivar uuid.UUID uuid: Device UUID.
     :ivar uuid.UUID fsid: Filesystem ID.
 
@@ -2370,9 +2372,6 @@ class FreeSpaceBitmap(ItemData):
     * Key type: `FREE_SPACE_BITMAP_KEY` (200)
     * Key offset: Length of the covered virtual address space.
 
-    The bitmap can be unpacked by the
-    :func:`btrfs.free_space_tree.unpack_bitmap` helper function.
-
     :ivar int vaddr: Virtual address of the start of the free space bitmap.
         (taken from the objectid field of the item key)
     :ivar int length: Length of the covered virtual address space. (taken from
@@ -2462,8 +2461,6 @@ _key_type_class_map = {
     QGROUP_STATUS_KEY: NotImplementedItem,
     QGROUP_INFO_KEY: NotImplementedItem,
     QGROUP_LIMIT_KEY: NotImplementedItem,
-    BALANCE_ITEM_KEY: NotImplementedItem,
-    DEV_STATS_KEY: NotImplementedItem,
     DEV_REPLACE_KEY: NotImplementedItem,
     UUID_KEY_SUBVOL: NotImplementedItem,
     UUID_KEY_RECEIVED_SUBVOL: NotImplementedItem,
@@ -2495,4 +2492,14 @@ def classify(header, data):
     The pretty printer can handle any iterable, so the above fragment will, in
     a 'streaming' way, dump the chunk tree on the screen.
     """
+    if header.type == PERSISTENT_ITEM_KEY:
+        if header.objectid == DEV_STATS_OBJECTID:
+            return NotImplementedItem(header, data)
+        return UnknownItem(header, data)
+
+    if header.type == TEMPORARY_ITEM_KEY:
+        if header.objectid == BALANCE_OBJECTID:
+            return NotImplementedItem(header, data)
+        return UnknownItem(header, data)
+
     return _key_type_class_map.get(header.type, UnknownItem)(header, data)
