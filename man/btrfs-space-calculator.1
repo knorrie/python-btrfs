@@ -1,0 +1,66 @@
+.TH BTRFS\-SPACE\-CALCULATOR 1 "2018" "" "Btrfs Space Calculator"
+.nh
+.ad l
+
+.SH "NAME"
+btrfs\-space\-calculator \- calculate usable and wasted space
+
+.SH SYNOPSIS
+.B btrfs\-space\-calculator
+[\fIargs\fR]
+.IR sizes
+
+.SH DESCRIPTION
+The btrfs\-space\-calculator\fR program shows the amount of allocatable space
+on btrfs physical and virtual level, and the amount of unallocatable space
+resulting from having differently sized block devices added to the filesystem.
+
+In a btrfs filesystem, raw storage is shared by data of different \fItypes\fR
+(System, MetaData and Data) and \fIprofiles\fR (e.g. single, DUP, RAID1). Also,
+a filesystem can have multiple block devices of different sizes attached.
+
+An example:
+
+    -$ btrfs-space-calculator -m raid1 -d raid1 2TB 500G 1TB
+    Target metadata profile: RAID1
+    Target data profile: RAID1
+    Mixed block groups: False
+    Total raw filesystem size: 3.18TiB
+    Device sizes:
+      Device 1: 1.82TiB
+      Device 2: 465.66GiB
+      Device 3: 931.32GiB
+    Metadata to data ratio: 1:200
+    Estimated virtual space to use for metadata: 7.00GiB
+    Estimated virtual space to use for data: 1.36TiB
+    Total unallocatable raw amount: 465.66GiB
+    Unallocatable raw bytes per device:
+      Device 1: 465.66GiB
+      Device 2: 0.00B
+      Device 3: 0.00B
+
+Note that most physical disk vendors specify their sizes in GB or TB for
+deceptive marketing reasons, while partitions created in your average partition
+table or with lvm2 etc... are usally using MiB, GiB and TiB.
+
+.SH OPTIONS
+.TP
+.BR \-h ", " \-\-help
+Show the built\-in help message and exit.
+.TP
+.BR \-m ", " "\-\-metadata " \fIPROFILE
+Metadata profile, values like for data profile.
+.TP
+.BR \-d ", " "\-\-data " \fIPROFILE
+Data profile, raid0, raid1, raid5, raid6, raid10, dup or single.
+.TP
+.BR \-M ", " "\-\-mixed "
+Use mixed block groups (data and metadata profile must match).
+.TP
+.BR \-r ", " "\-\-ratio " \fIRATIO
+Data to metadata ratio, e.g. 200, which means allocate 0.5% for metadata.
+
+.SH "SEE ALSO"
+This program is an example of what can be done using the python-btrfs library.
+
+Source and documentation on github: https://github.com/knorrie/python-btrfs
