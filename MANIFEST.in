@@ -1,4 +1,1 @@
 include README.*
-recursive-include examples *
-recursive-exclude examples *.pyc
-prune examples/btrfs

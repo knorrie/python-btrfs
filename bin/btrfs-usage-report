@@ -1,0 +1,231 @@
+#!/usr/bin/python3
+#
+# Copyright (C) 2018 Hans van Kranenburg <hans@knorrie.org>
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+import argparse
+import btrfs
+import errno
+import sys
+
+
+class Bork(Exception):
+    pass
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'mountpoint',
+        help="Btrfs filesystem mountpoint",
+    )
+    return parser.parse_args()
+
+
+def report_usage(path):
+    with btrfs.FileSystem(path) as fs:
+        mixed_groups = fs.mixed_groups()
+        usage = fs.usage()
+
+        print("Btrfs usage report for {}".format(path))
+        print("Filesystem ID: {}".format(fs.fsid))
+        print("Mixed groups: {}".format(mixed_groups))
+        print()
+
+        print("Total physical space usage:")
+        print("| ")
+        print("| Total filesystem size: {}".format(usage.total_str))
+        print("| Allocated bytes: {}".format(usage.allocated_str))
+        print("| Allocatable bytes remaining: {}".format(usage.allocatable_left_str))
+        print()
+
+        print("Target profiles:")
+        print("|")
+        target_profiles = [
+            ('type', 'profile'),
+            ('----', '-------'),
+            ('System', usage.target_profile_system_str),
+        ]
+        if not mixed_groups:
+            target_profiles.extend([
+                ('Metadata', usage.target_profile_metadata_str),
+                ('Data', usage.target_profile_data_str),
+            ])
+        else:
+            target_profiles.extend([
+                ('Data+Metadata', usage.target_profile_data_metadata_str),
+            ])
+        for target_profile in target_profiles:
+            print("| {: <12} {: <12}".format(*target_profile))
+        print()
+
+        print("Estimated virtual space left for use:")
+        print("|")
+        virtual_estims = [
+            ('type', 'free'),
+            ('----', '----'),
+        ]
+        if not mixed_groups:
+            virtual_estims.extend([
+                ('Data', usage.free_data_str),
+                ('MetaData', usage.free_metadata_str),
+            ])
+        else:
+            virtual_estims.extend([
+                ('Data+Metadata', usage.free_str),
+            ])
+        for virtual_estim in virtual_estims:
+            print("| {: <12} {: <12}".format(*virtual_estim))
+        print()
+
+        print("Virtual space usage by block group type:")
+        print("|")
+        virtual_block_group_type_usage_table_values = [
+            ('type', 'total', 'used'),
+            ('----', '-----', '----'),
+        ]
+        for _, virtual_block_group_type_usage in usage.virtual_block_group_type_usage.items():
+            virtual_block_group_type_usage_table_values.append((
+                btrfs.utils.space_type_description(virtual_block_group_type_usage.type),
+                virtual_block_group_type_usage.total_str,
+                virtual_block_group_type_usage.used_str,
+            ))
+        for virtual_block_group_type_usage_table_value in \
+                virtual_block_group_type_usage_table_values:
+            print("| {: <12} {: >12} {: >12}".format(*virtual_block_group_type_usage_table_value))
+        print()
+
+        print("Allocated raw disk bytes by chunk type.")
+        print("|")
+        raw_space_usage_table_values = [
+            ('flags', 'allocated', 'used', 'parity *)'),
+            ('-----', '---------', '----', '---------'),
+        ]
+        for _, raw_space_usage in usage.raw_space_usage.items():
+            raw_space_usage_table_values.append((
+                btrfs.utils.block_group_flags_str(raw_space_usage.flags),
+                raw_space_usage.allocated_str,
+                raw_space_usage.used_str,
+                raw_space_usage.parity_str,
+            ))
+        for raw_space_usage_table_value in raw_space_usage_table_values:
+            print("| {: <16} {: >12} {: >12} {: >12}".format(*raw_space_usage_table_value))
+        print("|")
+        print("| *) Parity is a reserved part of the allocated bytes, limiting the")
+        print("|    amount that can be used for data or metadata.")
+        print()
+
+        print("Allocated bytes per device:")
+        print("|")
+        dev_usage_table_values = [
+            ('devid', 'total size', 'allocated', 'path'),
+            ('-----', '----------', '---------', '----'),
+        ]
+        for devid in sorted(usage.dev_usage.keys()):
+            dev_usage = usage.dev_usage[devid]
+            dev_usage_table_values.append((
+                dev_usage.devid,
+                dev_usage.total_str,
+                dev_usage.allocated_str,
+                btrfs.ioctl.dev_info(fs.fd, devid).path,
+            ))
+        for dev_usage_table_value in dev_usage_table_values:
+            print("| {: <8} {: >12} {: >12} {}".format(*dev_usage_table_value))
+        print()
+
+        print("Allocated bytes per device, split up by chunk type.")
+        for devid in sorted(usage.dev_usage.keys()):
+            print("|")
+            print("| Device ID: {}".format(devid))
+            dev_usage = usage.dev_usage[devid]
+            dev_space_usage_table_values = [
+                ('flags', 'allocated', 'parity *)'),
+                ('-----', '---------', '---------'),
+            ]
+            for _, dev_space_usage in dev_usage.dev_space_usage.items():
+                dev_space_usage_table_values.append((
+                    btrfs.utils.block_group_flags_str(dev_space_usage.flags),
+                    dev_space_usage.allocated_str,
+                    dev_space_usage.parity_str,
+                ))
+            for dev_space_usage_table_value in dev_space_usage_table_values:
+                print("| | {: <16} {: >12} {: >12}".format(*dev_space_usage_table_value))
+        print("|")
+        print("| *) Parity is a reserved part of the allocated bytes, limiting the")
+        print("|    amount that can be used for data or metadata.")
+        print()
+
+        print("Unallocatable raw disk space:")
+        print("|")
+        print("| Reclaimable (by using balance): {}".format(usage.unallocatable_reclaimable_str))
+        print("| Not reclaimable (because of different disk sizes): {}".format(
+            usage.unallocatable_hard_str))
+        print()
+
+        print("Unallocatable bytes per device, given current target profiles:")
+        print("|")
+        wasted_sizes_table_values = [
+            ('devid', 'soft *)', 'hard **)', 'reclaimable ***)'),
+            ('-----', '-------', '--------', '----------------'),
+        ]
+        for devid in sorted(usage.dev_usage.keys()):
+            dev_usage = usage.dev_usage[devid]
+            wasted_sizes_table_values.append((
+                devid,
+                dev_usage.unallocatable_soft_str,
+                dev_usage.unallocatable_hard_str,
+                dev_usage.unallocatable_reclaimable_str,
+            ))
+        for wasted_sizes_table_value in wasted_sizes_table_values:
+            print("| {: <8} {: >12} {: >12} {: >16}".format(*wasted_sizes_table_value))
+        print("|")
+        print("|   *) Because allocations in the filesystem are unbalanced.")
+        print("|  **) Because of having different sizes of devices attached.")
+        print("| ***) Amount of 'soft' unallocatable space that can be reclaimed,")
+        print("|      before hitting the 'hard' limit.")
+
+
+def main():
+    args = parse_args()
+    path = args.mountpoint
+    try:
+        report_usage(path)
+    except OSError as e:
+        if e.errno == errno.EPERM:
+            raise Bork("Insufficient permissions to use the btrfs kernel API.\n"
+                       "Hint: Try running the script as root user.".format(e))
+        elif e.errno == errno.ENOTTY:
+            raise Bork("Unable to retrieve data. Hint: Not a mounted btrfs file system?")
+        raise
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Exiting...")
+        sys.exit(130)  # 128 + SIGINT
+    except Bork as e:
+        print("Error: {0}".format(e), file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(e)
+        sys.exit(1)
