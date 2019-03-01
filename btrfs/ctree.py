@@ -1438,9 +1438,9 @@ class MetaDataItem(ItemData):
             inline_ref_type, inline_ref_offset = \
                 ExtentItem._extent_inline_ref.unpack_from(data, pos)
             if inline_ref_type == TREE_BLOCK_REF_KEY:
-                self.tree_block_refs._append(InlineTreeBlockRef(inline_ref_offset))
+                self.tree_block_refs.append(InlineTreeBlockRef(inline_ref_offset))
             elif inline_ref_type == SHARED_BLOCK_REF_KEY:
-                self.shared_block_refs._append(InlineSharedBlockRef(inline_ref_offset))
+                self.shared_block_refs.append(InlineSharedBlockRef(inline_ref_offset))
             else:
                 raise Exception("BUG: expected inline TREE_BLOCK_REF or SHARED_BLOCK_REF_KEY "
                                 "in METADATA_ITEM {}, but got inline_ref_type {}"
