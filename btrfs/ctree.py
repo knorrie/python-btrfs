@@ -970,8 +970,8 @@ class Chunk(ItemData):
     """Object representation of struct `btrfs_chunk`.
 
     A `Chunk` is a piece of virtual address space. A `Chunk` has a 1 to 1
-    relationship to a :class:`BlockGroup`, and a 1 to many relationship with a
-    fixed amount of :class:`Stripe` objects.
+    relationship to a :class:`BlockGroupItem`, and a 1 to many relationship
+    with a fixed amount of :class:`Stripe` objects.
 
     * Tree: `CHUNK_TREE_OBJECTID` (3)
     * Key objectid: `FIRST_CHUNK_TREE_OBJECTID` (256)
@@ -994,7 +994,7 @@ class Chunk(ItemData):
     :ivar int sub_stripes: A hack for `RAID10`. For `RAID10` this value is 2,
         otherwise 1.
     :ivar stripes: :class:`Stripe` Items that are stored inside this Chunk Item.
-    :type stripes: List[:class:`Stripe`]
+    :vartype stripes: List[:class:`Stripe`]
     """
     _chunk = struct.Struct('<4Q3L2H')
 
