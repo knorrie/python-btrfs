@@ -1,3 +1,11 @@
+python-btrfs (11-2) unstable; urgency=medium
+
+  * d/patches: Fix crash because of stray underscores (Closes: #925267)
+  * d/patches: space-calculator: quickfix crash when using raid5
+    (Closes: #925271)
+
+ -- Hans van Kranenburg <hans@knorrie.org>  Fri, 22 Mar 2019 01:12:12 +0100
+
 python-btrfs (11-1) unstable; urgency=medium
 
   * New release v11
