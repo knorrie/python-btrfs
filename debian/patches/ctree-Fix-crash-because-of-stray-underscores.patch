@@ -1,0 +1,51 @@
+From 3bcc064fe9fef7748b371c95e2cdddfe6e30e305 Mon Sep 17 00:00:00 2001
+From: Hans van Kranenburg <hans@knorrie.org>
+Date: Fri, 1 Mar 2019 20:04:53 +0100
+Subject: [PATCH] ctree: Fix crash because of stray underscores
+
+The tree_block_refs and shared_block_refs attributes of the MetaDataItem
+class are of type list. This means they have an append function, and not
+_append.
+
+So hitting these lines of code crash a program with "AttributeError:
+'list' object has no attribute '_append'"
+
+This made me find out that both of the filesystems that I use for
+regression testing before doing a release were originally created using
+Debian Jessie, and they were never converted to enable the
+skinny_metadata feature, which introduces the usage of these
+MetaDataItem objects.
+
+Unfortunately this means that working with metadata related information
+from the extent tree is pretty much broken for any recently created
+filesystem. Also affected is the btrfs-heatmap program, which will crash
+while generating pictures on extent level of metadata block groups.
+
+Andrei Borzenkov reported this bug, and found it by using the
+show_metadata_tree_sizes example.
+
+Fixes: 899fdf4c52 "ctree: hide internal ref item helpers"
+Closes: https://github.com/knorrie/python-btrfs/issues/17
+---
+ btrfs/ctree.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/btrfs/ctree.py b/btrfs/ctree.py
+index 30c04e8..6aef8d7 100644
+--- a/btrfs/ctree.py
++++ b/btrfs/ctree.py
+@@ -1438,9 +1438,9 @@ class MetaDataItem(ItemData):
+             inline_ref_type, inline_ref_offset = \
+                 ExtentItem._extent_inline_ref.unpack_from(data, pos)
+             if inline_ref_type == TREE_BLOCK_REF_KEY:
+-                self.tree_block_refs._append(InlineTreeBlockRef(inline_ref_offset))
++                self.tree_block_refs.append(InlineTreeBlockRef(inline_ref_offset))
+             elif inline_ref_type == SHARED_BLOCK_REF_KEY:
+-                self.shared_block_refs._append(InlineSharedBlockRef(inline_ref_offset))
++                self.shared_block_refs.append(InlineSharedBlockRef(inline_ref_offset))
+             else:
+                 raise Exception("BUG: expected inline TREE_BLOCK_REF or SHARED_BLOCK_REF_KEY "
+                                 "in METADATA_ITEM {}, but got inline_ref_type {}"
+-- 
+2.20.1
+
