@@ -292,6 +292,15 @@ class FsUsage(object):
     :param btrfs.ctree.FileSystem fs: Filesystem to examine.
     :param int data_metadata_ratio: Data to metadata ratio to use when running
         the simulation to predict free space and unallocatable space.
+    :param int target_profile_metadata: Explicitly set metadata profile to use
+        for new allocations when running the simulation to predict free
+        and unallocatable space (not for a mixed filesystem).
+    :param int target_profile_data: Explicitly set data profile to use for new
+        allocations when running the simulation to predict free and
+        unallocatable space (not for a mixed filesystem).
+    :param int target_profile_mixed: Explicitly set metadata and data profile
+        to use for new allocations when running the simulation to predict free
+        and unallocatable space (only for a mixed filesystem).
 
     Target block group profiles (used for new chunk allocations):
 
@@ -399,7 +408,10 @@ class FsUsage(object):
         data (only for a mixed filesystem).
 
     """
-    def __init__(self, fs, data_metadata_ratio=None):
+    def __init__(self, fs, data_metadata_ratio=None,
+                 target_profile_metadata=None,
+                 target_profile_data=None,
+                 target_profile_mixed=None):
         self._mixed_groups = fs.mixed_groups()
 
         # Spaces and devices are a source of information
@@ -428,12 +440,17 @@ class FsUsage(object):
         )
         self.parity = 0
 
-        self.target_profile_system = None
+        BLOCK_GROUP_MIXED = btrfs.BLOCK_GROUP_METADATA | btrfs.BLOCK_GROUP_DATA
         if not self._mixed_groups:
-            self.target_profile_data = None
-            self.target_profile_metadata = None
+            if target_profile_metadata is not None:
+                self.target_profile_system = target_profile_metadata | btrfs.BLOCK_GROUP_SYSTEM
+                self.target_profile_metadata = target_profile_metadata | btrfs.BLOCK_GROUP_METADATA
+            if target_profile_data is not None:
+                self.target_profile_data = target_profile_data | btrfs.BLOCK_GROUP_DATA
         else:
-            self.target_profile_mixed = None
+            if target_profile_mixed is not None:
+                self.target_profile_system = target_profile_mixed | btrfs.BLOCK_GROUP_SYSTEM
+                self.target_profile_mixed = target_profile_mixed | BLOCK_GROUP_MIXED
 
         # We walk the chunk list because every block group / chunk can be laid
         # out over any amount of disks. To collect e.g. the amount of parity
@@ -489,6 +506,7 @@ class FsUsage(object):
         # totals per block group type. So, e.g. all DATA space, regardless of
         # being single, RAID1, etc...
         self.virtual_block_group_type_usage = {}
+
         for virtual_space in self.virtual_space_usage.values():
             space_type = virtual_space.flags & BLOCK_GROUP_TYPE_MASK
             if space_type not in self.virtual_block_group_type_usage:
@@ -577,17 +595,19 @@ class FsUsage(object):
         self.allocatable_left = self.allocatable - self.allocated
 
         if not self._mixed_groups:
-            self.free_metadata = \
-                self.virtual_block_group_type_usage[btrfs.BLOCK_GROUP_METADATA].unused \
-                + self.estimated_allocatable_virtual_metadata
-            self.free_data = \
-                self.virtual_block_group_type_usage[btrfs.BLOCK_GROUP_DATA].unused \
-                + self.estimated_allocatable_virtual_data
+            self.free_metadata = self.estimated_allocatable_virtual_metadata
+            if btrfs.BLOCK_GROUP_METADATA in self.virtual_block_group_type_usage:
+                self.free_metadata += \
+                    self.virtual_block_group_type_usage[btrfs.BLOCK_GROUP_METADATA].unused
+            self.free_data = self.estimated_allocatable_virtual_data
+            if btrfs.BLOCK_GROUP_DATA in self.virtual_block_group_type_usage:
+                self.free_data += \
+                    self.virtual_block_group_type_usage[btrfs.BLOCK_GROUP_DATA].unused
         else:
-            mixed_type = btrfs.BLOCK_GROUP_METADATA | btrfs.BLOCK_GROUP_DATA
-            self.free_mixed = \
-                self.virtual_block_group_type_usage[mixed_type].unused \
-                + self.estimated_allocatable_virtual_mixed
+            self.free_mixed = self.estimated_allocatable_virtual_mixed
+            if BLOCK_GROUP_MIXED in self.virtual_block_group_type_usage:
+                self.free_mixed += \
+                    self.virtual_block_group_type_usage[BLOCK_GROUP_MIXED].unused
 
     def _raw_space_usage_key_str(flags):
         return btrfs.utils.block_group_flags_str(flags)
@@ -611,12 +631,18 @@ class FsUsage(object):
         Actual simulation ratio is a weighted combination of the current data to
         metadata ratio and the default of 200, where the weight of the current
         ratio increases if the filesystem is filled up more.
+
+        If an empty filesystem is presented (this is used for the space
+        calculator), then just use the default that was set earlier.
         """
         if self._mixed_groups:
             raise ValueError("Data to metadata ratio is irrelevant for mixed groups.")
+        if BLOCK_GROUP_METADATA not in self.virtual_block_group_type_usage:
+            return self.default_data_metadata_ratio
         used_fraction = self.virtual_used / self.total
-        used_ratio = self.virtual_block_group_type_usage[BLOCK_GROUP_DATA].used \
-            / self.virtual_block_group_type_usage[BLOCK_GROUP_METADATA].used
+        used_metadata = self.virtual_block_group_type_usage[BLOCK_GROUP_METADATA].used
+        used_data = self.virtual_block_group_type_usage[BLOCK_GROUP_DATA].used
+        used_ratio = used_data / used_metadata
         return used_fraction * used_ratio + (1 - used_fraction) * self.default_data_metadata_ratio
 
     def _alloc_chunk(self, sizes, flags):

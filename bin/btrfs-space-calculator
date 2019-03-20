@@ -34,28 +34,7 @@ class FakeDevItem(object):
     def __init__(self, devid, total_bytes):
         self.devid = devid
         self.total_bytes = total_bytes
-        self.bytes_used = 1
-
-
-class FakeSpace(object):
-    def __init__(self, flags):
-        self.flags = flags
-        self.total_bytes = 1
-        self.used_bytes = 1
-
-
-class FakeStripe(object):
-    def __init__(self):
-        self.devid = 1
-        self.offset = 0
-
-
-class FakeChunk(object):
-    def __init__(self, flags):
-        self.type = flags
-        self.length = 1
-        self.stripes = [FakeStripe()]
-        self.num_stripes = 1
+        self.bytes_used = 0
 
 
 class FakeFileSystem(object):
@@ -63,29 +42,18 @@ class FakeFileSystem(object):
         self._mixed_groups = mixed_groups
         self._devices = [FakeDevItem(devid+1, size)
                          for devid, size in enumerate(device_sizes)]
-        self._chunks = [FakeChunk(btrfs.BLOCK_GROUP_SYSTEM | metadata_profile)]
-        self._spaces = [FakeSpace(btrfs.BLOCK_GROUP_SYSTEM | metadata_profile)]
-        if mixed_groups:
-            mixed_type = btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_METADATA
-            self._chunks.append(FakeChunk(mixed_type | metadata_profile))
-            self._spaces.append(FakeSpace(mixed_type | metadata_profile))
-        else:
-            self._chunks.append(FakeChunk(btrfs.BLOCK_GROUP_DATA | data_profile))
-            self._chunks.append(FakeChunk(btrfs.BLOCK_GROUP_METADATA | metadata_profile))
-            self._spaces.append(FakeSpace(btrfs.BLOCK_GROUP_DATA | data_profile))
-            self._spaces.append(FakeSpace(btrfs.BLOCK_GROUP_METADATA | metadata_profile))
 
     def mixed_groups(self):
         return self._mixed_groups
 
     def space_info(self):
-        return self._spaces
+        return []
 
     def devices(self):
         return self._devices
 
     def chunks(self):
-        return self._chunks
+        return []
 
 
 def parse_args():
@@ -155,7 +123,19 @@ def main():
         raise WastedSpaceError(
             "When using mixed groups, metadata and data profile need to be identical.")
     fs = FakeFileSystem(device_sizes, mixed_groups, metadata_profile, data_profile)
-    usage = btrfs.fs_usage.FsUsage(fs, data_metadata_ratio=args.ratio)
+    if not mixed_groups:
+        usage = btrfs.fs_usage.FsUsage(
+            fs,
+            data_metadata_ratio=args.ratio,
+            target_profile_metadata=metadata_profile,
+            target_profile_data=data_profile,
+        )
+    else:
+        usage = btrfs.fs_usage.FsUsage(
+            fs,
+            data_metadata_ratio=args.ratio,
+            target_profile_mixed=metadata_profile,
+        )
     print("Target metadata profile: {}".format(
         btrfs.utils.space_profile_description(metadata_profile)))
     print("Target data profile: {}".format(
