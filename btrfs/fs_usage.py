@@ -282,10 +282,16 @@ class VirtualBlockGroupTypeUsage(object):
 class FsUsage(object):
     """Detailed usage information for a file system.
 
-    When creating an object of this type, a :class:`btrfs.ctree.FileSystem`
-    object needs to be provided.
+    When creating an object of this type, the first argument, fs, is mandatory.
+    The other arguments can be used to influence the simulation to predict free
+    space and unallocatable space with explicit hints instead of using
+    information from the current filesystem, This is used by the
+    space-calculator program to run the simulation starting with a completely
+    empty filesystem.
 
     :param btrfs.ctree.FileSystem fs: Filesystem to examine.
+    :param int data_metadata_ratio: Data to metadata ratio to use when running
+        the simulation to predict free space and unallocatable space.
 
     Target block group profiles (used for new chunk allocations):
 
@@ -393,7 +399,7 @@ class FsUsage(object):
         data (only for a mixed filesystem).
 
     """
-    def __init__(self, fs):
+    def __init__(self, fs, data_metadata_ratio=None):
         self._mixed_groups = fs.mixed_groups()
 
         # Spaces and devices are a source of information
@@ -502,7 +508,10 @@ class FsUsage(object):
             for virtual_space in self.virtual_space_usage.values()
         )
 
-        self.default_data_metadata_ratio = 200
+        if data_metadata_ratio is not None:
+            self.default_data_metadata_ratio = data_metadata_ratio
+        else:
+            self.default_data_metadata_ratio = 200
 
         # Estimate the amount of unallocatable raw disk space if the sizes of
         # attached block devices are unbalanced. We start the simulation with

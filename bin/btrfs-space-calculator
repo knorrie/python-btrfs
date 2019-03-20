@@ -155,7 +155,7 @@ def main():
         raise WastedSpaceError(
             "When using mixed groups, metadata and data profile need to be identical.")
     fs = FakeFileSystem(device_sizes, mixed_groups, metadata_profile, data_profile)
-    usage = btrfs.fs_usage.FsUsage(fs)
+    usage = btrfs.fs_usage.FsUsage(fs, data_metadata_ratio=args.ratio)
     print("Target metadata profile: {}".format(
         btrfs.utils.space_profile_description(metadata_profile)))
     print("Target data profile: {}".format(
@@ -165,8 +165,6 @@ def main():
     print("Device sizes:")
     for devid, size in enumerate(device_sizes):
         print("  Device {}: {}".format(devid+1, btrfs.utils.pretty_size(size)))
-    if args.ratio is not None:
-        usage.default_data_metadata_ratio = args.ratio
     print("Metadata to data ratio: 1:{}".format(usage.default_data_metadata_ratio))
     if not mixed_groups:
         print("Estimated virtual space to use for metadata: {}".format(
