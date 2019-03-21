@@ -83,8 +83,8 @@ def parse_args():
              "which means allocate 0.5%% for metadata",
     )
     parser.add_argument(
-        'sizes',
-        nargs='*',
+        'size',
+        nargs='+',
         help="disk sizes, e.g. 2TB 500G 1TiB",
     )
     return parser.parse_args()
@@ -105,7 +105,7 @@ def main():
     args = parse_args()
 
     device_sizes = []
-    for size in args.sizes:
+    for size in args.size:
         try:
             device_sizes.append(btrfs.utils.parse_pretty_size(size))
         except ValueError as e:
