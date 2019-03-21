@@ -282,6 +282,11 @@ class VirtualBlockGroupTypeUsage(object):
 class FsUsage(object):
     """Detailed usage information for a file system.
 
+    When creating an object of this type, a :class:`btrfs.ctree.FileSystem`
+    object needs to be provided.
+
+    :param btrfs.ctree.FileSystem fs: Filesystem to examine.
+
     Target block group profiles (used for new chunk allocations):
 
     :ivar int target_profile_system: Profile for new System chunk allocations.
