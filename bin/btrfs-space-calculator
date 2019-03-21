@@ -79,8 +79,8 @@ def parse_args():
         '-r', '--ratio',
         action='store',
         type=int,
-        default=200,
-        help="data to metadata ratio, e.g. 200, which means allocate 0.5%% for metadata",
+        help="data to metadata ratio for non-mixed filesystem, e.g. 200 (the default), "
+             "which means allocate 0.5%% for metadata",
     )
     parser.add_argument(
         'sizes',
@@ -133,7 +133,6 @@ def main():
     else:
         usage = btrfs.fs_usage.FsUsage(
             fs,
-            data_metadata_ratio=args.ratio,
             target_profile_mixed=metadata_profile,
         )
     print("Target metadata profile: {}".format(
@@ -145,13 +144,15 @@ def main():
     print("Device sizes:")
     for devid, size in enumerate(device_sizes):
         print("  Device {}: {}".format(devid+1, btrfs.utils.pretty_size(size)))
-    print("Metadata to data ratio: 1:{}".format(usage.default_data_metadata_ratio))
     if not mixed_groups:
+        print("Metadata to data ratio: 1:{}".format(usage.default_data_metadata_ratio))
         print("Estimated virtual space to use for metadata: {}".format(
             btrfs.utils.pretty_size(usage.estimated_full_allocatable_virtual_metadata)))
         print("Estimated virtual space to use for data: {}".format(
             btrfs.utils.pretty_size(usage.estimated_full_allocatable_virtual_data)))
     else:
+        if args.ratio is not None:
+            print("Notice: Metadata to data ratio is not used in mixed mode.")
         print("Estimated virtual space to use for metadata and data: {}".format(
             btrfs.utils.pretty_size(usage.estimated_full_allocatable_virtual_mixed)))
     print("Total unallocatable raw amount: {}".format(
