@@ -36,6 +36,7 @@ import btrfs.crc32c  # noqa
 import btrfs.free_space_tree  # noqa
 import btrfs.volumes  # noqa
 import btrfs.fs_usage  # noqa
+from btrfs.version import __version__  # noqa
 
 
 # Classes in our modules can define a _pretty_properties class method that
