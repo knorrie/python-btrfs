@@ -123,7 +123,7 @@ EXTENT_DATA_KEY = 108  #: Key type used by :class:`FileExtentItem`
 EXTENT_CSUM_KEY = 128  #: Key type used for checksum items.
 ROOT_ITEM_KEY = 132  #: Key type used by :class:`RootItem`
 ROOT_BACKREF_KEY = 144
-ROOT_REF_KEY = 156
+ROOT_REF_KEY = 156  #: Key type used by :class:`RootRef`
 EXTENT_ITEM_KEY = 168  #: Key type used by :class:`ExtentItem`
 METADATA_ITEM_KEY = 169  #: Key type used by :class:`MetaDataItem`
 TREE_BLOCK_REF_KEY = 176  #: Key type used by :class:`TreeBlockRef`
@@ -2204,6 +2204,61 @@ class RootItem(ItemData):
         ]
 
 
+class RootRef(ItemData):
+    """Object representation of `btrfs_root_ref`.
+
+    The :class:`RootRef` item lives in the root tree, a.k.a. the 'tree of
+    trees'.  It contains information about the place where a subvolume is
+    located inside another subvolume.
+
+    * Tree: `ROOT_TREE_OBJECTID` (1).
+    * Key objectid: Parent tree ID.
+    * Key type: `ROOT_REF_KEY` (156)
+    * Key offset: Tree ID of the subvolume.
+
+    :ivar int parent_tree: Containing Tree ID. (taken from the objectid field of
+        the item key)
+    :ivar int tree: Tree ID of the subvolume. (taken from the offset field of
+        the item key)
+    :ivar int dirid: Inode number of the containing directory.
+    :ivar int sequence: Directory index number in the containing directory.
+    :ivar int name_len: Amount of bytes used to store the filename.
+    :ivar bytes name: Filename as bytes.
+
+    When combining this information with a call to the ino_lookup ioctl, we can
+    quickly figure out the relative path inside the containing subvolume.
+
+    E.g. for (259 ROOT_REF 1052) in the root tree, with dirid 20197, sequence
+    65 and name baz, we can do btrfs.ioctl.ino_lookup(fd, 259, 20197). The
+    result is e.g. name_bytes=b'foo/bar/', so the location inside the
+    containing subvolume is foo/bar/baz.
+
+    When doing such a thing recursively, the same output as seen in btrfs sub
+    list -a can be produced.
+    """
+    _root_ref_item = struct.Struct('<QQH')
+
+    def __init__(self, header, data):
+        super().__init__(header)
+        self._setattr_from_key(objectid_attr='parent_tree', offset_attr='tree')
+        self.dirid, self.sequence, self.name_len = RootRef._root_ref_item.unpack_from(data)
+        pos = RootRef._root_ref_item.size
+        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
+        self._len = RootRef._root_ref_item.size + self.name_len
+
+    def __len__(self):
+        return self._len
+
+    def __str__(self):
+        return "root ref parent_tree {self.parent_tree} tree {self.tree} dirid {self.dirid} " \
+            "sequence {self.sequence} name {self.name_str}".format(self=self)
+
+    def _pretty_properties():
+        return [
+            (btrfs.utils.embedded_text_for_str, 'name')
+        ]
+
+
 class FileExtentItem(ItemData):
     """Object representation of `btrfs_file_extent_item`.
 
@@ -2447,7 +2502,7 @@ _key_type_class_map = {
     EXTENT_DATA_KEY: FileExtentItem,
     EXTENT_CSUM_KEY: NotImplementedItem,
     ROOT_ITEM_KEY: RootItem,
-    ROOT_REF_KEY: NotImplementedItem,
+    ROOT_REF_KEY: RootRef,
     ROOT_BACKREF_KEY: NotImplementedItem,
     EXTENT_ITEM_KEY: ExtentItem,
     METADATA_ITEM_KEY: MetaDataItem,
