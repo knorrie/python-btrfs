@@ -2100,6 +2100,8 @@ class RootItem(ItemData):
     * Key type: `ROOT_ITEM_KEY` (132)
     * Key offset: Index in the directory.
 
+    :ivar int objectid: Tree ID. (taken from the objectid field of the item
+        key)
     :ivar inode: Embedded inode item. Only the flags field of it is used.
     :vartype inode: :class:`InodeItem`
     :ivar int generation: Generation of the filesystem when this root was
@@ -2168,6 +2170,7 @@ class RootItem(ItemData):
 
     def __init__(self, header, data):
         super().__init__(header)
+        self._setattr_from_key(objectid_attr='objectid')
         self.inode = InodeItem(None, data[:InodeItem._inode_item.size])
         pos = InodeItem._inode_item.size
         self.generation, self.root_dirid, self.bytenr, self.byte_limit, self.bytes_used, \
