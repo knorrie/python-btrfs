@@ -519,6 +519,11 @@ def _pretty_obj_tuples(obj, level=0, seen=None):
         for item in obj:
             yield level, '-'
             yield from _pretty_obj_tuples(item, level+1, seen)
+    elif isinstance(obj, dict) and len(obj) != 0:
+        known = True
+        for k, v in obj.items():
+            yield level, "{}:".format(k)
+            yield from _pretty_obj_tuples(v, level+1, seen)
     if not known:
         yield level, str(obj)
     seen.pop()
