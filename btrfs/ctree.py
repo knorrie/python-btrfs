@@ -962,8 +962,8 @@ class DevItem(ItemData):
         self.fsid = uuid.UUID(bytes=fsid_bytes)
 
     def __str__(self):
-        return "dev item devid {self.devid} total bytes {self.total_bytes} " \
-            "bytes used {self.bytes_used}".format(self=self)
+        return "dev item devid {self.devid} uuid {self.uuid} bytes_used {self.bytes_used} " \
+            "total_bytes {self.total_bytes}".format(self=self)
 
 
 class Chunk(ItemData):
