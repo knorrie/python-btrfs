@@ -423,6 +423,58 @@ def embedded_text_for_str(text):
         return "raw '{}'".format(repr(text))
 
 
+_tree_name_id_map = {
+    'root': btrfs.ctree.ROOT_TREE_OBJECTID,
+    'extent': btrfs.ctree.EXTENT_TREE_OBJECTID,
+    'chunk': btrfs.ctree.CHUNK_TREE_OBJECTID,
+    'dev': btrfs.ctree.DEV_TREE_OBJECTID,
+    'fs': btrfs.ctree.FS_TREE_OBJECTID,
+    'csum': btrfs.ctree.CSUM_TREE_OBJECTID,
+    'quota': btrfs.ctree.QUOTA_TREE_OBJECTID,
+    'uuid': btrfs.ctree.UUID_TREE_OBJECTID,
+    'free_space': btrfs.ctree.FREE_SPACE_TREE_OBJECTID,
+    'tree_log': btrfs.ctree.TREE_LOG_OBJECTID,
+    'tree_log_fixup': btrfs.ctree.TREE_LOG_FIXUP_OBJECTID,
+    'tree_reloc': btrfs.ctree.TREE_RELOC_OBJECTID,
+    'data_reloc': btrfs.ctree.DATA_RELOC_TREE_OBJECTID,
+}
+
+
+def parse_tree_name(name):
+    """Convert a tree name to an actual root tree objectid number
+
+    :param string name: tree name with optional _tree suffix or number
+        formatted as string
+    :returns: Tree objectid that is valid for the root tree
+    :rtype: int
+
+    Example::
+
+        >>> btrfs.utils.parse_tree_name('EXTENT_TREE')
+        2
+        >>> btrfs.utils.parse_tree_name('extent_tree')
+        2
+        >>> btrfs.utils.parse_tree_name('extent')
+        2
+        >>> btrfs.utils.parse_tree_name('2')
+        2
+        >>> btrfs.utils.parse_tree_name(2)
+        2
+    """
+    try:
+        return int(name)
+    except ValueError:
+        pass
+    lower_name = name.lower()
+    if lower_name[-5:] == '_tree':
+        lookup_name = lower_name[:-5]
+    else:
+        lookup_name = lower_name
+    if lookup_name in _tree_name_id_map:
+        return _tree_name_id_map[lookup_name]
+    raise ValueError("Unknown metadata tree name " + name)
+
+
 def _pretty_attr_value(obj, attr_name, stringify_fn=None):
     if stringify_fn is not None:
         return "{}: {}".format(attr_name, stringify_fn(getattr(obj, attr_name)))
