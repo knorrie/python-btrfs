@@ -567,7 +567,9 @@ def pretty_print(obj):
 def _str_obj_tuples(obj, level=0, seen=None):
     if seen is None:
         seen = []
-    if isinstance(obj, (btrfs.ctree.ItemData, btrfs.ctree.SubItem)):
+    cls = obj.__class__
+    if cls.__module__ in pretty_print_modules and \
+            not isinstance(obj, (btrfs.ctree.Key, btrfs.ctree.TimeSpec)):
         yield level, str(obj)
     if obj in seen:
         yield level, "[... object already seen, aborting recursion]"
