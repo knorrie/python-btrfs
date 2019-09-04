@@ -228,7 +228,7 @@ class DevStats(object):
     """
     def __init__(self, buf):
         self.devid, self.nr_items, self.flags, self.write_errs, self.read_errs, \
-            self.flush_errs, self.generation_errs, self.corruption_errs = \
+            self.flush_errs, self.corruption_errs, self.generation_errs = \
             ioctl_get_dev_stats.unpack_from(buf)
 
     @property
@@ -237,15 +237,15 @@ class DevStats(object):
             'write_errs': self.write_errs,
             'read_errs': self.read_errs,
             'flush_errs': self.flush_errs,
-            'generation_errs': self.generation_errs,
             'corruption_errs': self.corruption_errs,
+            'generation_errs': self.generation_errs,
         }
 
     def __str__(self):
-        return "devid {0} write_errs {1} read_errs {2} flush_errs {3} generation_errs {4} " \
-            "corruption_errs {5}".format(self.devid, self.write_errs, self.read_errs,
-                                         self.flush_errs, self.generation_errs,
-                                         self.corruption_errs)
+        return "devid {0} write_errs {1} read_errs {2} flush_errs {3} corruption_errs {4} " \
+            "generation_errs {5}".format(self.devid, self.write_errs, self.read_errs,
+                                         self.flush_errs, self.corruption_errs,
+                                         self.generation_errs)
 
 
 def dev_stats(fd, devid, reset=False):
