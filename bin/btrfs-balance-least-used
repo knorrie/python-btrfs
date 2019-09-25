@@ -33,13 +33,13 @@ class Bork(Exception):
     pass
 
 
-def load_block_groups(fs, max_used_pct):
+def load_block_groups(fs, max_used_pct, bgflag):
     min_used_pct = 101
     block_groups = []
     print("Loading block group objects with used_pct <= {} ...".format(max_used_pct),
           end='', flush=True)
     for chunk in fs.chunks():
-        if not (chunk.type & btrfs.BLOCK_GROUP_DATA):
+        if not (chunk.type & bgflag):
             continue
         try:
             block_group = fs.block_group(chunk.vaddr, chunk.length)
@@ -63,6 +63,7 @@ def balance_one_block_group(fs, block_groups, max_used_pct):
         return
     vaddr = block_group.vaddr
     used_pct = block_group.used_pct
+    flags = block_group.flags
     if used_pct > next_used_pct:
         if used_pct > max_used_pct:
             print("Ignoring block group vaddr {} used_pct changed {} -> {}".format(
@@ -80,7 +81,14 @@ def balance_one_block_group(fs, block_groups, max_used_pct):
     print("Balance block group vaddr {} used_pct {} ...".format(
         vaddr, used_pct), end='', flush=True)
     try:
-        progress = btrfs.ioctl.balance_v2(fs.fd, data_args=args)
+        if flags & btrfs.BLOCK_GROUP_DATA:
+            progress = btrfs.ioctl.balance_v2(fs.fd, data_args=args)
+        elif flags & btrfs.BLOCK_GROUP_METADATA:
+            progress = btrfs.ioctl.balance_v2(fs.fd, meta_args=args)
+        elif flags & btrfs.BLOCK_GROUP_SYSTEM:
+            progress = btrfs.ioctl.balance_v2(fs.fd, sys_args=args)
+        else:
+            Bork("Internal error: unrecognised block group type")
         end_time = time.time()
         print(" duration {} sec total {}".format(int(end_time - start_time), progress.considered))
     except KeyboardInterrupt:
@@ -91,6 +99,24 @@ def balance_one_block_group(fs, block_groups, max_used_pct):
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-d',
+        '--data',
+        action='store_true',
+        help="Balance data block groups (default)",
+    )
+    parser.add_argument(
+        '-m',
+        '--meta',
+        action='store_true',
+        help="Balance metadata block groups",
+    )
+    parser.add_argument(
+        '-s',
+        '--system',
+        action='store_true',
+        help="Balance system block groups",
+    )
     parser.add_argument(
         '-u',
         '--usage',
@@ -116,10 +142,12 @@ def main():
     args = parse_args()
     max_used_pct = args.usage
     path = args.mountpoint
+    bgflag = (btrfs.BLOCK_GROUP_DATA if args.data else 0) | (btrfs.BLOCK_GROUP_METADATA if args.meta else 0) | (btrfs.BLOCK_GROUP_SYSTEM if args.system else 0)
+    bgflag = bgflag or btrfs.BLOCK_GROUP_DATA
     try:
         with btrfs.FileSystem(path) as fs:
             permission_check(fs)
-            min_used_pct, block_groups = load_block_groups(fs, max_used_pct)
+            min_used_pct, block_groups = load_block_groups(fs, max_used_pct, bgflag)
             if len(block_groups) == 0:
                 print("Nothing to do, least used block group has used_pct {}".format(min_used_pct))
                 return
