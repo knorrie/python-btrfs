@@ -1710,7 +1710,7 @@ class InodeRefList(ItemData, collections.abc.MutableSequence):
         while pos < header.len:
             inode_ref = InodeRef(data, pos)
             self._list.append(inode_ref)
-            pos += len(inode_ref)
+            pos += InodeRef._inode_ref.size + inode_ref.name_len
 
     def __getitem__(self, index):
         return self._list[index]
@@ -1751,10 +1751,6 @@ class InodeRef(SubItem):
         self.index, self.name_len = InodeRef._inode_ref.unpack_from(data, pos)
         pos += InodeRef._inode_ref.size
         self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
-        self._len = InodeRef._inode_ref.size + self.name_len
-
-    def __len__(self):
-        return self._len
 
     def __str__(self):
         return "inode ref index {self.index} name {self.name_str}".format(self=self)
@@ -1841,10 +1837,6 @@ class InodeExtref(object):
             InodeExtref._inode_extref.unpack_from(data, pos)
         pos += InodeExtref._inode_extref.size
         self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
-        self._len = InodeExtref._inode_extref.size + self.name_len
-
-    def __len__(self):
-        return self._len
 
     def __str__(self):
         return "inode extref parent_objectid {self.parent_objectid} index {self.index} " \
@@ -1888,7 +1880,7 @@ class DirItemList(ItemData, collections.abc.MutableSequence):
             cls = {DIR_ITEM_KEY: DirItem, XATTR_ITEM_KEY: XAttrItem}
             dir_item = cls[self.key.type](data, pos)
             self._list.append(dir_item)
-            pos += len(dir_item)
+            pos += DirItem._dir_item.size + dir_item.name_len + dir_item.data_len
 
     def __getitem__(self, index):
         return self._list[index]
@@ -1990,10 +1982,6 @@ class DirItem(SubItem):
         pos += self.name_len
         self.data, = struct.Struct('<{}s'.format(self.data_len)).unpack_from(data, pos)
         pos += self.data_len
-        self._len = DirItem._dir_item.size + self.name_len + self.data_len
-
-    def __len__(self):
-        return self._len
 
     def __str__(self):
         return "dir item location {self.location} type {self.type_str} " \
@@ -2247,10 +2235,6 @@ class RootRef(ItemData):
         self.dirid, self.sequence, self.name_len = RootRef._root_ref_item.unpack_from(data)
         pos = RootRef._root_ref_item.size
         self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
-        self._len = RootRef._root_ref_item.size + self.name_len
-
-    def __len__(self):
-        return self._len
 
     def __str__(self):
         return "root ref parent_tree {self.parent_tree} tree {self.tree} dirid {self.dirid} " \
