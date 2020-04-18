@@ -27,6 +27,7 @@ import collections.abc
 import copy
 import datetime
 import os
+import re
 import struct
 import uuid
 
@@ -322,6 +323,10 @@ def qgroup_subvid(objectid):
     return objectid & ((1 << QGROUP_LEVEL_SHIFT) - 1)
 
 
+def _qgroup_objectid(level, subvid):
+    return (level << QGROUP_LEVEL_SHIFT) + subvid
+
+
 _key_objectid_str_map = {
     ROOT_TREE_OBJECTID: 'ROOT_TREE',
     EXTENT_TREE_OBJECTID: 'EXTENT_TREE',
@@ -364,6 +369,42 @@ def _key_objectid_str(objectid, _type):
         return '-1'
 
     return _key_objectid_str_map.get(objectid, str(objectid))
+
+
+_key_str_objectid_map = {v: k for k, v in _key_objectid_str_map.items()}
+_key_str_objectid_map.update({
+    'DEV_ITEMS': ROOT_TREE_OBJECTID,
+    'DEV_STATS': DEV_STATS_OBJECTID,
+    'FIRST_CHUNK_TREE': FIRST_CHUNK_TREE_OBJECTID,
+})
+
+_re_qgroup_objectid = re.compile(r'^(?P<level>\d+)/(?P<subvid>\d+)$')
+
+
+def _key_str_objectid(objectid_str, _type):
+    # is it just a number?
+    try:
+        return int(objectid_str)
+    except ValueError:
+        pass
+    # is it known text?
+    if objectid_str in _key_str_objectid_map:
+        return _key_str_objectid_map[objectid_str]
+    # is it a qgroup identifier?
+    if _type in (QGROUP_RELATION_KEY, QGROUP_INFO_KEY, QGROUP_LIMIT_KEY):
+        match = _re_qgroup_objectid.match(objectid_str)
+        if match is not None:
+            return _qgroup_objectid(**match.groupdict())
+        else:
+            raise ValueError("Unparseable key objectid {} for qgroup type {}".format(
+                objectid_str, _key_type_str(_type)))
+    # is it some UUID hex string?
+    try:
+        return int(objectid_str, 0)
+    except Exception:
+        pass
+    # otherwise, we don't know
+    raise ValueError("Unparseable key objectid {}".format(objectid_str))
 
 
 _key_type_str_map = {
@@ -411,6 +452,20 @@ def _key_type_str(_type):
     return _key_type_str_map.get(_type, str(_type))
 
 
+_key_str_type_map = {v: k for k, v in _key_type_str_map.items()}
+
+
+def _key_str_type(type_str):
+    # is it just a number?
+    try:
+        return int(type_str)
+    except ValueError:
+        pass
+    if type_str in _key_str_type_map:
+        return _key_str_type_map[type_str]
+    raise ValueError("Unknown key type {}".format(type_str))
+
+
 def _key_offset_str(offset, _type):
     if _type == QGROUP_RELATION_KEY or _type == QGROUP_INFO_KEY or _type == QGROUP_LIMIT_KEY:
         return "{}/{}".format(qgroup_level(offset), qgroup_subvid(offset))
@@ -422,6 +477,29 @@ def _key_offset_str(offset, _type):
         return _key_objectid_str_map.get(offset, str(offset))
 
     return str(offset)
+
+
+def _key_str_offset(offset_str, _type):
+    # is it just a number?
+    try:
+        return int(offset_str)
+    except ValueError:
+        pass
+    # is it a qgroup identifier?
+    if _type in (QGROUP_RELATION_KEY, QGROUP_INFO_KEY, QGROUP_LIMIT_KEY):
+        match = _re_qgroup_objectid.match(offset_str)
+        if match is not None:
+            return _qgroup_objectid(**{k: int(v) for k, v in match.groupdict().items()})
+        else:
+            raise ValueError("Unparseable key offset {} for qgroup type {}".format(
+                offset_str, _key_type_str(_type)))
+    # is it some UUID hex string?
+    try:
+        return int(offset_str, 0)
+    except Exception:
+        pass
+    # otherwise, we don't know
+    raise ValueError("Unparseable key offset {}".format(offset_str))
 
 
 class ItemNotFoundError(IndexError):
@@ -447,9 +525,12 @@ class Key(object):
     A full 136-bit tree key is composed as:
       (objectid << 72) + (type << 64) + offset
 
-    :param int objectid: 64-bit object ID field.
-    :param int type\_: 8-bit type field.
-    :param int offset: 64-bit offset field.
+    :param objectid: 64-bit object ID number or string representation.
+    :type objectid: Union[int, str]
+    :param type\_: 8-bit type number or string representation.
+    :type type\_: Union[int, str]
+    :param int offset: 64-bit offset number or string representation.
+    :type offset: Union[int, str]
 
     Key objects support sorting and simple addition and subtraction.  Also,
     when subtracting 1 from a zero key, the value wraps around to the largest
@@ -457,7 +538,7 @@ class Key(object):
 
     Example::
 
-        >>> key1 = btrfs.ctree.Key(425, btrfs.ctree.DIR_ITEM_KEY, 17818406)
+        >>> key1 = btrfs.ctree.Key(425, 'DIR_ITEM', 17818406)
         >>> key1
         Key(425, 84, 17818406)
         >>> str(key1)
@@ -477,8 +558,8 @@ class Key(object):
         '(-1 255 -1)'
 
     The `-1` value in the string representation is just a convenience way to
-    write the maximum 64 bit number. The actual value is still
-    18446744073709551615.
+    write the maximum allowed number. The actual value for a 64 bit numer is
+    still 18446744073709551615, and for 8 bit that's 255 of course.
 
     For example, when setting up a minimum and maximum key for a metadata
     search, the arithmetic that can be done helps quickly defining the maximum
@@ -495,11 +576,37 @@ class Key(object):
         Key(31337, 0, 0)
         >>> max_key
         Key(31337, 255, 18446744073709551615)
+
+    Last but not least, the utils module contains the helper function
+    :func:`~btrfs.utils.parse_key_string` to dissect a full text key string:
+
+    Example::
+
+        >>> btrfs.utils.parse_key_string('(535 EXTENT_DATA 0)')
+        Key(535, 108, 0)
     """
+
     def __init__(self, objectid, type_, offset):
-        self._objectid = ULL(objectid)
-        self._type = U8(type_)
-        self._offset = ULL(offset)
+        if isinstance(type_, int):
+            self._type = U8(type_)
+        elif isinstance(type_, str):
+            self._type = _key_str_type(type_)
+        else:
+            raise ValueError("Key type needs to be either string or integer: {}.".format(type_))
+        if isinstance(objectid, int):
+            self._objectid = ULL(objectid)
+        elif isinstance(objectid, str):
+            self._objectid = _key_str_objectid(objectid, self._type)
+        else:
+            raise ValueError("Key objectid needs to be either string or integer: {}.".format(
+                objectid))
+        if isinstance(offset, int):
+            self._offset = ULL(offset)
+        elif isinstance(offset, str):
+            self._offset = _key_str_offset(offset, self._type)
+        else:
+            raise ValueError("Key offset needs to be either string or integer: {}.".format(
+                offset))
         self._pack()
 
     @property
