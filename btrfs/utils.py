@@ -475,6 +475,35 @@ def parse_tree_name(name):
     raise ValueError("Unknown metadata tree name " + name)
 
 
+def parse_key_string(key_str):
+    """Create a Key object from a pretty printed string representation
+
+    :param string key_str: String representation of a key, e.g. '(31832 INODE_REF 31798)'
+    :returns: A Key object with the parsed values set
+    :rtype: :class:`~btrfs.ctree.Key`
+    :raises: :class:`ValueError` if the key string is an invalid key representation
+
+    The parentheses around the key triplet are optional.
+
+    Example::
+
+        >>> btrfs.utils.parse_key_string('(31832 INODE_REF 31798)')
+        Key(31832, 12, 31798)
+        >>> btrfs.utils.parse_key_string('(535 EXTENT_DATA 0)')
+        Key(535, 108, 0)
+
+    """
+    if key_str[0] == '(' and key_str[-1] == ')':
+        key_str = key_str[1:-1]
+    try:
+        objectid_str, type_str, offset_str = key_str.split()
+    except ValueError:
+        raise ValueError(
+            "Key representation needs 3 fields: objectid, type, offset: {}".format(key_str)) \
+            from None
+    return btrfs.ctree.Key(objectid_str, type_str, offset_str)
+
+
 def _pretty_attr_value(obj, attr_name, stringify_fn=None):
     if stringify_fn is not None:
         return "{}: {}".format(attr_name, stringify_fn(getattr(obj, attr_name)))
