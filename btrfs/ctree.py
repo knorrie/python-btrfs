@@ -438,6 +438,9 @@ class ItemNotFoundError(IndexError):
     pass
 
 
+KEY_MAX = (1 << 136) - 1
+
+
 class Key(object):
     """Btrfs metadata trees have a key space of 136-bit numbers.
 
@@ -536,7 +539,7 @@ class Key(object):
 
     @key.setter
     def key(self, _key):
-        self._key = _key
+        self._key = _key & KEY_MAX
         self._unpack()
 
     def _pack(self):
