@@ -2559,6 +2559,27 @@ class FreeSpaceBitmap(ItemData):
         return "free space bitmap for vaddr {self.vaddr} length {self.length}".format(self=self)
 
 
+class OrphanItem(ItemData):
+    """Object representation for orphan item information from the root tree.
+
+    * Tree: `ROOT_TREE_OBJECTID` (1).
+    * Key objectid: `ORPHAN_OBJECTID` (-5).
+    * Key type: `ORPHAN_ITEM_KEY` (48).
+    * Key offset: objectid of the item in the root tree that is orphaned and
+        needs to be cleaned up.
+
+    :ivar int objectid: objectid of the item in the root tree that is orphaned
+        and needs to be cleaned up. (taken from the offset field of the item
+        key)
+    """
+    def __init__(self, header, _):
+        super().__init__(header)
+        self._setattr_from_key(offset_attr='objectid')
+
+    def __str__(self):
+        return "orphan objectid {self.objectid}".format(self=self)
+
+
 class NotImplementedItem(ItemData):
     """Placeholder object for metadata item types that have not been implemented yet."""
     def __init__(self, header, data):
@@ -2584,6 +2605,7 @@ _key_type_class_map = {
     INODE_REF_KEY: InodeRefList,
     INODE_EXTREF_KEY: InodeExtrefList,
     XATTR_ITEM_KEY: DirItemList,
+    ORPHAN_ITEM_KEY: OrphanItem,
     DIR_LOG_ITEM_KEY: NotImplementedItem,
     DIR_LOG_INDEX_KEY: NotImplementedItem,
     DIR_ITEM_KEY: DirItemList,
