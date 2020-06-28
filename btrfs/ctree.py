@@ -811,18 +811,10 @@ class FileSystem(object):
             max_type = 255
         min_key = Key(min_id, min_type, 0)
         max_key = Key(max_id, max_type, ULLONG_MAX)
-        cur_header = None
-        cur_data = None
-        for next_header, next_data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
-            if next_header.type != ROOT_ITEM_KEY:
+        for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
+            if header.type != ROOT_ITEM_KEY:
                 continue
-            if cur_header is not None and next_header.objectid > cur_header.objectid:
-                yield RootItem(cur_header, cur_data)
-            cur_header = next_header
-            cur_data = next_data
-
-        if cur_header is not None:
-            yield RootItem(cur_header, cur_data)
+            yield RootItem(header, data)
 
     def orphan_subvol_ids(self):
         """
