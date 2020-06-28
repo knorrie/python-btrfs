@@ -792,6 +792,24 @@ class FileSystem(object):
         """
         return btrfs.ioctl.space_info(self.fd)
 
+    def search(self, tree, min_key=None, max_key=None):
+        """
+        Retrieve all metadata items within a specific range. This is basically
+        a thin wrapper around the :func:`~btrfs.ioctl.search_v2` with a bit
+        limited functionality, but suited for almost all use cases when quickly
+        searching around.
+
+        :param int tree: The metadata tree we're searching in.
+        :param btrfs.ctree.Key min_key: Minimum key value for items to return.
+        :param btrfs.ctree.Key max_key: Maximum key value for items to return.
+        :returns: Any metadata item found in the search range, as sub class of
+            :class:`~btrfs.ctree.ItemData`, helped by the
+            :func:`btrfs.ctree.classify` function.
+        :rtype: Iterator[:class:`~btrfs.ctree.ItemData`]
+        """
+        for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
+            yield btrfs.ctree.classify(header, data)
+
     def devices(self, min_devid=1, max_devid=ULLONG_MAX):
         """
         :param int min_devid: Lowest Device ID to search for.
