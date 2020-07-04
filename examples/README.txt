@@ -1,8 +1,7 @@
 In this directory you can find a collection of example scripts that use
-python-btrfs to look up information about your btrfs filesystem.
-
-For all new added functionality, there should be at least one example script
-that's using it.
+python-btrfs to look up information about your btrfs filesystem. Over time,
+some of these examples have been 'promoted' to actual utilities, which you can
+find in the bin/ directory instead now.
 
 Many of the scripts just use a btrfs mountpoint, or a combination of a vaddr
 and mountpoint as argument. Run them without any of it, and they will tell you
