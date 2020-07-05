@@ -540,7 +540,7 @@ def pretty_print(obj):
     designed to work with objects from the btrfs library. It is also possible
     to provide a lists of objects, or a generator, or even nested structures.
 
-    :param obj: An objects to pretty print, or a collection of them.
+    :param obj: An object to pretty print, or a collection of them.
     :type obj: anything goes
 
     Example::
