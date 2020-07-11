@@ -25,8 +25,10 @@ import argparse
 import btrfs
 import errno
 import heapq
+import signal
 import sys
 import time
+import threading
 
 
 class Bork(Exception):
@@ -79,14 +81,9 @@ def balance_one_block_group(fs, block_groups, max_used_pct):
     args = btrfs.ioctl.BalanceArgs(vstart=vaddr, vend=vaddr+1)
     print("Balance block group vaddr {} used_pct {} ...".format(
         vaddr, used_pct), end='', flush=True)
-    try:
-        progress = btrfs.ioctl.balance_v2(fs.fd, data_args=args)
-        end_time = time.time()
-        print(" duration {} sec total {}".format(int(end_time - start_time), progress.considered))
-    except KeyboardInterrupt:
-        end_time = time.time()
-        print(" duration {} sec".format(int(end_time - start_time)))
-        raise
+    progress = btrfs.ioctl.balance_v2(fs.fd, data_args=args)
+    end_time = time.time()
+    print(" duration {} sec total {}".format(int(end_time - start_time), progress.considered))
 
 
 def parse_args():
@@ -123,8 +120,25 @@ def main():
             if len(block_groups) == 0:
                 print("Nothing to do, least used block group has used_pct {}".format(min_used_pct))
                 return
-            while len(block_groups) > 0:
-                balance_one_block_group(fs, block_groups, max_used_pct)
+
+            def sigint_handler(sig, frame):
+                print('^C', end=None)
+                try:
+                    btrfs.ioctl.balance_ctl(fs.fd, btrfs.ioctl.BALANCE_CTL_CANCEL)
+                except btrfs.ioctl.BalanceError as be:
+                    if be.errno != errno.ENOTCONN:
+                        raise
+                raise KeyboardInterrupt()
+
+            signal.signal(signal.SIGINT, sigint_handler)
+            try:
+                while len(block_groups) > 0:
+                    t = threading.Thread(target=balance_one_block_group,
+                                         args=(fs, block_groups, max_used_pct))
+                    t.start()
+                    t.join()
+            except KeyboardInterrupt:
+                pass
     except OSError as e:
         if e.errno == errno.EPERM:
             raise Bork("Insufficient permissions to use the btrfs kernel API.\n"
