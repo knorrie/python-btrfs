@@ -978,14 +978,16 @@ class BalanceError(Exception):
     A :class:`BalanceError` can be thrown by any of the balance related
     functions in this module.
 
-    :ivar int state: Probably one of the balance state values, see below.
+    :ivar int state: One of the balance state values, see below. This field is
+        only set to a non-zero value when the error is raised by the
+        :func:`balance_v2` function.
+    :ivar int errno: An errno errorcode that was returned when executing the
+        ioctl call in one of the balance related functions.
     :ivar str msg: A message describing the error condition.
 
-    Availalable balance state values (available as attribute of this module) are:
-
-    - `BALANCE_STATE_RUNNING`
-    - `BALANCE_STATE_PAUSE_REQ`
-    - `BALANCE_STATE_CANCEL_REQ`
+    Refer to the docucumentation of the different functions who can raise this
+    error for more information about combinations of the state and errno
+    numbers that can be expected, and about what they mean.
     """
     def __init__(self, state, msg):
         self.state = state
@@ -1031,6 +1033,18 @@ def balance_v2(fd, data_args=None, meta_args=None, sys_args=None, force=False, r
         balance operation by a separate call to
         :func:`~btrfs.ioctl.balance_ctl`, or having another balance operation
         already running.
+
+    When a :class:`BalanceError` is raised, the following combinations of state
+    and errno attributes can be expected:
+
+    - errno `ECANCELED`, state `BALANCE_STATE_PAUSE_REQ`: The balance operation
+      was paused because of a user request.
+    - errno `ECANCELED`, state `BALANCE_STATE_CANCEL_REQ`: The balance
+      operation was aborted because of a user request.
+    - errno `ENOTCONN`: A resume was requested, but there was no previously
+      paused balance operation.
+    - errno `EINPROGRESS`: A resume or start was requested, but there is
+      already a balance operation in progress.
     """
     args = bytearray(ioctl_balance_args.size)
     if resume:
@@ -1102,6 +1116,12 @@ def balance_ctl(fd, cmd):
 
     :raises: :class:`BalanceError` if there is no balance in progress, or if
         pausing or cancelling it failed.
+
+    When a :class:`BalanceError` is raised, the following values for the errno
+    attribute can be expected:
+
+    - errno `ENOTCONN`: There is no balance operation in progress, so it cannot
+      be paused or cancelled.
     """
     try:
         fcntl.ioctl(fd, IOC_BALANCE_CTL, cmd)
@@ -1135,6 +1155,11 @@ def balance_progress(fd):
 
     :raises: :class:`BalanceError` if there is no balance in progress, or if
         inquiring about the progress failed.
+
+    When a :class:`BalanceError` is raised, the following values for the errno
+    attribute can be expected:
+
+    - errno `ENOTCONN`: There is no balance operation in progress.
     """
     args = bytearray(ioctl_balance_args.size)
     try:
