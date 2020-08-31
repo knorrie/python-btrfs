@@ -2274,6 +2274,8 @@ class FileExtentItem(ItemData):
     * Key type: `EXTENT_DATA_KEY` (108)
     * Key offset: Logical offset in the file where the referenced data appears.
 
+    :ivar int objectid: The inode number of the file. (taken from the objectid
+        field of the item key).
     :ivar int logical_offset: Logical offset in the file where the referenced
         data appears. (taken from the offset field of the item key).
     :ivar int generation: Generation of the filesystem when this file extent
@@ -2328,7 +2330,7 @@ class FileExtentItem(ItemData):
 
     def __init__(self, header, data):
         super().__init__(header)
-        self._setattr_from_key(offset_attr='logical_offset')
+        self._setattr_from_key(objectid_attr='objectid', offset_attr='logical_offset')
         self.generation, self.ram_bytes, self.compression, self.encryption, self.type = \
             FileExtentItem._file_extent_item_parts[0].unpack_from(data)
         if self.type != FILE_EXTENT_INLINE:
