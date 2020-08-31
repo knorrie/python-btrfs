@@ -1,2 +1,8 @@
 [btrfs_usage]
 user root
+# The mounts options allows limiting the filesystems that are included in the
+# plugin output, as well as forcing the path that is used in the graph title to
+# a certain value. No fun stuff allowed. Either path cannot have spaces etc. in
+# the name, because we simply split on a space. Also, any non-ascii character
+# used might result in surprises. All of that is just not supported here.
+#env.mounts / /foo /bar
