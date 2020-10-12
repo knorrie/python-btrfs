@@ -110,7 +110,7 @@ FIRST_CHUNK_TREE_OBJECTID = 256  #: Object ID for Chunk objects in the Chunk tre
 
 DEV_ITEMS_OBJECTID = 1  #: Object ID for Device items in the Device tree.
 
-
+UNTYPED_KEY = 0
 INODE_ITEM_KEY = 1  #: Key type used by :class:`InodeItem`
 INODE_REF_KEY = 12  #: Key type used by :class:`InodeRefList`
 INODE_EXTREF_KEY = 13  # Key type used by :class:`InodeExtrefList(`
@@ -123,7 +123,7 @@ DIR_INDEX_KEY = 96  #: Key type used by :class:`DirIndex`
 EXTENT_DATA_KEY = 108  #: Key type used by :class:`FileExtentItem`
 EXTENT_CSUM_KEY = 128  #: Key type used for checksum items.
 ROOT_ITEM_KEY = 132  #: Key type used by :class:`RootItem`
-ROOT_BACKREF_KEY = 144
+ROOT_BACKREF_KEY = 144  #: Key type used by :class:`RootBackref`
 ROOT_REF_KEY = 156  #: Key type used by :class:`RootRef`
 EXTENT_ITEM_KEY = 168  #: Key type used by :class:`ExtentItem`
 METADATA_ITEM_KEY = 169  #: Key type used by :class:`MetaDataItem`
@@ -2376,6 +2376,51 @@ class RootRef(ItemData):
         ]
 
 
+class RootBackref(ItemData):
+    """Object representation of `btrfs_root_ref`, reused for root backrefs.
+
+    The :class:`RootRef` item lives in the root tree, a.k.a. the 'tree of
+    trees'.  It contains information about the place where a subvolume is
+    located inside another subvolume. The item is almost identical to the
+    :class:`RootRef` metadata items, only the key objectid and offset values
+    are swapped.
+
+    * Tree: `ROOT_TREE_OBJECTID` (1).
+    * Key objectid: Tree ID of the subvolume.
+    * Key type: `ROOT_BACKREF_KEY` (144)
+    * Key offset: Parent tree ID.
+
+    :ivar int tree: Tree ID of the subvolume. (taken from the objectid field of
+        the item key)
+    :ivar int parent_tree: Containing Tree ID. (taken from the offset field of
+        the item key)
+    :ivar int dirid: Inode number of the containing directory.
+    :ivar int sequence: Directory index number in the containing directory.
+    :ivar int name_len: Amount of bytes used to store the filename.
+    :ivar bytes name: Filename as bytes.
+
+    
+
+
+
+    """
+    def __init__(self, header, data):
+        super().__init__(header)
+        self._setattr_from_key(objectid_attr='tree', offset_attr='parent_tree')
+        self.dirid, self.sequence, self.name_len = RootRef._root_ref_item.unpack_from(data)
+        pos = RootRef._root_ref_item.size
+        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
+
+    def __str__(self):
+        return "root backref tree {self.tree} parent_tree {self.parent_tree} dirid {self.dirid} " \
+            "sequence {self.sequence} name {self.name_str}".format(self=self)
+
+    def _pretty_properties():
+        return [
+            (btrfs.utils.embedded_text_for_str, 'name')
+        ]
+
+
 class FileExtentItem(ItemData):
     """Object representation of `btrfs_file_extent_item`.
 
@@ -2644,7 +2689,7 @@ _key_type_class_map = {
     EXTENT_CSUM_KEY: NotImplementedItem,
     ROOT_ITEM_KEY: RootItem,
     ROOT_REF_KEY: RootRef,
-    ROOT_BACKREF_KEY: NotImplementedItem,
+    ROOT_BACKREF_KEY: RootBackref,
     EXTENT_ITEM_KEY: ExtentItem,
     METADATA_ITEM_KEY: MetaDataItem,
     TREE_BLOCK_REF_KEY: TreeBlockRef,
@@ -2699,6 +2744,11 @@ def classify(header, data):
 
     if header.type == TEMPORARY_ITEM_KEY:
         if header.objectid == BALANCE_OBJECTID:
+            return NotImplementedItem(header, data)
+        return UnknownItem(header, data)
+
+    if header.type == UNTYPED_KEY:
+        if header.objectid == FREE_SPACE_OBJECTID:
             return NotImplementedItem(header, data)
         return UnknownItem(header, data)
 
