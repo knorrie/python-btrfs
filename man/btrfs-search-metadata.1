@@ -1,0 +1,109 @@
+.TH BTRFS\-SEARCH\-METADATA 1 "2020" "" "Btrfs Search Metadata"
+.nh
+.ad l
+
+.SH "NAME"
+btrfs\-search\-metadata \- lookup btrfs metadata
+
+.SH SYNOPSIS
+.B btrfs\-search\-metadata
+<subcommand>
+<args>
+
+.SH DESCRIPTION
+The \fIbtrfs\-search\-metadata\fR program can be used to execute search queries
+in order to look up metadata items of an online, mounted btrfs filesystem.
+Unlike the btrfs inspect-internal dump-tree command, which directly reads from
+disk, \fIbtrfs\-search\-metadata\fR only uses the kernel SEARCH ioctl function.
+
+Besides being able to get any metadata slice from any tree, there are a number
+of convenience presets that execute predefined search queries.
+
+.SH GLOBAL OPTIONS
+.TP
+.BR \-h ", " \-\-help
+Show the built\-in help message and exit.
+.TP
+.BR "\-\-format " \fBkeys|short|long\fR
+Print metadata items as \fBkeys\fR only, as a \fBshort\fR single line per item
+(default), or \fBlong\fR output with full contents of all fields.
+
+.SH SUBCOMMANDS
+.PP
+\fBchunks\fR
+.IR <path>
+.RS 4
+Display all chunk items from the chunk tree, as well as the stripe items that
+they contain.
+.RE
+
+\fBblock_groups\fR
+.IR <path>
+.RS 4
+Display all block group items from the extent tree.
+.RE
+
+\fBdev_extents\fR
+.IR <path>
+.RS 4
+Display all device extent items from the device tree.
+.RE
+
+\fBfile\fR
+.IR <path>
+.RS 4
+Display all information btrfs knows about a file or directory.
+.RE
+
+\fBinode\fR
+-t|--tree
+.IR <tree>
+--inum
+.IR <inum>
+.IR <path>
+.RS 4
+Display all information about an inode number in a subvolume tree.
+.RE
+
+\fBdevices\fR
+.IR <path>
+.RS 4
+Display all device items from the device tree.
+.RE
+
+\fBorphans\fR
+.IR <path>
+.RS 4
+Display all orphan items from the root tree.
+.RE
+
+\fBdump\fR
+-t|--tree
+.IR <tree>
+[--min-key \fI<MIN_KEY>\fR]
+[--max-key \fI<MAX_KEY>\fR]
+.IR <path>
+.RS 4
+Dump an arbitrary slice of metadata items from any tree. A key should be specified in the regular form as '(<objectid> <type> <offset>)', e.g. '(EXTENT_TREE ROOT_ITEM 0)'. The number -1 can be used instead of the maximum value for a field. This can be very useful when dumping all metadata items for a specific objectid. For example, what the \fBinode\fR subcommand does is searching with min-key '(<inum> 0 0)' and max-key '(<inum> -1 -1)'
+.RE
+
+\fBblock_group_contents\fR
+--vaddr
+.IR <vaddr>
+.IR <path>
+.RS 4
+Dump the contents of a block group (from the extent tree) from the specified virtual address of the start of the block group to its end. Use the block_groups subcommand to list block group addresses.
+.RE
+
+\fBblock_group_free_space\fR
+--vaddr
+.IR <vaddr>
+.IR <path>
+.RS 4
+Dump the free space extents for a block group (from the free space tree) for the block group at the specified virtual address. Use the block_groups subcommand to list block group addresses.
+.RE
+
+.SH "SEE ALSO"
+This program is an example of what can be done using the python-btrfs library.
+
+Source and documentation on github: https://github.com/knorrie/python-btrfs
