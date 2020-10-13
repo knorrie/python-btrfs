@@ -1,3 +1,9 @@
+python-btrfs (12-2~bpo10+1) buster-backports; urgency=medium
+
+  * Rebuild for buster-backports (no changes)
+
+ -- Hans van Kranenburg <hans@knorrie.org>  Sun, 18 Oct 2020 18:14:38 +0200
+
 python-btrfs (12-2) unstable; urgency=medium
 
   * I need to do a source only upload. DOH!
