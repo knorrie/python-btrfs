@@ -18,7 +18,7 @@ setup(
     name='btrfs',
     packages=['btrfs'],
     version=version,
-    description='Python module to inspect btrfs filesystems',
+    description='Python module to interact programmatically with an online btrfs file system',
     long_description=long_description,
     author='Hans van Kranenburg',
     author_email='hans@knorrie.org',
