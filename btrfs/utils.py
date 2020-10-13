@@ -423,6 +423,87 @@ def embedded_text_for_str(text):
         return "raw '{}'".format(repr(text))
 
 
+_tree_name_id_map = {
+    'root': btrfs.ctree.ROOT_TREE_OBJECTID,
+    'extent': btrfs.ctree.EXTENT_TREE_OBJECTID,
+    'chunk': btrfs.ctree.CHUNK_TREE_OBJECTID,
+    'dev': btrfs.ctree.DEV_TREE_OBJECTID,
+    'fs': btrfs.ctree.FS_TREE_OBJECTID,
+    'csum': btrfs.ctree.CSUM_TREE_OBJECTID,
+    'quota': btrfs.ctree.QUOTA_TREE_OBJECTID,
+    'uuid': btrfs.ctree.UUID_TREE_OBJECTID,
+    'free_space': btrfs.ctree.FREE_SPACE_TREE_OBJECTID,
+    'tree_log': btrfs.ctree.TREE_LOG_OBJECTID,
+    'tree_log_fixup': btrfs.ctree.TREE_LOG_FIXUP_OBJECTID,
+    'tree_reloc': btrfs.ctree.TREE_RELOC_OBJECTID,
+    'data_reloc': btrfs.ctree.DATA_RELOC_TREE_OBJECTID,
+}
+
+
+def parse_tree_name(name):
+    """Convert a tree name to an actual root tree objectid number
+
+    :param string name: tree name with optional _tree suffix or number
+        formatted as string
+    :returns: Tree objectid that is valid for the root tree
+    :rtype: int
+
+    Example::
+
+        >>> btrfs.utils.parse_tree_name('EXTENT_TREE')
+        2
+        >>> btrfs.utils.parse_tree_name('extent_tree')
+        2
+        >>> btrfs.utils.parse_tree_name('extent')
+        2
+        >>> btrfs.utils.parse_tree_name('2')
+        2
+        >>> btrfs.utils.parse_tree_name(2)
+        2
+    """
+    try:
+        return int(name)
+    except ValueError:
+        pass
+    lower_name = name.lower()
+    if lower_name[-5:] == '_tree':
+        lookup_name = lower_name[:-5]
+    else:
+        lookup_name = lower_name
+    if lookup_name in _tree_name_id_map:
+        return _tree_name_id_map[lookup_name]
+    raise ValueError("Unknown metadata tree name " + name)
+
+
+def parse_key_string(key_str):
+    """Create a Key object from a pretty printed string representation
+
+    :param string key_str: String representation of a key, e.g. '(31832 INODE_REF 31798)'
+    :returns: A Key object with the parsed values set
+    :rtype: :class:`~btrfs.ctree.Key`
+    :raises: :class:`ValueError` if the key string is an invalid key representation
+
+    The parentheses around the key triplet are optional.
+
+    Example::
+
+        >>> btrfs.utils.parse_key_string('(31832 INODE_REF 31798)')
+        Key(31832, 12, 31798)
+        >>> btrfs.utils.parse_key_string('(535 EXTENT_DATA 0)')
+        Key(535, 108, 0)
+
+    """
+    if key_str[0] == '(' and key_str[-1] == ')':
+        key_str = key_str[1:-1]
+    try:
+        objectid_str, type_str, offset_str = key_str.split()
+    except ValueError:
+        raise ValueError(
+            "Key representation needs 3 fields: objectid, type, offset: {}".format(key_str)) \
+            from None
+    return btrfs.ctree.Key(objectid_str, type_str, offset_str)
+
+
 def _pretty_attr_value(obj, attr_name, stringify_fn=None):
     if stringify_fn is not None:
         return "{}: {}".format(attr_name, stringify_fn(getattr(obj, attr_name)))
@@ -441,7 +522,7 @@ def _pretty_attr_value(obj, attr_name, stringify_fn=None):
     return "{}: {}".format(attr_name, value)
 
 
-pretty_print_modules = 'btrfs.ctree', 'btrfs.ioctl', 'btrfs.fs_usage'
+pretty_print_modules = 'btrfs.ctree', 'btrfs.ioctl', 'btrfs.fs_usage', 'btrfs.free_space_tree'
 
 
 def _pretty_obj_tuples(obj, level=0, seen=None):
@@ -519,6 +600,11 @@ def _pretty_obj_tuples(obj, level=0, seen=None):
         for item in obj:
             yield level, '-'
             yield from _pretty_obj_tuples(item, level+1, seen)
+    elif isinstance(obj, dict) and len(obj) != 0:
+        known = True
+        for k, v in obj.items():
+            yield level, "{}:".format(k)
+            yield from _pretty_obj_tuples(v, level+1, seen)
     if not known:
         yield level, str(obj)
     seen.pop()
@@ -540,7 +626,7 @@ def pretty_print(obj):
     designed to work with objects from the btrfs library. It is also possible
     to provide a lists of objects, or a generator, or even nested structures.
 
-    :param obj: An objects to pretty print, or a collection of them.
+    :param obj: An object to pretty print, or a collection of them.
     :type obj: anything goes
 
     Example::
@@ -557,3 +643,57 @@ def pretty_print(obj):
         used: 960.50MiB
     """
     _pretty_print(obj)
+
+
+def _str_obj_tuples(obj, level=0, seen=None):
+    if seen is None:
+        seen = []
+    cls = obj.__class__
+    if cls.__module__ in pretty_print_modules and \
+            not isinstance(obj, (btrfs.ctree.Key, btrfs.ctree.TimeSpec)):
+        yield level, str(obj)
+    if obj in seen:
+        yield level, "[... object already seen, aborting recursion]"
+        return
+    seen.append(obj)
+    if isinstance(obj, btrfs.ctree.ItemData):
+        for attr_name, attr_value in obj.__dict__.items():
+            if attr_name.startswith('_'):
+                continue
+            if isinstance(obj, (btrfs.ctree.ItemData, btrfs.ctree.SubItem)):
+                yield from _str_obj_tuples(attr_value, level+1, seen)
+            elif isinstance(attr_value, list):
+                for item in attr_value:
+                    yield from _str_obj_tuples(item, level+1, seen)
+    if isinstance(obj, (list, types.GeneratorType)):
+        for item in obj:
+            yield from _str_obj_tuples(item, level, seen)
+    elif isinstance(obj, btrfs.ctree.ItemData) and \
+            isinstance(obj, collections.abc.MutableSequence):
+        for item in obj:
+            yield from _str_obj_tuples(item, level+1, seen)
+    seen.pop()
+
+
+def _str_print_lines(obj, level=0):
+    for level, line in _str_obj_tuples(obj, level):
+        yield "{}{}".format('  ' * level, line)
+
+
+def str_print(obj):
+    """
+    Print the usual str() of an object, but look inside to see if more ItemData
+    objects are hidden there. If so, also print their str().
+
+    :param obj: An object to pretty print, or a collection of them.
+    :type obj: anything goes
+
+    Example::
+
+        >>> with btrfs.FileSystem('/') as fs:
+        ...      btrfs.utils.str_print(fs.block_group(63381176320))
+        ...
+        block group vaddr 63381176320 length 1073741824 flags DATA used 1073741824 used_pct 100
+    """
+    for line in _str_print_lines(obj):
+        print(line)

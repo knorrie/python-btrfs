@@ -41,7 +41,7 @@ An example:
 
 Note that most physical disk vendors specify their sizes in GB or TB for
 deceptive marketing reasons, while partitions created in your average partition
-table or with lvm2 etc... are usally using MiB, GiB and TiB.
+table or with lvm2 etc... are usually using MiB, GiB and TiB.
 
 .SH OPTIONS
 .TP
@@ -58,7 +58,9 @@ Data profile, raid0, raid1, raid5, raid6, raid10, dup or single.
 Use mixed block groups (data and metadata profile must match).
 .TP
 .BR \-r ", " "\-\-ratio " \fIRATIO
-Data to metadata ratio, e.g. 200, which means allocate 0.5% for metadata.
+Data to metadata ratio, e.g. 200 (the default), which means allocate 0.5% for
+metadata. Setting this ratio only makes sense for non-mixed filesystems. When
+using this option in combination with -M, it will be ignored.
 
 .SH "SEE ALSO"
 This program is an example of what can be done using the python-btrfs library.

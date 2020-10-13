@@ -15,17 +15,29 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with python-btrfs.  If not, see <http://www.gnu.org/licenses/>.
 
-"""
-This module contains a small helper, which is used by the
-:func:`~btrfs.ctree.FreeSpaceBitmap.unpack` function of a
-:class:`btrfs.ctree.FreeSpaceBitmap`. It's also used by the
-:func:`~btrfs.ctree.FileSystem.free_space_extents` convenience method of a
-:class:`btrfs.ctree.FileSystem` object for generating a simple stream of free
-space extent info transparently unpacking bitmaps.
-"""
 
+class FreeSpaceExtent():
+    """Helper object for listing free space tree extents.
 
-from collections import namedtuple
+    In the free space tree, information about free space can be stored as free
+    space extent item, in which case it has information about a single gap of
+    free space. Alternatively, it can be stored in a compacted format, as free
+    space bitmap. In that case, to find out where the tiny gaps of free space
+    are located, the bitmap needs to be unpacked.
 
+    This object serves as a helper when doing so. It is used by the
+    :func:`~btrfs.ctree.FreeSpaceBitmap.unpack` function of a
+    :class:`btrfs.ctree.FreeSpaceBitmap`. It's also used by the
+    :func:`~btrfs.ctree.FileSystem.free_space_extents` convenience method of a
+    :class:`btrfs.ctree.FileSystem` object for generating a simple stream of free
+    space extent info transparently unpacking bitmaps.
 
-FreeSpaceExtent = namedtuple('FreeSpaceExtent', ['vaddr', 'length'])
+    :ivar int vaddr: Logical address of the start of the free space extent.
+    :ivar int length: Length of the free space extent.
+    """
+    def __init__(self, vaddr, length):
+        self.vaddr = vaddr
+        self.length = length
+
+    def __str__(self):
+        return "free space extent vaddr {self.vaddr} length {self.length}".format(self=self)

@@ -4,16 +4,26 @@ from distutils.core import setup
 with open('README.md') as f:
     long_description = f.read()
 
+
+def get_version():
+    version_dict = {}
+    with open('btrfs/version.py') as fp:
+        exec(fp.read(), version_dict)
+    return version_dict['__version__']
+
+
+version = get_version()
+
 setup(
     name='btrfs',
     packages=['btrfs'],
-    version='11',
-    description='Python module to inspect btrfs filesystems',
+    version=version,
+    description='Python module to interact programmatically with an online btrfs file system',
     long_description=long_description,
     author='Hans van Kranenburg',
     author_email='hans@knorrie.org',
     url='https://github.com/knorrie/python-btrfs',
-    download_url='https://github.com/knorrie/python-btrfs/tarball/v11',
+    download_url='https://github.com/knorrie/python-btrfs/tarball/v{}'.format(version),
     keywords=['btrfs', 'filesystem'],
     classifiers=[
         'Development Status :: 5 - Production/Stable',

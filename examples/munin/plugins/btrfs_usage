@@ -19,6 +19,7 @@
 
 
 import btrfs
+import os
 import sys
 
 
@@ -135,8 +136,26 @@ def munin_values(fs):
     print("")
 
 
+def filter_env_mounts(mounts):
+    filesystems = {}
+    for path in mounts:
+        try:
+            with btrfs.ctree.FileSystem(path) as fs:
+                filesystems.setdefault(fs.fsid, path)
+        except Exception as e:
+            print("Unable to open btrfs filesystem at {}: {}".format(path, e), file=sys.stderr)
+
+    return list(filesystems.values())
+
+
 def main():
-    for path in btrfs.utils.mounted_filesystem_paths():
+    # plugin conf can specify env.mounts with space separated paths
+    env_mounts = os.environ.get('mounts')
+    if env_mounts is not None:
+        paths = filter_env_mounts(env_mounts.split())
+    else:
+        paths = btrfs.utils.mounted_filesystem_paths()
+    for path in paths:
         with btrfs.FileSystem(path) as fs:
             if len(sys.argv) > 1 and sys.argv[1] == "config":
                 munin_config(fs)

@@ -27,6 +27,7 @@ import collections.abc
 import copy
 import datetime
 import os
+import re
 import struct
 import uuid
 
@@ -123,7 +124,7 @@ EXTENT_DATA_KEY = 108  #: Key type used by :class:`FileExtentItem`
 EXTENT_CSUM_KEY = 128  #: Key type used for checksum items.
 ROOT_ITEM_KEY = 132  #: Key type used by :class:`RootItem`
 ROOT_BACKREF_KEY = 144
-ROOT_REF_KEY = 156
+ROOT_REF_KEY = 156  #: Key type used by :class:`RootRef`
 EXTENT_ITEM_KEY = 168  #: Key type used by :class:`ExtentItem`
 METADATA_ITEM_KEY = 169  #: Key type used by :class:`MetaDataItem`
 TREE_BLOCK_REF_KEY = 176  #: Key type used by :class:`TreeBlockRef`
@@ -322,6 +323,10 @@ def qgroup_subvid(objectid):
     return objectid & ((1 << QGROUP_LEVEL_SHIFT) - 1)
 
 
+def _qgroup_objectid(level, subvid):
+    return (level << QGROUP_LEVEL_SHIFT) + subvid
+
+
 _key_objectid_str_map = {
     ROOT_TREE_OBJECTID: 'ROOT_TREE',
     EXTENT_TREE_OBJECTID: 'EXTENT_TREE',
@@ -366,6 +371,45 @@ def _key_objectid_str(objectid, _type):
     return _key_objectid_str_map.get(objectid, str(objectid))
 
 
+_key_str_objectid_map = {v: k for k, v in _key_objectid_str_map.items()}
+_key_str_objectid_map.update({
+    'DEV_ITEMS': ROOT_TREE_OBJECTID,
+    'DEV_STATS': DEV_STATS_OBJECTID,
+    'FIRST_CHUNK_TREE': FIRST_CHUNK_TREE_OBJECTID,
+})
+
+_re_qgroup_objectid = re.compile(r'^(?P<level>\d+)/(?P<subvid>\d+)$')
+
+
+def _key_str_objectid(objectid_str, _type):
+    # is it just a number?
+    try:
+        objectid = int(objectid_str)
+        if objectid > -256 and objectid <= ULLONG_MAX:
+            return objectid
+    except ValueError:
+        pass
+    # is it known text?
+    if objectid_str in _key_str_objectid_map:
+        return _key_str_objectid_map[objectid_str]
+    # is it a qgroup identifier?
+    if _type in (QGROUP_RELATION_KEY, QGROUP_INFO_KEY, QGROUP_LIMIT_KEY):
+        match = _re_qgroup_objectid.match(objectid_str)
+        if match is not None:
+            return _qgroup_objectid(**match.groupdict())
+        else:
+            raise ValueError("Unparseable key objectid {} for qgroup type {}".format(
+                objectid_str, _key_type_str(_type)))
+    # is it some UUID hex string?
+    if objectid_str.startswith('0x'):
+        try:
+            return int(objectid_str, 0)
+        except Exception:
+            pass
+    # otherwise, we don't know
+    raise ValueError("Unparseable key objectid {}".format(objectid_str))
+
+
 _key_type_str_map = {
     INODE_ITEM_KEY: 'INODE_ITEM',
     INODE_REF_KEY: 'INODE_REF',
@@ -399,8 +443,8 @@ _key_type_str_map = {
     QGROUP_LIMIT_KEY: 'QGROUP_LIMIT',
     QGROUP_RELATION_KEY: 'QGROUP_RELATION',
     DEV_REPLACE_KEY: 'DEV_REPLACE',
-    UUID_KEY_SUBVOL: 'UUID_SUBVOL',
-    UUID_KEY_RECEIVED_SUBVOL: 'RECEIVED_SUBVOL',
+    UUID_KEY_SUBVOL: 'UUID_KEY_SUBVOL',
+    UUID_KEY_RECEIVED_SUBVOL: 'UUID_KEY_RECEIVED_SUBVOL',
     STRING_ITEM_KEY: 'STRING_ITEM',
     TEMPORARY_ITEM_KEY: 'TEMPORARY_ITEM',
     PERSISTENT_ITEM_KEY: 'PERSISTENT_ITEM',
@@ -409,6 +453,23 @@ _key_type_str_map = {
 
 def _key_type_str(_type):
     return _key_type_str_map.get(_type, str(_type))
+
+
+_key_str_type_map = {v: k for k, v in _key_type_str_map.items()}
+
+
+def _key_str_type(type_str):
+    # is it just a number?
+    try:
+        type_ = int(type_str)
+    except ValueError:
+        pass
+    else:
+        if type_ >= -1 and type_ <= 255:
+            return type_
+    if type_str in _key_str_type_map:
+        return _key_str_type_map[type_str]
+    raise ValueError("Unknown key type {}".format(type_str))
 
 
 def _key_offset_str(offset, _type):
@@ -422,6 +483,33 @@ def _key_offset_str(offset, _type):
         return _key_objectid_str_map.get(offset, str(offset))
 
     return str(offset)
+
+
+def _key_str_offset(offset_str, _type):
+    # is it just a number?
+    try:
+        offset = int(offset_str)
+    except ValueError:
+        pass
+    else:
+        if offset >= -1 and offset <= ULLONG_MAX:
+            return offset
+    # is it a qgroup identifier?
+    if _type in (QGROUP_RELATION_KEY, QGROUP_INFO_KEY, QGROUP_LIMIT_KEY):
+        match = _re_qgroup_objectid.match(offset_str)
+        if match is not None:
+            return _qgroup_objectid(**{k: int(v) for k, v in match.groupdict().items()})
+        else:
+            raise ValueError("Unparseable key offset {} for qgroup type {}".format(
+                offset_str, _key_type_str(_type)))
+    # is it some UUID hex string?
+    if offset_str.startswith('0x'):
+        try:
+            return int(offset_str, 0)
+        except Exception:
+            pass
+    # otherwise, we don't know
+    raise ValueError("Unparseable key offset {}".format(offset_str))
 
 
 class ItemNotFoundError(IndexError):
@@ -438,15 +526,21 @@ class ItemNotFoundError(IndexError):
     pass
 
 
+KEY_MAX = (1 << 136) - 1
+
+
 class Key(object):
     """Btrfs metadata trees have a key space of 136-bit numbers.
 
     A full 136-bit tree key is composed as:
       (objectid << 72) + (type << 64) + offset
 
-    :param int objectid: 64-bit object ID field.
-    :param int type\_: 8-bit type field.
-    :param int offset: 64-bit offset field.
+    :param objectid: 64-bit object ID number or string representation.
+    :type objectid: Union[int, str]
+    :param type\_: 8-bit type number or string representation.
+    :type type\_: Union[int, str]
+    :param int offset: 64-bit offset number or string representation.
+    :type offset: Union[int, str]
 
     Key objects support sorting and simple addition and subtraction.  Also,
     when subtracting 1 from a zero key, the value wraps around to the largest
@@ -454,7 +548,7 @@ class Key(object):
 
     Example::
 
-        >>> key1 = btrfs.ctree.Key(425, btrfs.ctree.DIR_ITEM_KEY, 17818406)
+        >>> key1 = btrfs.ctree.Key(425, 'DIR_ITEM', 17818406)
         >>> key1
         Key(425, 84, 17818406)
         >>> str(key1)
@@ -474,8 +568,8 @@ class Key(object):
         '(-1 255 -1)'
 
     The `-1` value in the string representation is just a convenience way to
-    write the maximum 64 bit number. The actual value is still
-    18446744073709551615.
+    write the maximum allowed number. The actual value for a 64 bit numer is
+    still 18446744073709551615, and for 8 bit that's 255 of course.
 
     For example, when setting up a minimum and maximum key for a metadata
     search, the arithmetic that can be done helps quickly defining the maximum
@@ -492,11 +586,37 @@ class Key(object):
         Key(31337, 0, 0)
         >>> max_key
         Key(31337, 255, 18446744073709551615)
+
+    Last but not least, the utils module contains the helper function
+    :func:`~btrfs.utils.parse_key_string` to dissect a full text key string:
+
+    Example::
+
+        >>> btrfs.utils.parse_key_string('(535 EXTENT_DATA 0)')
+        Key(535, 108, 0)
     """
+
     def __init__(self, objectid, type_, offset):
-        self._objectid = ULL(objectid)
-        self._type = U8(type_)
-        self._offset = ULL(offset)
+        if isinstance(type_, int):
+            self._type = U8(type_)
+        elif isinstance(type_, str):
+            self._type = U8(_key_str_type(type_))
+        else:
+            raise ValueError("Key type needs to be either string or integer: {}.".format(type_))
+        if isinstance(objectid, int):
+            self._objectid = ULL(objectid)
+        elif isinstance(objectid, str):
+            self._objectid = ULL(_key_str_objectid(objectid, self._type))
+        else:
+            raise ValueError("Key objectid needs to be either string or integer: {}.".format(
+                objectid))
+        if isinstance(offset, int):
+            self._offset = ULL(offset)
+        elif isinstance(offset, str):
+            self._offset = ULL(_key_str_offset(offset, self._type))
+        else:
+            raise ValueError("Key offset needs to be either string or integer: {}.".format(
+                offset))
         self._pack()
 
     @property
@@ -536,7 +656,7 @@ class Key(object):
 
     @key.setter
     def key(self, _key):
-        self._key = _key
+        self._key = _key & KEY_MAX
         self._unpack()
 
     def _pack(self):
@@ -671,6 +791,24 @@ class FileSystem(object):
         :rtype: List[:class:`btrfs.ioctl.SpaceInfo`]
         """
         return btrfs.ioctl.space_info(self.fd)
+
+    def search(self, tree, min_key=None, max_key=None):
+        """
+        Retrieve all metadata items within a specific range. This is basically
+        a thin wrapper around the :func:`~btrfs.ioctl.search_v2` with a bit
+        limited functionality, but suited for almost all use cases when quickly
+        searching around.
+
+        :param int tree: The metadata tree we're searching in.
+        :param btrfs.ctree.Key min_key: Minimum key value for items to return.
+        :param btrfs.ctree.Key max_key: Maximum key value for items to return.
+        :returns: Any metadata item found in the search range, as sub class of
+            :class:`~btrfs.ctree.ItemData`, helped by the
+            :func:`btrfs.ctree.classify` function.
+        :rtype: Iterator[:class:`~btrfs.ctree.ItemData`]
+        """
+        for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
+            yield btrfs.ctree.classify(header, data)
 
     def devices(self, min_devid=1, max_devid=ULLONG_MAX):
         """
@@ -811,18 +949,10 @@ class FileSystem(object):
             max_type = 255
         min_key = Key(min_id, min_type, 0)
         max_key = Key(max_id, max_type, ULLONG_MAX)
-        cur_header = None
-        cur_data = None
-        for next_header, next_data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
-            if next_header.type != ROOT_ITEM_KEY:
+        for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
+            if header.type != ROOT_ITEM_KEY:
                 continue
-            if cur_header is not None and next_header.objectid > cur_header.objectid:
-                yield RootItem(cur_header, cur_data)
-            cur_header = next_header
-            cur_data = next_data
-
-        if cur_header is not None:
-            yield RootItem(cur_header, cur_data)
+            yield RootItem(header, data)
 
     def orphan_subvol_ids(self):
         """
@@ -919,6 +1049,10 @@ class ItemData(object):
         return self.key < other.key
 
 
+class SubItem(object):
+    pass
+
+
 class DevItem(ItemData):
     """Object representation of struct `btrfs_dev_item`.
 
@@ -958,16 +1092,16 @@ class DevItem(ItemData):
         self.fsid = uuid.UUID(bytes=fsid_bytes)
 
     def __str__(self):
-        return "dev item devid {self.devid} total bytes {self.total_bytes} " \
-            "bytes used {self.bytes_used}".format(self=self)
+        return "dev item devid {self.devid} uuid {self.uuid} bytes_used {self.bytes_used} " \
+            "total_bytes {self.total_bytes}".format(self=self)
 
 
 class Chunk(ItemData):
     """Object representation of struct `btrfs_chunk`.
 
     A `Chunk` is a piece of virtual address space. A `Chunk` has a 1 to 1
-    relationship to a :class:`BlockGroup`, and a 1 to many relationship with a
-    fixed amount of :class:`Stripe` objects.
+    relationship to a :class:`BlockGroupItem`, and a 1 to many relationship
+    with a fixed amount of :class:`Stripe` objects.
 
     * Tree: `CHUNK_TREE_OBJECTID` (3)
     * Key objectid: `FIRST_CHUNK_TREE_OBJECTID` (256)
@@ -990,7 +1124,7 @@ class Chunk(ItemData):
     :ivar int sub_stripes: A hack for `RAID10`. For `RAID10` this value is 2,
         otherwise 1.
     :ivar stripes: :class:`Stripe` Items that are stored inside this Chunk Item.
-    :type stripes: List[:class:`Stripe`]
+    :vartype stripes: List[:class:`Stripe`]
     """
     _chunk = struct.Struct('<4Q3L2H')
 
@@ -1023,7 +1157,7 @@ class Chunk(ItemData):
         ]
 
 
-class Stripe(object):
+class Stripe(SubItem):
     """Object representation of struct `btrfs_stripe`.
 
     A list of `Stripe` items is hidden inside the `Chunk` item and each of them
@@ -1353,7 +1487,7 @@ class InlineSharedDataRef(SharedDataRef):
             "count {self.count}".format(self=self)
 
 
-class TreeBlockInfo(object):
+class TreeBlockInfo(SubItem):
     """Object representation of struct `btrfs_tree_block_info`.
 
     Documentation of this item is out of scope for this module. Please refer to
@@ -1438,9 +1572,9 @@ class MetaDataItem(ItemData):
             inline_ref_type, inline_ref_offset = \
                 ExtentItem._extent_inline_ref.unpack_from(data, pos)
             if inline_ref_type == TREE_BLOCK_REF_KEY:
-                self.tree_block_refs._append(InlineTreeBlockRef(inline_ref_offset))
+                self.tree_block_refs.append(InlineTreeBlockRef(inline_ref_offset))
             elif inline_ref_type == SHARED_BLOCK_REF_KEY:
-                self.shared_block_refs._append(InlineSharedBlockRef(inline_ref_offset))
+                self.shared_block_refs.append(InlineSharedBlockRef(inline_ref_offset))
             else:
                 raise Exception("BUG: expected inline TREE_BLOCK_REF or SHARED_BLOCK_REF_KEY "
                                 "in METADATA_ITEM {}, but got inline_ref_type {}"
@@ -1706,7 +1840,7 @@ class InodeRefList(ItemData, collections.abc.MutableSequence):
         while pos < header.len:
             inode_ref = InodeRef(data, pos)
             self._list.append(inode_ref)
-            pos += len(inode_ref)
+            pos += InodeRef._inode_ref.size + inode_ref.name_len
 
     def __getitem__(self, index):
         return self._list[index]
@@ -1729,7 +1863,7 @@ class InodeRefList(ItemData, collections.abc.MutableSequence):
             "size {}".format(len(self), self=self)
 
 
-class InodeRef(object):
+class InodeRef(SubItem):
     """Object representation of struct `btrfs_inode_ref`.
 
     Also see :class:`InodeRefList`.
@@ -1747,10 +1881,6 @@ class InodeRef(object):
         self.index, self.name_len = InodeRef._inode_ref.unpack_from(data, pos)
         pos += InodeRef._inode_ref.size
         self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
-        self._len = InodeRef._inode_ref.size + self.name_len
-
-    def __len__(self):
-        return self._len
 
     def __str__(self):
         return "inode ref index {self.index} name {self.name_str}".format(self=self)
@@ -1837,10 +1967,6 @@ class InodeExtref(object):
             InodeExtref._inode_extref.unpack_from(data, pos)
         pos += InodeExtref._inode_extref.size
         self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
-        self._len = InodeExtref._inode_extref.size + self.name_len
-
-    def __len__(self):
-        return self._len
 
     def __str__(self):
         return "inode extref parent_objectid {self.parent_objectid} index {self.index} " \
@@ -1884,7 +2010,7 @@ class DirItemList(ItemData, collections.abc.MutableSequence):
             cls = {DIR_ITEM_KEY: DirItem, XATTR_ITEM_KEY: XAttrItem}
             dir_item = cls[self.key.type](data, pos)
             self._list.append(dir_item)
-            pos += len(dir_item)
+            pos += DirItem._dir_item.size + dir_item.name_len + dir_item.data_len
 
     def __getitem__(self, index):
         return self._list[index]
@@ -1936,7 +2062,7 @@ class XAttrItemList(DirItemList):
             "size {}".format(len(self), self=self)
 
 
-class DirItem(object):
+class DirItem(SubItem):
     """Object representation of struct `btrfs_dir_item`.
 
     Based on the name hash of a filename, this object directly points to the
@@ -1986,10 +2112,6 @@ class DirItem(object):
         pos += self.name_len
         self.data, = struct.Struct('<{}s'.format(self.data_len)).unpack_from(data, pos)
         pos += self.data_len
-        self._len = DirItem._dir_item.size + self.name_len + self.data_len
-
-    def __len__(self):
-        return self._len
 
     def __str__(self):
         return "dir item location {self.location} type {self.type_str} " \
@@ -2096,6 +2218,8 @@ class RootItem(ItemData):
     * Key type: `ROOT_ITEM_KEY` (132)
     * Key offset: Index in the directory.
 
+    :ivar int objectid: Tree ID. (taken from the objectid field of the item
+        key)
     :ivar inode: Embedded inode item. Only the flags field of it is used.
     :vartype inode: :class:`InodeItem`
     :ivar int generation: Generation of the filesystem when this root was
@@ -2164,6 +2288,7 @@ class RootItem(ItemData):
 
     def __init__(self, header, data):
         super().__init__(header)
+        self._setattr_from_key(objectid_attr='objectid')
         self.inode = InodeItem(None, data[:InodeItem._inode_item.size])
         pos = InodeItem._inode_item.size
         self.generation, self.root_dirid, self.bytenr, self.byte_limit, self.bytes_used, \
@@ -2200,6 +2325,57 @@ class RootItem(ItemData):
         ]
 
 
+class RootRef(ItemData):
+    """Object representation of `btrfs_root_ref`.
+
+    The :class:`RootRef` item lives in the root tree, a.k.a. the 'tree of
+    trees'.  It contains information about the place where a subvolume is
+    located inside another subvolume.
+
+    * Tree: `ROOT_TREE_OBJECTID` (1).
+    * Key objectid: Parent tree ID.
+    * Key type: `ROOT_REF_KEY` (156)
+    * Key offset: Tree ID of the subvolume.
+
+    :ivar int parent_tree: Containing Tree ID. (taken from the objectid field of
+        the item key)
+    :ivar int tree: Tree ID of the subvolume. (taken from the offset field of
+        the item key)
+    :ivar int dirid: Inode number of the containing directory.
+    :ivar int sequence: Directory index number in the containing directory.
+    :ivar int name_len: Amount of bytes used to store the filename.
+    :ivar bytes name: Filename as bytes.
+
+    When combining this information with a call to the ino_lookup ioctl, we can
+    quickly figure out the relative path inside the containing subvolume.
+
+    E.g. for (259 ROOT_REF 1052) in the root tree, with dirid 20197, sequence
+    65 and name baz, we can do btrfs.ioctl.ino_lookup(fd, 259, 20197). The
+    result is e.g. name_bytes=b'foo/bar/', so the location inside the
+    containing subvolume is foo/bar/baz.
+
+    When doing such a thing recursively, the same output as seen in btrfs sub
+    list -a can be produced.
+    """
+    _root_ref_item = struct.Struct('<QQH')
+
+    def __init__(self, header, data):
+        super().__init__(header)
+        self._setattr_from_key(objectid_attr='parent_tree', offset_attr='tree')
+        self.dirid, self.sequence, self.name_len = RootRef._root_ref_item.unpack_from(data)
+        pos = RootRef._root_ref_item.size
+        self.name, = struct.Struct('<{}s'.format(self.name_len)).unpack_from(data, pos)
+
+    def __str__(self):
+        return "root ref parent_tree {self.parent_tree} tree {self.tree} dirid {self.dirid} " \
+            "sequence {self.sequence} name {self.name_str}".format(self=self)
+
+    def _pretty_properties():
+        return [
+            (btrfs.utils.embedded_text_for_str, 'name')
+        ]
+
+
 class FileExtentItem(ItemData):
     """Object representation of `btrfs_file_extent_item`.
 
@@ -2212,6 +2388,8 @@ class FileExtentItem(ItemData):
     * Key type: `EXTENT_DATA_KEY` (108)
     * Key offset: Logical offset in the file where the referenced data appears.
 
+    :ivar int objectid: The inode number of the file. (taken from the objectid
+        field of the item key).
     :ivar int logical_offset: Logical offset in the file where the referenced
         data appears. (taken from the offset field of the item key).
     :ivar int generation: Generation of the filesystem when this file extent
@@ -2266,7 +2444,7 @@ class FileExtentItem(ItemData):
 
     def __init__(self, header, data):
         super().__init__(header)
-        self._setattr_from_key(offset_attr='logical_offset')
+        self._setattr_from_key(objectid_attr='objectid', offset_attr='logical_offset')
         self.generation, self.ram_bytes, self.compression, self.encryption, self.type = \
             FileExtentItem._file_extent_item_parts[0].unpack_from(data)
         if self.type != FILE_EXTENT_INLINE:
@@ -2411,6 +2589,27 @@ class FreeSpaceBitmap(ItemData):
         return "free space bitmap for vaddr {self.vaddr} length {self.length}".format(self=self)
 
 
+class OrphanItem(ItemData):
+    """Object representation for orphan item information from the root tree.
+
+    * Tree: `ROOT_TREE_OBJECTID` (1).
+    * Key objectid: `ORPHAN_OBJECTID` (-5).
+    * Key type: `ORPHAN_ITEM_KEY` (48).
+    * Key offset: objectid of the item in the root tree that is orphaned and
+        needs to be cleaned up.
+
+    :ivar int objectid: objectid of the item in the root tree that is orphaned
+        and needs to be cleaned up. (taken from the offset field of the item
+        key)
+    """
+    def __init__(self, header, _):
+        super().__init__(header)
+        self._setattr_from_key(offset_attr='objectid')
+
+    def __str__(self):
+        return "orphan objectid {self.objectid}".format(self=self)
+
+
 class NotImplementedItem(ItemData):
     """Placeholder object for metadata item types that have not been implemented yet."""
     def __init__(self, header, data):
@@ -2436,6 +2635,7 @@ _key_type_class_map = {
     INODE_REF_KEY: InodeRefList,
     INODE_EXTREF_KEY: InodeExtrefList,
     XATTR_ITEM_KEY: DirItemList,
+    ORPHAN_ITEM_KEY: OrphanItem,
     DIR_LOG_ITEM_KEY: NotImplementedItem,
     DIR_LOG_INDEX_KEY: NotImplementedItem,
     DIR_ITEM_KEY: DirItemList,
@@ -2443,7 +2643,7 @@ _key_type_class_map = {
     EXTENT_DATA_KEY: FileExtentItem,
     EXTENT_CSUM_KEY: NotImplementedItem,
     ROOT_ITEM_KEY: RootItem,
-    ROOT_REF_KEY: NotImplementedItem,
+    ROOT_REF_KEY: RootRef,
     ROOT_BACKREF_KEY: NotImplementedItem,
     EXTENT_ITEM_KEY: ExtentItem,
     METADATA_ITEM_KEY: MetaDataItem,
