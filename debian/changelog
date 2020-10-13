@@ -1,3 +1,13 @@
+python-btrfs (12-1) unstable; urgency=medium
+
+  * New release v12
+  * d/patches: remove obsolete patches
+  * d/control: fix debhelper compatibility version
+  * d/control: explicitly mention online filesystem
+  * d/control: fix Python capitalization error
+
+ -- Hans van Kranenburg <hans@knorrie.org>  Tue, 13 Oct 2020 20:54:02 +0200
+
 python-btrfs (11-2) unstable; urgency=medium
 
   * d/patches: Fix crash because of stray underscores (Closes: #925267)
