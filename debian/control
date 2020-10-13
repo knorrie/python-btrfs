@@ -10,7 +10,7 @@ Package: python3-btrfs
 Architecture: all
 Depends: ${python3:Depends}, ${misc:Depends}
 Breaks: munin-plugins-btrfs (<< 10), monitoring-plugins-btrfs (<< 10)
-Description: python module to inspect btrfs filesystems
+Description: Python module to inspect an online btrfs filesystem
  The primary goal of this module is to be able to inspect the internals of a
  mounted, online, filesystem for educational purposes.
  .
