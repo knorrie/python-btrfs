@@ -1,3 +1,52 @@
+python-btrfs v12, Oct 13, 2020
+  * Data structures: RootRef, OrphanItem
+  * Add a new useful program for looking up btrfs metadata,
+    btrfs-search-metadata, and add a man page for it.
+  * Add a recursive object printer using the str() function of objects,
+    as an alternative to the existing pretty printer which dumps full
+    objects.
+  * Add the parse_tree_name function in utils, which can convert tree
+    names to their number. E.g. 'FS_TREE' -> 5.
+  * Add parse_key_string in utils, which parses a metadata item key
+    string to a Key object. E.g. '(535 EXTENT_DATA 0)' -> Key(535, 108,
+    0).
+  * Add a search function to the FileSystem object, to make it a bit
+    simpler to use the search ioctl when already having a FileSystem
+    object in hands.
+  * Add more useful information to the README of the project. It was way
+    too terse and unhelpful.
+  * Allow setting the env.mounts option for the munin plugin, so that we
+    can 1) limit what filesystems are included and 2) influence the
+    paths shown in the graph title.
+  * Fixes:
+    - Fix an unfortunate crash because of a stray underscore in the code
+      of MetaDataItem.
+    - Actually use the data_metadata_ratio argument for
+      btrfs-space-calculator.  The option was silently ignored.
+    - Fix a crash in btrfs-space-calculator when using raid5.
+    - Require at least one disk size for btrfs-space-calculator, since
+      without any disk sizes, executing the program is meaningless.
+    - Add a centralized way to store the library version number. After
+      releasing v11, I found out the documentation still showed v10.
+    - Fix the field order of corruption_errs and generation_errs in
+      DevStats in the ioctl module. The two numbers were swapped.
+    - Fix arithmetic behaviour of metadata item key values on underflow
+      or overflow of the 136 bit key space.
+  * Examples added:
+    - show_subvolumes: Show how to use the RootRef metadata item to
+      construct path names of the locations of subvolumes in the
+      filesystem.
+  * Examples removed:
+    - block_group_search_timing
+  * Examples removed, which are replaced by the btrfs-search-metadata
+    program:
+    - dump_tree, show_block_group_contents,
+      show_block_group_free_space_extents, show_block_groups,
+      show_chunk_tree_keys, show_dev_extents, show_directory_contents,
+      show_extent_tree_keys, show_file, show_file_by_inode,
+      show_tree_keys
+  * Various small documentation and bug fixes.
+
 python-btrfs v11, Feb 28, 2019
   * Promote some useful examples to proper programs, and add a man page for
     them. Distro package maintainers can ship these in /usr/bin.
