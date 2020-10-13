@@ -332,6 +332,8 @@ if __name__ == '__main__':
     except Bork as e:
         print("Error: {}".format(e), file=sys.stderr)
         sys.exit(1)
+    except BrokenPipeError:
+        pass
     except Exception:
         print("Uncaught error, please report as bug:", file=sys.stderr)
         raise
