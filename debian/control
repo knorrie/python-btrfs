@@ -24,7 +24,7 @@ Architecture: all
 Depends: ${misc:Depends}, munin-node, python3, python3-btrfs (= ${binary:Version})
 Section: net
 Description: munin plugin for monitoring btrfs filesystems
- This munin plugin uses the python btrfs module to retrieve information about
+ This munin plugin uses the Python btrfs module to retrieve information about
  disk space allocation and usage.
  .
  Traditional space usage monitoring based on the output of df is not sufficient
