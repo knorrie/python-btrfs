@@ -1,3 +1,9 @@
+python-btrfs (12-2) unstable; urgency=medium
+
+  * I need to do a source only upload. DOH!
+
+ -- Hans van Kranenburg <hans@knorrie.org>  Wed, 14 Oct 2020 16:24:46 +0200
+
 python-btrfs (12-1) unstable; urgency=medium
 
   * New release v12
