@@ -93,6 +93,8 @@ def parse_args():
 _str_to_profile_map = {
     'raid0': btrfs.BLOCK_GROUP_RAID0,
     'raid1': btrfs.BLOCK_GROUP_RAID1,
+    'raid1c3': btrfs.BLOCK_GROUP_RAID1C3,
+    'raid1c4': btrfs.BLOCK_GROUP_RAID1C4,
     'raid5': btrfs.BLOCK_GROUP_RAID5,
     'raid6': btrfs.BLOCK_GROUP_RAID6,
     'raid10': btrfs.BLOCK_GROUP_RAID10,

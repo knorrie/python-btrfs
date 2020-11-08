@@ -161,6 +161,8 @@ BLOCK_GROUP_DUP = 1 << 5  #: Block Group DUP profile.
 BLOCK_GROUP_RAID10 = 1 << 6  #: Block Group RAID10 profile.
 BLOCK_GROUP_RAID5 = 1 << 7  #: Block Group RAID5 profile.
 BLOCK_GROUP_RAID6 = 1 << 8  #: Block Group RAID6 profile.
+BLOCK_GROUP_RAID1C3 = 1 << 9  #: Block Group RAID1C3 profile.
+BLOCK_GROUP_RAID1C4 = 1 << 10  #: Block Group RAID1C4 profile.
 
 BLOCK_GROUP_TYPE_MASK = (
     BLOCK_GROUP_DATA |
@@ -171,6 +173,8 @@ BLOCK_GROUP_TYPE_MASK = (
 BLOCK_GROUP_PROFILE_MASK = (
     BLOCK_GROUP_RAID0 |
     BLOCK_GROUP_RAID1 |
+    BLOCK_GROUP_RAID1C3 |
+    BLOCK_GROUP_RAID1C4 |
     BLOCK_GROUP_RAID5 |
     BLOCK_GROUP_RAID6 |
     BLOCK_GROUP_DUP |
@@ -191,6 +195,8 @@ _block_group_flags_str_map = {
     BLOCK_GROUP_RAID10: 'RAID10',
     BLOCK_GROUP_RAID5: 'RAID5',
     BLOCK_GROUP_RAID6: 'RAID6',
+    BLOCK_GROUP_RAID1C3: 'RAID1C3',
+    BLOCK_GROUP_RAID1C4: 'RAID1C4',
 }
 
 _balance_args_profiles_str_map = {
@@ -200,6 +206,8 @@ _balance_args_profiles_str_map = {
     BLOCK_GROUP_RAID10: 'RAID10',
     BLOCK_GROUP_RAID5: 'RAID5',
     BLOCK_GROUP_RAID6: 'RAID6',
+    BLOCK_GROUP_RAID1C3: 'RAID1C3',
+    BLOCK_GROUP_RAID1C4: 'RAID1C4',
     AVAIL_ALLOC_BIT_SINGLE: 'SINGLE',
 }
 

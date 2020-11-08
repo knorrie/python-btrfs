@@ -20,6 +20,7 @@ from btrfs.ctree import (  # noqa
     BLOCK_GROUP_DATA, BLOCK_GROUP_SYSTEM, BLOCK_GROUP_METADATA,
     SPACE_INFO_GLOBAL_RSV, BLOCK_GROUP_TYPE_MASK,
     BLOCK_GROUP_RAID0, BLOCK_GROUP_RAID1, BLOCK_GROUP_RAID5,
+    BLOCK_GROUP_RAID1C3, BLOCK_GROUP_RAID1C4,
     BLOCK_GROUP_RAID6, BLOCK_GROUP_DUP, BLOCK_GROUP_RAID10,
     BLOCK_GROUP_SINGLE,
     BLOCK_GROUP_PROFILE_MASK,
@@ -36,11 +37,13 @@ _RaidAttr = namedtuple('RaidAttr', [
 
 RAID_RAID10 = 0
 RAID_RAID1 = 1
-RAID_DUP = 2
-RAID_RAID0 = 3
-RAID_SINGLE = 4
-RAID_RAID5 = 5
-RAID_RAID6 = 6
+RAID_RAID1C3 = 2
+RAID_RAID1C4 = 3
+RAID_DUP = 4
+RAID_RAID0 = 5
+RAID_SINGLE = 6
+RAID_RAID5 = 7
+RAID_RAID6 = 8
 
 
 def _bg_flags_to_raid_index(flags):
@@ -49,6 +52,10 @@ def _bg_flags_to_raid_index(flags):
         return RAID_RAID10
     if flags & BLOCK_GROUP_RAID1:
         return RAID_RAID1
+    if flags & BLOCK_GROUP_RAID1C3:
+        return RAID_RAID1C3
+    if flags & BLOCK_GROUP_RAID1C4:
+        return RAID_RAID1C4
     if flags & BLOCK_GROUP_DUP:
         return RAID_DUP
     if flags & BLOCK_GROUP_RAID0:
@@ -84,6 +91,30 @@ _raid_array = [
         nparity=0,
         raid_name='raid1',
         bg_flag=BLOCK_GROUP_RAID1,
+    ),
+    _RaidAttr(
+        sub_stripes=1,
+        dev_stripes=1,
+        devs_max=3,
+        devs_min=3,
+        tolerated_failures=2,
+        devs_increment=3,
+        ncopies=3,
+        nparity=0,
+        raid_name='raid1c3',
+        bg_flag=BLOCK_GROUP_RAID1C3,
+    ),
+    _RaidAttr(
+        sub_stripes=1,
+        dev_stripes=1,
+        devs_max=4,
+        devs_min=4,
+        tolerated_failures=3,
+        devs_increment=4,
+        ncopies=4,
+        nparity=0,
+        raid_name='raid1c4',
+        bg_flag=BLOCK_GROUP_RAID1C4,
     ),
     _RaidAttr(
         sub_stripes=1,
