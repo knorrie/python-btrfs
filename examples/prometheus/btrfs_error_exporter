@@ -14,17 +14,18 @@ def get_btrfs_errors(mountpoint):
         mountpoint: (string) path to a mount point.
 
     Yields:
-        (device, error_type, error_count) tuples, where:
+        (device, error_type, error_count, fsid) tuples, where:
             device: (string) path to block device.
             error_type: (string) type of btrfs error.
             error_count: (int) number of btrfs errors of a given type.
+            fsid: (string) filesystem UUID.
     """
     fs = btrfs.FileSystem(mountpoint)
     for dev in fs.devices():
         devname = fs.dev_info(dev.devid).path.strip("/dev/")
         error_counters = fs.dev_stats(dev.devid).counters
         for error_name in error_counters.keys():
-            yield devname, error_name, error_counters[error_name]
+            yield devname, error_name, error_counters[error_name], fs.fsid
 
 def btrfs_error_metrics():
     """Collect btrfs error metrics.
@@ -39,9 +40,9 @@ def btrfs_error_metrics():
     ]
 
     for mountpoint in btrfs.utils.mounted_filesystem_paths():
-        for device, error_type, error_count in get_btrfs_errors(mountpoint):
-            contents.append('%s{device="%s",mountpoint="%s",type="%s"} %d' %
-                (metric, device, mountpoint, error_type, error_count))
+        for device, error_type, error_count, fsid in get_btrfs_errors(mountpoint):
+            contents.append('%s{device="%s",mountpoint="%s",type="%s",uuid="%s"} %d' %
+                (metric, device, mountpoint, error_type, fsid, error_count))
 
     if len(contents) > 2:
         # return metrics if there are actual btrfs filesystems found
