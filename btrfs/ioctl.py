@@ -1447,3 +1447,119 @@ def get_features(fd):
     fcntl.ioctl(fd, IOC_GET_FEATURES, buf)
     compat_flags, compat_ro_flags, incompat_flags = ioctl_feature_flags.unpack(buf)
     return FeatureFlags(compat_flags, compat_ro_flags, incompat_flags)
+
+
+_ioctl_scrub_args = [
+    struct.Struct('=QQQQ'),  # in
+    struct.Struct('=15Q'),   # out, scrub progress
+    struct.Struct('=872x')
+]
+ioctl_scrub_args = struct.Struct('=' + ''.join([btrfs.ctree._struct_format(s)[1:]
+                                                for s in _ioctl_scrub_args]))
+
+
+class ScrubProgress:
+    """Object representation of struct `btrfs_scrub_progress`.
+
+    :ivar int data_extents_scrubbed: Amount of data extents scrubbed.
+    :ivar int tree_extents_scrubbed: Amount of metadata extents scrubbed.
+    :ivar int data_bytes_scrubbed: Amount of data scrubbed, in bytes.
+    :ivar int tree_bytes_scrubbed: Amount of metadata scrubbed, in bytes.
+    :ivar int read_errors: Amount of read errors (-EIO) encountered.
+    :ivar int csum_errors: Amount of failed checksum verification encountered.
+    :ivar int verify_errors: Amount of occurences where invalid field values
+        inside a metadata tree block was found.
+    :ivar int no_csum: XXX WIP
+    :ivar int csum_discards:
+    :ivar int super_errors:
+    :ivar int malloc_errors:
+    :ivar int uncorrectable_errors:
+    :ivar int corrected_errors:
+    :ivar int last_physical:
+    :ivar int unverified_errors:
+    """
+    def __init__(self, data_extents_scrubbed, tree_extents_scrubbed, data_bytes_scrubbed,
+                 tree_bytes_scrubbed, read_errors, csum_errors, verify_errors, no_csum,
+                 csum_discards, super_errors, malloc_errors, uncorrectable_errors,
+                 corrected_errors, last_physical, unverified_errors):
+        self.data_extents_scrubbed = data_extents_scrubbed
+        self.tree_extents_scrubbed = tree_extents_scrubbed
+        self.data_bytes_scrubbed = data_bytes_scrubbed
+        self.tree_bytes_scrubbed = tree_bytes_scrubbed
+        self.read_errors = read_errors
+        self.csum_errors = csum_errors
+        self.verify_errors = verify_errors
+        self.no_csum = no_csum
+        self.csum_discards = csum_discards
+        self.super_errors = super_errors
+        self.malloc_errors = malloc_errors
+        self.uncorrectable_errors = uncorrectable_errors
+        self.corrected_errors = corrected_errors
+        self.last_physical = last_physical
+        self.unverified_errors = unverified_errors
+
+    def __repr__(self):
+        return "ScrubProgress(data_extents_scrubbed={self.data_extents_scrubbed}, " \
+            "tree_extents_scrubbed={self.tree_extents_scrubbed}, " \
+            "data_bytes_scrubbed={self.data_bytes_scrubbed}, " \
+            "tree_bytes_scrubbed={self.tree_bytes_scrubbed}, " \
+            "read_errors={self.read_errors}, csum_errors={self.csum_errors}, " \
+            "verify_errors={self.verify_errors}, no_csum={self.no_csum}, " \
+            "csum_discards={self.csum_discards}, super_errors={self.super_errors}, " \
+            "malloc_errors={self.malloc_errors}, " \
+            "uncorrectable_errors={self.uncorrectable_errors}, " \
+            "corrected_errors={self.corrected_errors}, last_physical={self.last_physical}, " \
+            "unverified_errors={self.unverified_errors}".format(self=self)
+
+    def __str__(self):
+        return "WIP"
+
+
+IOC_SCRUB_PROGRESS = _IOWR(BTRFS_IOCTL_MAGIC, 29, ioctl_scrub_args)
+
+
+def scrub_progress(fd, devid):
+    """WIP
+
+    OSError: [Errno 107] Transport endpoint is not connected
+    OSError: [Errno 19] No such device
+    """
+    args = bytearray(ioctl_scrub_args.size)
+    _ioctl_scrub_args[0].pack_into(args, 0, devid, 0, 0, 0)
+    fcntl.ioctl(fd, IOC_SCRUB_PROGRESS, args)
+    pos = _ioctl_scrub_args[0].size
+    return ScrubProgress(*_ioctl_scrub_args[1].unpack_from(args, pos))
+
+
+IOC_SCRUB = _IOWR(BTRFS_IOCTL_MAGIC, 27, ioctl_scrub_args)
+
+SCRUB_READONLY = 1 << 0
+
+
+def scrub(fd, devid, start, end, readonly=False):
+    """Call the `BTRFS_IOC_SCRUB` ioctl.
+
+    Ask the kernel to scrub a physical device.
+
+    WIP
+    OSError: [Errno 125] Operation canceled
+    """
+    args = bytearray(ioctl_scrub_args.size)
+    flags = 0
+    if readonly:
+        flags |= SCRUB_READONLY
+    _ioctl_scrub_args[0].pack_into(args, 0, devid, start, end, flags)
+    fcntl.ioctl(fd, IOC_SCRUB, args)
+    # TODO return progress
+
+
+IOC_SCRUB_CANCEL = _IO(BTRFS_IOCTL_MAGIC, 28)
+
+
+def scrub_cancel(fd):
+    """Call the 
+
+    -ENOTCONN
+    WIP
+    """
+    fcntl.ioctl(fd, IOC_SCRUB_CANCEL)
