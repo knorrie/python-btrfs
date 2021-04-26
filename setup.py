@@ -25,6 +25,13 @@ setup(
     url='https://github.com/knorrie/python-btrfs',
     download_url='https://github.com/knorrie/python-btrfs/tarball/v{}'.format(version),
     keywords=['btrfs', 'filesystem'],
+    scripts=[
+        'bin/btrfs-balance-least-used',
+        'bin/btrfs-orphan-cleaner-progress',
+        'bin/btrfs-search-metadata',
+        'bin/btrfs-space-calculator',
+        'bin/btrfs-usage-report',
+    ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
