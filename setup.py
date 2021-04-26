@@ -21,6 +21,7 @@ available in the kernel interface, using system calls. This also means that
 python-btrfs can not be used to repair a broken filesystem whenever the running
 Linux kernel cannot properly mount it.
 """
+long_description_content_type = 'text/markdown'
 
 
 def get_version():
