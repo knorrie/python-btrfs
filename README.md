@@ -85,7 +85,7 @@ directly.
 4
 ```
 
-The `space_info()` function calls the `FS_INFO` kernel function, which returns
+The `space_info()` function calls the `SPACE_INFO` kernel function, which returns
 a list of `SpaceInfo` objects. By feeding one of those to the pretty printer in
 the utils module, we can see all contents. The attributes are directly
 accessible in our code:
