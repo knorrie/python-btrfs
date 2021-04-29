@@ -1,3 +1,11 @@
+python-btrfs (13-1) unstable; urgency=medium
+
+  * New release v13
+  * debian/control: use the python3:any dependency for munin-plugins-btrfs and
+    monitoring-plugins-btrfs since it's Architecture: all.
+
+ -- Hans van Kranenburg <hans@knorrie.org>  Thu, 29 Apr 2021 15:03:54 +0200
+
 python-btrfs (12-2) unstable; urgency=medium
 
   * I need to do a source only upload. DOH!
