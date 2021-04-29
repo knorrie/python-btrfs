@@ -1,3 +1,11 @@
+python-btrfs v13, Apr 26, 2021
+  * Add new profiles RAID1C3 and RAID1C4. Thanks, Marmotte.
+  * Update setup.py so that the package description is more compact and not
+    rejected by pypi.
+  * Update setup.py so that the example programs in bin/ are included in the
+    pypi upload. Thanks, hexa-.
+  * Some small documentation fixes and improvements. Thanks, endolith.
+
 python-btrfs v12, Oct 13, 2020
   * Data structures: RootRef, OrphanItem
   * Add a new useful program for looking up btrfs metadata,
