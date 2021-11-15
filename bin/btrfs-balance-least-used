@@ -81,8 +81,8 @@ def balance_one_block_group(fs, block_groups, max_used_pct):
     start_time = time.time()
     heapq.heappop(block_groups)
     args = btrfs.ioctl.BalanceArgs(vstart=vaddr, vend=vaddr+1)
-    print("Balance block group vaddr {} used_pct {} {}...".format(
-        vaddr, used_pct, used == 0 and "(empty) " or ""), end='', flush=True)
+    print("Balance block group vaddr {} used_pct {} (used {}) ...".format(
+        vaddr, used_pct, used), end='', flush=True)
     try:
         progress = btrfs.ioctl.balance_v2(fs.fd, data_args=args)
         end_time = time.time()
