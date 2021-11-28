@@ -90,11 +90,11 @@ wraprint("At offset {} in the file, it's using {} bytes of data which we can fin
          "inside a data extent at vaddr {}.".format(
              extent.logical_offset, extent.num_bytes, extent.offset, extent.disk_bytenr))
 
-vaddr = extent.disk_bytenr + extent.logical_offset
+vaddr = extent.disk_bytenr + extent.offset
 
 wraprint("Now, we first look up the checksum value for one block ({} bytes) "
          "of data at vaddr {} ({} + {}).".format(
-             fs.sectorsize, vaddr, extent.disk_bytenr, extent.logical_offset))
+             fs.sectorsize, vaddr, extent.disk_bytenr, extent.offset))
 wraprint("If we're lucky, the checksum tree has a key at {}. "
          "If not, we have to try searching back a bit to find the csum object that "
          "holds information about our data block. Searching back is done in a very clumsy "
