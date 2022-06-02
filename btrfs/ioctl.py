@@ -1535,3 +1535,155 @@ def defrag_range(fd, start=0, length=ULLONG_MAX, flags=0, extent_thresh=0, compr
     args = bytearray(ioctl_defrag_range_args.size)
     ioctl_defrag_range_args.pack_into(args, 0, start, length, flags, extent_thresh, compress_type)
     fcntl.ioctl(fd, IOC_DEFRAG_RANGE, args)
+
+
+_ioctl_scrub_args = [
+    struct.Struct('=QQQQ'),  # in
+    struct.Struct('=15Q'),   # out, scrub progress
+    struct.Struct('=872x')   # padding
+]
+ioctl_scrub_args = struct.Struct('=' + ''.join([btrfs.ctree._struct_format(s)[1:]
+                                                for s in _ioctl_scrub_args]))
+
+
+class ScrubError(object):
+    """Exception class for scrub functionality.
+
+    A class:`ScrubError` can be thrown by any of the scrub related functions in
+    this module.
+
+    :ivar int errno: An errno errorcode that was returned when executing the
+        ioctl call in one of the balance related functions.
+    :ivar str msg: A message describing the error condition.
+    :ivar progress: Scrub progress so far
+    :type progress: :class:`~btrfs.ioctl.ScrubProgress`
+    """
+
+
+class ScrubProgress(object):
+    """Object representation of struct `btrfs_scrub_progress`.
+
+    :ivar int data_extents_scrubbed: Amount of data extents scrubbed.
+    :ivar int tree_extents_scrubbed: Amount of metadata extents scrubbed.
+    :ivar int data_bytes_scrubbed: Amount of data scrubbed, in bytes.
+    :ivar int tree_bytes_scrubbed: Amount of metadata scrubbed, in bytes.
+    :ivar int read_errors: Amount of read errors (-EIO) encountered.
+    :ivar int csum_errors: Amount of failed checksum verification encountered.
+    :ivar int verify_errors: Amount of occurences where field values
+        inside a metadata tree block were different than expected.
+    :ivar int no_csum: Amount of 4kiB data blocks encountered, for which no
+        checksum is present (e.g. due to the use of 'nodatasum').
+    :ivar int csum_discards: The amount of checksums encoutered for which no
+        corresponding actual data was present.
+    :ivar int super_errors: Amount of bad superblocks encountered.
+    :ivar int malloc_errors: Amount of memory allocation errors that happened
+        while running scrub. If this number is not zero, it might mean that the
+        scrub could not fully be executed and errors might not be detected.
+    :ivar int uncorrectable_errors: Amount of errors encountered where no
+        correct other copy of the data could be found, or where correct data
+        failed to be written in place of the corrupted data.
+    :ivar int corrected_errors: Amount of errors that could be successfully
+        corrected.
+    :ivar int last_physical: The last physical address on the device that was
+        scrubbed. When continuing a scrub operation after cancelling it, this
+        address can be used as starting point again.
+    :ivar int unverified_errors: Amount of cases in which a 'bio' disk read
+        failed, but reading and verifying each 4kiB block inside again
+        afterwards did succeed, actually.
+    """
+    def __init__(self, data_extents_scrubbed, tree_extents_scrubbed, data_bytes_scrubbed,
+                 tree_bytes_scrubbed, read_errors, csum_errors, verify_errors, no_csum,
+                 csum_discards, super_errors, malloc_errors, uncorrectable_errors,
+                 corrected_errors, last_physical, unverified_errors):
+        self.data_extents_scrubbed = data_extents_scrubbed
+        self.tree_extents_scrubbed = tree_extents_scrubbed
+        self.data_bytes_scrubbed = data_bytes_scrubbed
+        self.tree_bytes_scrubbed = tree_bytes_scrubbed
+        self.read_errors = read_errors
+        self.csum_errors = csum_errors
+        self.verify_errors = verify_errors
+        self.no_csum = no_csum
+        self.csum_discards = csum_discards
+        self.super_errors = super_errors
+        self.malloc_errors = malloc_errors
+        self.uncorrectable_errors = uncorrectable_errors
+        self.corrected_errors = corrected_errors
+        self.last_physical = last_physical
+        self.unverified_errors = unverified_errors
+
+    def __repr__(self):
+        return "ScrubProgress(data_extents_scrubbed={self.data_extents_scrubbed}, " \
+            "tree_extents_scrubbed={self.tree_extents_scrubbed}, " \
+            "data_bytes_scrubbed={self.data_bytes_scrubbed}, " \
+            "tree_bytes_scrubbed={self.tree_bytes_scrubbed}, " \
+            "read_errors={self.read_errors}, csum_errors={self.csum_errors}, " \
+            "verify_errors={self.verify_errors}, no_csum={self.no_csum}, " \
+            "csum_discards={self.csum_discards}, super_errors={self.super_errors}, " \
+            "malloc_errors={self.malloc_errors}, " \
+            "uncorrectable_errors={self.uncorrectable_errors}, " \
+            "corrected_errors={self.corrected_errors}, last_physical={self.last_physical}, " \
+            "unverified_errors={self.unverified_errors})".format(self=self)
+
+    def __str__(self):
+        return "data bytes scrubbed {self.data_bytes_scrubbed} " \
+            "metadata bytes scrubbed {self.tree_bytes_scrubbed} " \
+            "last physical {self.last_physical}".format(self=self)
+
+
+IOC_SCRUB_PROGRESS = _IOWR(BTRFS_IOCTL_MAGIC, 29, ioctl_scrub_args)
+
+
+def scrub_progress(fd, devid):
+    """WIP
+
+    OSError: [Errno 107] Transport endpoint is not connected
+    OSError: [Errno 19] No such device
+    """
+    args = bytearray(ioctl_scrub_args.size)
+    _ioctl_scrub_args[0].pack_into(args, 0, devid, 0, 0, 0)
+    fcntl.ioctl(fd, IOC_SCRUB_PROGRESS, args)
+    pos = _ioctl_scrub_args[0].size
+    return ScrubProgress(*_ioctl_scrub_args[1].unpack_from(args, pos))
+
+
+IOC_SCRUB = _IOWR(BTRFS_IOCTL_MAGIC, 27, ioctl_scrub_args)
+
+SCRUB_READONLY = 1 << 0
+
+
+def scrub(fd, devid, start, end, readonly=False):
+    """Call the `BTRFS_IOC_SCRUB` ioctl.
+
+    Ask the kernel to scrub a physical device.
+
+    WIP
+    OSError: [Errno 125] Operation canceled
+    """
+    args = bytearray(ioctl_scrub_args.size)
+    flags = 0
+    if readonly:
+        flags |= SCRUB_READONLY
+    _ioctl_scrub_args[0].pack_into(args, 0, devid, start, end, flags)
+    try:
+        fcntl.ioctl(fd, IOC_SCRUB, args)
+    except OSError as oserror:
+        if oserror.errno == errno.EFAULT:
+            # In this case, the progress information could not be copied into
+            # our args buffer. We're not dealing with that right now, so, let
+            # it explode instead.
+            raise
+
+    # if -EFAULT progress info is not present
+    
+
+
+IOC_SCRUB_CANCEL = _IO(BTRFS_IOCTL_MAGIC, 28)
+
+
+def scrub_cancel(fd):
+    """Call the 
+
+    -ENOTCONN
+    WIP
+    """
+    fcntl.ioctl(fd, IOC_SCRUB_CANCEL)
