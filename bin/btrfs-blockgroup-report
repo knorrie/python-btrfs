@@ -40,12 +40,18 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--usage',
+        '-u',
         action="store_true",
         help="Print device blockgroup usage",
     )
     parser.add_argument(
         'mountpoint',
         help="Btrfs filesystem mountpoint",
+    )
+    parser.add_argument(
+        'device',
+        nargs='*',
+        help="Only use specific devices (default include all)",
     )
     return parser.parse_args()
 
@@ -60,9 +66,17 @@ def safe_get_block_group(t):
 
 def report_usage(args):
     with btrfs.FileSystem(args.mountpoint) as fs:
+        fs_chunks = list(fs.chunks())
+
         devices = fs.devices()
         devids = [d.devid for d in devices]
-        fs_chunks = list(fs.chunks())
+        if args.device:
+            dev_infos = [fs.dev_info(id) for id in devids]
+            selected_devids = []
+            for dev in dev_infos:
+                if any(d in (dev.path, dev.devid) for d in args.device):
+                    selected_devids.append(dev.devid)
+            devids = selected_devids
 
         print(args.mountpoint, '\t', fs.usage().virtual_used_str, '\t', len(fs_chunks), 'fs chunks')
         for devid in devids:
@@ -103,9 +117,9 @@ def report_usage(args):
                     stats = chunk_stats[data_flag]
 
                     print('\t', data_flag)
-                    print('\t' * 2, 'Blockgroups at least partially on disk:', stats['count'])
-                    print('\t' * 2, 'Data-device dependance:', pretty_size(stats['size_used']))
-                    print('\t' * 2, 'Approx. blockgroup percentage packed:')
+                    print('\t' * 2, 'Data-device dependence:', pretty_size(stats['size_used']))
+                    print('\t' * 2, 'Blockgroups:', stats['count'])
+                    print('\t' * 2, 'Blockgroup packing:')
 
                     grouped_stats = {}
                     for percent in stats['percent_used']:
@@ -115,13 +129,9 @@ def report_usage(args):
                         else:
                             grouped_stats[group] = 1
 
-                    min_count = min(count for _group, count in grouped_stats.items())
                     max_count = max(count for _group, count in grouped_stats.items())
                     for group, count in sorted(grouped_stats.items()):
-                        try:
-                            scaled_count = int(60 * (count - min_count) / (max_count - min_count))
-                        except ZeroDivisionError:
-                            scaled_count = 1
+                        scaled_count = int(60 * count / max_count) if max_count > 60 else count
                         print(
                             '\t' * 2,
                             f'  {str(group).rjust(3)}% packed',
