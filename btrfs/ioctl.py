@@ -1410,7 +1410,7 @@ class FeatureFlags(object):
         incompat_flags: mixed_backref|default_subvol|compress_lzo|big_metadata|extended_iref
         >>> features.incompat_flags & btrfs.ioctl.FEATURE_INCOMPAT_MIXED_GROUPS
         0
-        >>> features.incompat_flags & btrfs.ioctl.FEATURE_COMPAT_RO_FREE_SPACE_TREE
+        >>> features.compat_ro_flags & btrfs.ioctl.FEATURE_COMPAT_RO_FREE_SPACE_TREE
         1
 
     .. note::
