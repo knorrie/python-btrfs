@@ -863,6 +863,31 @@ class FileSystem(object):
         for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key):
             yield DevExtent(header, data)
 
+    def block_groups(self, min_vaddr=0, max_vaddr=ULLONG_MAX, nr_items=None):
+        """
+        :param int min_vaddr: Lowest virtual address to search for.
+        :param int max_vaddr: Highest virtual address to search for.
+        :param int nr_items: Maximum amount of items to return. Defaults to no limit.
+        :returns: Block Group items from the Extent Tree or Block Group Tree
+        :rtype: Iterator[:class:`~btrfs.ctree.BlockGroupItem`]
+        """
+        if not self._block_group_tree:
+            for chunk in self.chunks(min_vaddr, max_vaddr, nr_items):
+                try:
+                    yield self.block_group(chunk.vaddr, chunk.length)
+                except btrfs.ctree.ItemNotFoundError:
+                    # This is simply to prevent the program from aborting when a block
+                    # group is removed in between doing the chunks lookup and the block
+                    # group item lookup.
+                    pass
+        else:
+            tree = BLOCK_GROUP_TREE_OBJECTID
+            min_key = Key(min_vaddr, BLOCK_GROUP_ITEM_KEY, 0)
+            max_key = Key(max_vaddr, BLOCK_GROUP_ITEM_KEY, ULLONG_MAX)
+            for header, data in btrfs.ioctl.search_v2(self.fd, tree, min_key, max_key,
+                                                      nr_items=nr_items):
+                yield BlockGroupItem(header, data)
+
     def block_group(self, vaddr, length=None):
         """
         :param int vaddr: Starting virtual address of the block group.
