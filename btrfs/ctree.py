@@ -91,6 +91,7 @@ CSUM_TREE_OBJECTID = 7  #: Checksum tree
 QUOTA_TREE_OBJECTID = 8  #: Quota tree
 UUID_TREE_OBJECTID = 9  #: Subvolume UUID tree
 FREE_SPACE_TREE_OBJECTID = 10  #: Free space tree
+BLOCK_GROUP_TREE_OBJECTID = 11  #: Block group tree
 
 DEV_STATS_OBJECTID = 0  #: Object ID of device statistics in the Device tree.
 BALANCE_OBJECTID = ULL(-4)  #: Object ID to store balance status. (-4)
@@ -346,6 +347,7 @@ _key_objectid_str_map = {
     QUOTA_TREE_OBJECTID: 'QUOTA_TREE',
     UUID_TREE_OBJECTID: 'UUID_TREE',
     FREE_SPACE_TREE_OBJECTID: 'FREE_SPACE_TREE',
+    BLOCK_GROUP_TREE_OBJECTID: 'BLOCK_GROUP_TREE',
     BALANCE_OBJECTID: 'BALANCE',
     ORPHAN_OBJECTID: 'ORPHAN',
     TREE_LOG_OBJECTID: 'TREE_LOG',
@@ -765,6 +767,8 @@ class FileSystem(object):
         self.fsid = _fs_info.fsid
         self.nodesize = _fs_info.nodesize
         self.sectorsize = _fs_info.sectorsize
+        self._block_group_tree = self.features().compat_ro_flags & \
+            btrfs.ioctl.FEATURE_COMPAT_RO_BLOCK_GROUP_TREE != 0
 
     def __enter__(self):
         return self
@@ -870,7 +874,10 @@ class FileSystem(object):
         :raises: :class:`ItemNotFoundError` if no Block Group Item can be found
             at the address.
         """
-        tree = EXTENT_TREE_OBJECTID
+        if not self._block_group_tree:
+            tree = EXTENT_TREE_OBJECTID
+        else:
+            tree = BLOCK_GROUP_TREE_OBJECTID
         min_offset = length if length is not None else 0
         max_offset = length if length is not None else ULLONG_MAX
         min_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, min_offset)
@@ -1240,10 +1247,13 @@ class BlockGroupItem(ItemData):
     The `Block Group` has a 1 to 1 relationship with a `Chunk` and tracks some
     usage information about a range of virtual address space.
 
-    * Tree: `EXTENT_TREE_OBJECTID` (2)
+    * Tree: `EXTENT_TREE_OBJECTID` (2) or `BLOCK_GROUP_TREE_OBJECTID` (11)
     * Key objectid: Virtual address.
     * Key type: `BLOCK_GROUP_ITEM_KEY` (192)
     * Key offset: Block Group length.
+
+    If the block_group_tree feature is enabled on the filesystem, these items
+    can be found inside the Block Group Tree instead of the Extent Tree.
 
     :ivar int vaddr: Virtual address where the Bock Group starts (taken from
         the objectid field of the item key).

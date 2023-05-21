@@ -436,6 +436,7 @@ _tree_name_id_map = {
     'quota': btrfs.ctree.QUOTA_TREE_OBJECTID,
     'uuid': btrfs.ctree.UUID_TREE_OBJECTID,
     'free_space': btrfs.ctree.FREE_SPACE_TREE_OBJECTID,
+    'block_group': btrfs.ctree.BLOCK_GROUP_TREE_OBJECTID,
     'tree_log': btrfs.ctree.TREE_LOG_OBJECTID,
     'tree_log_fixup': btrfs.ctree.TREE_LOG_FIXUP_OBJECTID,
     'tree_reloc': btrfs.ctree.TREE_RELOC_OBJECTID,
