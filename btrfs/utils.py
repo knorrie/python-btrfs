@@ -16,7 +16,7 @@
 # along with python-btrfs.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-This module contains miscellanious collection of things, like the
+This module contains miscellaneous collection of things, like the
 :func:`pretty_print` function which provides a quick readable textual dump of
 most of the object types in this library. Besides that, some functions to
 pretty print and parse size strings and some other stuff.
@@ -409,7 +409,7 @@ def embedded_text_for_str(text):
     :rtype: str
 
     This function is not intended to be used for anything else than a
-    convienient way of displaying filenames and xattr keys and values in the
+    convenient way of displaying filenames and xattr keys and values in the
     pretty printer.
 
     Example::

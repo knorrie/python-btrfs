@@ -406,7 +406,7 @@ def _key_str_objectid(objectid_str, _type):
         if match is not None:
             return _qgroup_objectid(**match.groupdict())
         else:
-            raise ValueError("Unparseable key objectid {} for qgroup type {}".format(
+            raise ValueError("Unparsable key objectid {} for qgroup type {}".format(
                 objectid_str, _key_type_str(_type)))
     # is it some UUID hex string?
     if objectid_str.startswith('0x'):
@@ -415,7 +415,7 @@ def _key_str_objectid(objectid_str, _type):
         except Exception:
             pass
     # otherwise, we don't know
-    raise ValueError("Unparseable key objectid {}".format(objectid_str))
+    raise ValueError("Unparsable key objectid {}".format(objectid_str))
 
 
 _key_type_str_map = {
@@ -508,7 +508,7 @@ def _key_str_offset(offset_str, _type):
         if match is not None:
             return _qgroup_objectid(**{k: int(v) for k, v in match.groupdict().items()})
         else:
-            raise ValueError("Unparseable key offset {} for qgroup type {}".format(
+            raise ValueError("Unparsable key offset {} for qgroup type {}".format(
                 offset_str, _key_type_str(_type)))
     # is it some UUID hex string?
     if offset_str.startswith('0x'):
@@ -517,7 +517,7 @@ def _key_str_offset(offset_str, _type):
         except Exception:
             pass
     # otherwise, we don't know
-    raise ValueError("Unparseable key offset {}".format(offset_str))
+    raise ValueError("Unparsable key offset {}".format(offset_str))
 
 
 class ItemNotFoundError(IndexError):
@@ -576,7 +576,7 @@ class Key(object):
         '(-1 255 -1)'
 
     The `-1` value in the string representation is just a convenience way to
-    write the maximum allowed number. The actual value for a 64 bit numer is
+    write the maximum allowed number. The actual value for a 64 bit number is
     still 18446744073709551615, and for 8 bit that's 255 of course.
 
     For example, when setting up a minimum and maximum key for a metadata
