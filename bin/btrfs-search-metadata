@@ -248,7 +248,7 @@ presets = {
     ),
     'devices': (get_devices, args_default, "Display devices"),
     'orphans': (get_orphans, args_default, "Orphan items from the Root Tree"),
-    'dump': (dump, args_dump, "Dump aribitrary ranges of metadata items"),
+    'dump': (dump, args_dump, "Dump arbitrary ranges of metadata items"),
     'block_group_contents': (
         get_block_group_contents,
         args_block_group_contents,

@@ -585,7 +585,7 @@ class FsUsage(object):
         # For convenience reasons, we provide a few more derived numbers...
         #
         # If the soft unallocatable amount of bytes is higher than the hard
-        # amount, we can reclaim space by balancing the filesytsem.
+        # amount, we can reclaim space by balancing the filesystem.
         self.unallocatable_reclaimable = \
             max(self.unallocatable_soft - self.unallocatable_hard, 0)
         for dev_usage in self.dev_usage.values():
