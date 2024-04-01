@@ -1325,10 +1325,14 @@ def _compat_flags_str(flags):
 
 FEATURE_COMPAT_RO_FREE_SPACE_TREE = 1 << 0
 FEATURE_COMPAT_RO_FREE_SPACE_TREE_VALID = 1 << 1
+FEATURE_COMPAT_RO_VERITY = 1 << 2
+FEATURE_COMPAT_RO_BLOCK_GROUP_TREE = 1 << 3
 
 _feature_compat_ro_str_map = {
     FEATURE_COMPAT_RO_FREE_SPACE_TREE: 'free_space_tree',
     FEATURE_COMPAT_RO_FREE_SPACE_TREE_VALID: 'free_space_tree_valid',
+    FEATURE_COMPAT_RO_VERITY: 'verity',
+    FEATURE_COMPAT_RO_BLOCK_GROUP_TREE: 'block_group_tree',
 }
 
 
@@ -1383,6 +1387,8 @@ class FeatureFlags(object):
 
     - FEATURE_COMPAT_RO_FREE_SPACE_TREE
     - FEATURE_COMPAT_RO_FREE_SPACE_TREE_VALID
+    - FEATURE_COMPAT_RO_VERITY
+    - FEATURE_COMPAT_RO_BLOCK_GROUP_TREE
 
     Known incompat_flags (available as attribute of this module) are:
 

@@ -91,6 +91,7 @@ CSUM_TREE_OBJECTID = 7  #: Checksum tree
 QUOTA_TREE_OBJECTID = 8  #: Quota tree
 UUID_TREE_OBJECTID = 9  #: Subvolume UUID tree
 FREE_SPACE_TREE_OBJECTID = 10  #: Free space tree
+BLOCK_GROUP_TREE_OBJECTID = 11  #: Block group tree
 
 DEV_STATS_OBJECTID = 0  #: Object ID of device statistics in the Device tree.
 BALANCE_OBJECTID = ULL(-4)  #: Object ID to store balance status. (-4)
@@ -869,8 +870,13 @@ class FileSystem(object):
         :rtype: :class:`~btrfs.ctree.BlockGroupItem`
         :raises: :class:`ItemNotFoundError` if no Block Group Item can be found
             at the address.
+
+        The block group items are either in the extent tree, or when
+        `ioctl.FEATURE_COMPAT_RO_BLOCK_GROUP_TREE` enabled, a seperated block group tree.
         """
         tree = EXTENT_TREE_OBJECTID
+        if self.block_group_tree():
+            tree = BLOCK_GROUP_TREE_OBJECTID
         min_offset = length if length is not None else 0
         max_offset = length if length is not None else ULLONG_MAX
         min_key = Key(vaddr, BLOCK_GROUP_ITEM_KEY, min_offset)
@@ -1020,6 +1026,13 @@ class FileSystem(object):
         :rtype: bool
         """
         return self.features().incompat_flags & btrfs.ioctl.FEATURE_INCOMPAT_MIXED_GROUPS != 0
+
+    def block_group_tree(self):
+        """
+        :returns: True if this filesystem have seperate block group tree enabled
+            instead of putting block group extents inside the extent tree
+        """
+        return self.features().compat_ro_flags & btrfs.ioctl.FEATURE_COMPAT_RO_BLOCK_GROUP_TREE != 0
 
     def usage(self):
         """
