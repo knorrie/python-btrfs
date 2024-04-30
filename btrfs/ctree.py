@@ -540,7 +540,7 @@ KEY_MAX = (1 << 136) - 1
 
 
 class Key(object):
-    """Btrfs metadata trees have a key space of 136-bit numbers.
+    r"""Btrfs metadata trees have a key space of 136-bit numbers.
 
     A full 136-bit tree key is composed as:
       (objectid << 72) + (type << 64) + offset
