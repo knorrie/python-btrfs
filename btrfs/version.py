@@ -20,4 +20,4 @@ This module contains the library version number. This must be the only place
 where the version number is kept.
 """
 
-__version__ = '14'
+__version__ = '14.1'
