@@ -37,14 +37,7 @@ def get_chunks(fs, **kwargs):
 
 
 def get_block_groups(fs, **kwargs):
-    for chunk in fs.chunks():
-        try:
-            yield fs.block_group(chunk.vaddr, chunk.length)
-        except btrfs.ctree.ItemNotFoundError:
-            # This is simply to prevent the program from aborting when a block
-            # group is removed in between doing the chunks lookup and the block
-            # group item lookup.
-            pass
+    return fs.block_groups()
 
 
 def get_dev_extents(fs, **kwargs):

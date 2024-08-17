@@ -39,6 +39,7 @@ setup(
     version=version,
     description='Python module to interact programmatically with an online btrfs file system',
     long_description=long_description,
+    long_description_content_type=long_description_content_type,
     author='Hans van Kranenburg',
     author_email='hans@knorrie.org',
     url='https://github.com/knorrie/python-btrfs',
