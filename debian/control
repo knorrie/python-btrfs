@@ -21,7 +21,7 @@ Description: Python module to inspect an online btrfs filesystem
 
 Package: munin-plugins-btrfs
 Architecture: all
-Depends: ${misc:Depends}, munin-node, python3:any, python3-btrfs (= ${binary:Version})
+Depends: ${misc:Depends}, python3:any, python3-btrfs (= ${binary:Version})
 Section: net
 Description: munin plugin for monitoring btrfs filesystems
  This munin plugin uses the Python btrfs module to retrieve information about
