@@ -1330,7 +1330,7 @@ FEATURE_COMPAT_RO_BLOCK_GROUP_TREE = 1 << 3
 _feature_compat_ro_str_map = {
     FEATURE_COMPAT_RO_FREE_SPACE_TREE: 'free_space_tree',
     FEATURE_COMPAT_RO_FREE_SPACE_TREE_VALID: 'free_space_tree_valid',
-    FEATURE_COMPAT_RO_BLOCK_GROUP_TREE : 'block_group_tree',
+    FEATURE_COMPAT_RO_BLOCK_GROUP_TREE: 'block_group_tree',
 }
 
 
