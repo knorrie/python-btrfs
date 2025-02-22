@@ -1450,3 +1450,70 @@ def get_features(fd):
     fcntl.ioctl(fd, IOC_GET_FEATURES, buf)
     compat_flags, compat_ro_flags, incompat_flags = ioctl_feature_flags.unpack(buf)
     return FeatureFlags(compat_flags, compat_ro_flags, incompat_flags)
+
+
+DEFRAG_RANGE_COMPRESS = 1 << 0  #: Flag to enable (re)compression functionality
+DEFRAG_RANGE_START_IO = 1 << 1  #: Flag to more quickly start writing back data
+
+ioctl_defrag_range_args = struct.Struct('=QQQLL16x')
+IOC_DEFRAG_RANGE = _IOW(BTRFS_IOCTL_MAGIC, 16, ioctl_defrag_range_args)
+
+
+def defrag_range(fd, start=0, length=ULLONG_MAX, flags=0, extent_thresh=0, compress_type=0):
+    """Call the `BTRFS_IOC_DEFRAG_RANGE` ioctl.
+
+    Using the defrag_range function, we can:
+
+    - Defragment (parts of) files (when fd points to a regular file).
+    - Defragment subvolume metadata (when fd points to a directory).
+    - (Re)compress (parts of) files to a certain compression type.
+
+    :param int fd: Open file descriptor to a regular file or a directory.
+    :param int start: Offset to start the defragmentation at. Defaults
+        to 0.
+    :param int length: Amount of bytes to defrag, from the start position.
+        Defaults to 2**64-1.
+    :param int flags: Flags, mainly to activate the (re)compression
+        functionality. See below for more information. By default, no flags are
+        set.
+    :param int extent_thresh: Skip extents larger than this value in bytes.
+        Warning: this value might be ignored by kernel code, especially for
+        small-ish values. Defaults to 0, which in turn means it will be set to
+        the kernel code default value of 256kiB.
+    :param int compress_type: Compression type to use when (re)compressing file
+        content. Use one of the `COMPRESS_*` values from the
+        :class:`btrfs.ctree` module, e.g. `btrfs.ctree.COMPRESS_ZSTD`.
+
+    Example::
+
+        >>> # In the first 40MiB of the file, try to combine together all
+        >>> # extents that have a length of less than a MiB.
+        >>> MiB = 2**20
+        >>> fd = os.open('defrag_me', os.O_RDONLY)
+        >>> btrfs.ioctl.defrag_range(fd, start=0, length=40*MiB, extent_thresh=MiB)
+
+    About using defrag to (re)compress file content:
+
+    - To turn on the (re)compression functionality, provide
+      `DEFRAG_RANGE_COMPRESS` as flags. (Internally, this also sets the
+      `DEFRAG_RANGE_START_IO` flag and forces extent_thresh to 2**64-1.)
+    - Additionally, specify the target type as compression_type.
+    - It is not possible to decompress existing compressed data using this
+      function. This is because only a compress_type value greater than 0 is
+      considered, while the kernel default value is to use ZLIB. IOW, providing
+      value 0 selects ZLIB instead.
+
+    Example::
+
+        >>> MiB = 2**20
+        >>> fd = os.open('compress_me', os.O_RDONLY)
+        >>> btrfs.ioctl.defrag_range(fd, start=50*MiB, length=25*MiB,
+        ...                          flags=btrfs.ioctl.DEFRAG_RANGE_COMPRESS,
+        ...                          compress_type=btrfs.ctree.COMPRESS_ZSTD)
+
+    Note: the parameter 'length' is called 'len' in kernel code, but 'len' is a
+    reserved keyword in Python.
+    """
+    args = bytearray(ioctl_defrag_range_args.size)
+    ioctl_defrag_range_args.pack_into(args, 0, start, length, flags, extent_thresh, compress_type)
+    fcntl.ioctl(fd, IOC_DEFRAG_RANGE, args)
