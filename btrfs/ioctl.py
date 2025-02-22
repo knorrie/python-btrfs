@@ -489,7 +489,7 @@ inum_offset_root = struct.Struct('=QQQ')
 Inode = namedtuple('Inode', ['inum', 'offset', 'root'])
 
 
-def logical_to_ino(fd, vaddr, bufsize=4096):
+def logical_ino(fd, vaddr, bufsize=4096):
     """Call the `BTRFS_IOC_LOGICAL_INO` ioctl.
 
     The `LOGICAL_INO` ioctl helps us converting a virtual address into a list
@@ -500,7 +500,7 @@ def logical_to_ino(fd, vaddr, bufsize=4096):
 
         >>> import btrfs
         >>> with btrfs.FileSystem('/') as fs:
-        ...     btrfs.ioctl.logical_to_ino(fs.fd, 607096483840)
+        ...     btrfs.ioctl.logical_ino(fs.fd, 607096483840)
         ([Inode(inum=4686948, offset=0, root=259),
           Inode(inum=4686948, offset=0, root=2104)], 0)
 
@@ -523,7 +523,16 @@ def logical_to_ino(fd, vaddr, bufsize=4096):
     reference any block in the extent, use the logical ino v2 ioctl instead,
     while setting the ignore_offset flag.
     """
-    return _logical_to_ino(fd, vaddr, bufsize, _v2=False)
+    return _logical_ino(fd, vaddr, bufsize, _v2=False)
+
+
+def logical_to_ino(*args, **kwargs):
+    """
+    .. deprecated:: 15
+       Backwards compatibility function. Use :func:`~btrfs.ioctl.logical_ino`
+       instead.
+    """
+    return logical_ino(*args, **kwargs)
 
 
 ioctl_logical_ino_args_v2 = struct.Struct('=QQ24xQQ')
@@ -531,7 +540,7 @@ IOC_LOGICAL_INO_V2 = _IOWR(BTRFS_IOCTL_MAGIC, 59, ioctl_logical_ino_args)
 LOGICAL_INO_ARGS_IGNORE_OFFSET = 1 << 0
 
 
-def logical_to_ino_v2(fd, vaddr, bufsize=4096, ignore_offset=False):
+def logical_ino_v2(fd, vaddr, bufsize=4096, ignore_offset=False):
     """Call the `BTRFS_IOC_LOGICAL_INO_V2` ioctl.
 
     The `LOGICAL_INO_V2` ioctl helps us converting a virtual address into a
@@ -542,7 +551,7 @@ def logical_to_ino_v2(fd, vaddr, bufsize=4096, ignore_offset=False):
 
         >>> import btrfs
         >>> with btrfs.FileSystem('/') as fs:
-        ...     btrfs.ioctl.logical_to_ino_v2(fs.fd, 607096483840)
+        ...     btrfs.ioctl.logical_ino_v2(fs.fd, 607096483840)
         ([Inode(inum=4686948, offset=0, root=259),
           Inode(inum=4686948, offset=0, root=2104)], 0)
 
@@ -562,10 +571,19 @@ def logical_to_ino_v2(fd, vaddr, bufsize=4096, ignore_offset=False):
     results, retry the call with a larger buffer, adding the amount of bytes
     that was reported to be additionally needed.
     """
-    return _logical_to_ino(fd, vaddr, bufsize, ignore_offset, _v2=True)
+    return _logical_ino(fd, vaddr, bufsize, ignore_offset, _v2=True)
 
 
-def _logical_to_ino(fd, vaddr, bufsize=4096, ignore_offset=False, _v2=True):
+def logical_to_ino_v2(*args, **kwargs):
+    """
+    .. deprecated:: 15
+       Backwards compatibility function. Use
+       :func:`~btrfs.ioctl.logical_ino_v2` instead.
+    """
+    return logical_ino_v2(*args, **kwargs)
+
+
+def _logical_ino(fd, vaddr, bufsize=4096, ignore_offset=False, _v2=True):
     if _v2:
         bufsize = min(bufsize, 16777216)
     else:

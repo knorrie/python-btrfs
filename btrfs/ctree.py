@@ -1340,8 +1340,8 @@ class ExtentItem(ItemData):
     is ignored when creating these kind of objects from a metadata search.
 
     Instead, to find out who is referencing data from an extent, the
-    :func:`btrfs.ioctl.logical_to_ino` and
-    :func:`btrfs.ioctl.logical_to_ino_v2` functions can be used.
+    :func:`btrfs.ioctl.logical_ino` and
+    :func:`btrfs.ioctl.logical_ino_v2` functions can be used.
 
     :ivar int vaddr: Virtual address where the Extent starts (taken from the
         objectid field of the item key).
