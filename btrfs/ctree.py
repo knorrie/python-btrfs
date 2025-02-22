@@ -283,10 +283,10 @@ _dir_item_type_str_map = {
     FT_XATTR: 'XATTR',
 }
 
-COMPRESS_NONE = 0
-COMPRESS_ZLIB = 1
-COMPRESS_LZO = 2
-COMPRESS_ZSTD = 3
+COMPRESS_NONE = 0  #: no compression at all
+COMPRESS_ZLIB = 1  #: zlib compression
+COMPRESS_LZO = 2  #: lzo compression
+COMPRESS_ZSTD = 3  #: zstd compression
 
 _compress_type_str_map = {
     COMPRESS_NONE: 'none',
