@@ -24,7 +24,7 @@ already existing block groups.
 
 What btrfs balance effectively does is just taking the data and feeding it back
 to the allocator of the filesystem as new writes, blacklisting their current
-location. Implementing user space balance filters can result in a higly
+location. Implementing user space balance filters can result in a highly
 optimized workflow to reclaim physical space, or to minimize the amount of data
 that has to be rewritten to rebalance complex filesystems with multiple
 devices.
