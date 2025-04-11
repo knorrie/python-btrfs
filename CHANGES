@@ -1,3 +1,15 @@
+python-btrfs v15, Apr 11, 2025
+  * Add the DEFRAG_RANGE ioctl
+  * Add documentation for the COMPRESS_* values
+  * Add logical_ino and logical_ino_v2 to the ioctl module as primary function
+    names for calling the LOGICAL_INO and LOGICAL_INO_V2 ioctls, to more
+    closely resemble the ioctl names. The current logical_to_ino* functions
+    names will stay to provide backwards compatibility.
+  * Fix a bunch of spelling issues, thanks Yaroslav Halchenko for the
+    suggestion about using codespell.
+  * Stuff:
+    - Fix some bad whitespace in the code
+
 python-btrfs v14.1, May 7, 2024
   * Fixes:
     - Prevent a "SyntaxWarning: invalid escape sequence" from being displayed
