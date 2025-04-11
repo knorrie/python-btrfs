@@ -1,3 +1,10 @@
+python-btrfs (15-1) unstable; urgency=medium
+
+  * New release v15
+  * debian/control: bump Standards-Version to 4.7.2
+
+ -- Hans van Kranenburg <hans@knorrie.org>  Sat, 12 Apr 2025 00:09:40 +0200
+
 python-btrfs (14.1-2) unstable; urgency=medium
 
   * debian/control: actually really bump Standards-Version to 4.7.0 :|
