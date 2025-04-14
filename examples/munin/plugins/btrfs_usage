@@ -21,6 +21,55 @@
 import btrfs
 import os
 import sys
+from math import floor
+
+def calculate_munin_values(fs):
+    # Get detailed usage statistics.
+    usage = fs.usage()
+
+    # Whatever happens, we should not stack the graph above this. IOW, the
+    # unallocated bytes we end up with is just whatever is left over after
+    # doing all other things.
+    left = usage.total
+
+    if not fs.mixed_groups():
+        data_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_DATA].used
+        data_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_DATA].allocated
+        metadata_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_METADATA].used
+        metadata_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_METADATA].allocated
+        left = left - data_allocated - metadata_allocated
+        usage_info = {
+                'data_used': data_used,
+                'data_allocated': data_allocated,
+                'data_unused': data_allocated - data_used,
+                'metadata_used': metadata_used,
+                'metadata_allocated': metadata_allocated,
+                'metadata_unused': metadata_allocated - metadata_used,
+                }
+    else:
+        mixed_type = btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_METADATA
+        used = usage.block_group_type_usage[mixed_type].used
+        allocated = usage.block_group_type_usage[mixed_type].allocated
+        left -= allocated
+        usage_info = {
+                'data_metadata_used': used,
+                'data_metadata_unused': allocated-used,
+                }
+    system_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_SYSTEM].used
+    usage_info['system_used'] = system_used
+    system_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_SYSTEM].allocated
+    usage_info['system_unused'] = system_allocated - system_used
+    left -= system_allocated
+
+    usage_info['parity'] = usage.parity
+    left -= usage.parity
+    usage_info['non_alloc_reclaimable'] = usage.unallocatable_reclaimable
+    left -= usage.unallocatable_reclaimable
+    usage_info['non_alloc'] = usage.unallocatable_hard
+    usage_info['unallocated'] = max(left - usage.unallocatable_hard, 0)
+    usage_info['total'] = usage.total
+
+    return usage_info
 
 
 def munin_config(fs):
@@ -48,6 +97,14 @@ def munin_config(fs):
         print("metadata_unused.draw STACK")
         print("metadata_unused.info Unused Metadata")
         print("metadata_unused.colour 0000CC")
+
+        usage_info = calculate_munin_values(fs)
+        #Assuming metadata is allocated by 256MB chunks
+        available_unallocated_for_metadata = floor(usage_info['unallocated'] / (2**28)) * (2**28)
+        metadata_warning  = int((usage_info['metadata_allocated'] * 0.15) - available_unallocated_for_metadata)
+        metadata_critical = int((usage_info['metadata_allocated'] * 0.10) - available_unallocated_for_metadata)
+        print("metadata_unused.warning {}:".format(metadata_warning))
+        print("metadata_unused.critical {}:".format(metadata_critical))
     else:
         print("data_metadata_used.label Used Data+Metadata")
         print("data_metadata_used.draw AREA")
@@ -94,46 +151,28 @@ def munin_config(fs):
 def munin_values(fs):
     print("multigraph btrfs_usage_{0}".format(str(fs.fsid).replace('-', '_')))
 
-    # Get detailed usage statistics.
-    usage = fs.usage()
-
-    # Whatever happens, we should not stack the graph above this. IOW, the
-    # unallocated bytes we end up with is just whatever is left over after
-    # doing all other things.
-    left = usage.total
+    usage_info = calculate_munin_values(fs)
 
     if not fs.mixed_groups():
-        data_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_DATA].used
-        data_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_DATA].allocated
-        metadata_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_METADATA].used
-        metadata_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_METADATA].allocated
-        print("data_used.value {}".format(data_used))
-        print("data_unused.value {}".format(data_allocated - data_used))
-        print("metadata_used.value {}".format(metadata_used))
-        print("metadata_unused.value {}".format(metadata_allocated - metadata_used))
-        left = left - data_allocated - metadata_allocated
+        template = (
+                    "data_used.value {data_used}\n"
+                    "data_unused.value {data_unused}\n"
+                    "metadata_used.value {metadata_used}\n"
+                    "metadata_unused.value {metadata_unused}\n")
     else:
-        mixed_type = btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_METADATA
-        used = usage.block_group_type_usage[mixed_type].used
-        allocated = usage.block_group_type_usage[mixed_type].allocated
-        print("data_metadata_used.value {}".format(used))
-        print("data_metadata_unused.value {}".format(allocated - used))
-        left -= allocated
-    system_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_SYSTEM].used
-    system_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_SYSTEM].allocated
-    print("system_used.value {}".format(system_used))
-    print("system_unused.value {}".format(system_allocated - system_used))
-    left -= system_allocated
+        template = (
+                    "data_metadata_used.value {data_metadata_used}\n"
+                    "data_metadata_unused.value {data_metadata_unused}\n")
 
-    print("parity.value {}".format(usage.parity))
-    left -= usage.parity
-    print("non_alloc_reclaimable.value {}".format(usage.unallocatable_reclaimable))
-    left -= usage.unallocatable_reclaimable
-    print("non_alloc.value {}".format(usage.unallocatable_hard))
-    left = max(left - usage.unallocatable_hard, 0)
-    print("unallocated.value {}".format(left))
-    print("total.value {}".format(usage.total))
-    print("")
+    template += (
+                "system_used.value {system_used}\n"
+                "system_unused.value {system_unused}\n"
+                "parity.value {parity}\n"
+                "non_alloc_reclaimable.value {non_alloc_reclaimable}\n"
+                "non_alloc.value {non_alloc}\n"
+                "unallocated.value {unallocated}\n"
+                "total.value {total}\n")
+    print(template.format(**usage_info))
 
 
 def filter_env_mounts(mounts):
