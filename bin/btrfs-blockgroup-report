@@ -1,0 +1,170 @@
+#!/usr/bin/python3
+#
+# Copyright (C) 2018 Hans van Kranenburg <hans@knorrie.org>
+#             , 2023 Jacob Chapman <github.com/chapmanjacobd>
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+import argparse
+import errno
+import sys
+from itertools import repeat
+from multiprocessing import Pool
+
+import btrfs
+from btrfs.utils import pretty_size
+
+
+class Bork(Exception):
+    pass
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--usage',
+        '-u',
+        action="store_true",
+        help="Print device blockgroup usage",
+    )
+    parser.add_argument(
+        'mountpoint',
+        help="Btrfs filesystem mountpoint",
+    )
+    parser.add_argument(
+        'device',
+        nargs='*',
+        help="Only use specific devices (default include all)",
+    )
+    return parser.parse_args()
+
+
+def safe_get_block_group(t):
+    fs, vaddr = t
+    try:
+        return fs.block_group(vaddr)
+    except IndexError:
+        return None
+
+
+def report_usage(args):
+    with btrfs.FileSystem(args.mountpoint) as fs:
+        fs_chunks = list(fs.chunks())
+
+        devices = fs.devices()
+        devids = [d.devid for d in devices]
+        if args.device:
+            dev_infos = [fs.dev_info(id) for id in devids]
+            selected_devids = []
+            for dev in dev_infos:
+                if any(d in (dev.path, dev.devid) for d in args.device):
+                    selected_devids.append(dev.devid)
+            devids = selected_devids
+
+        print(args.mountpoint, '\t', fs.usage().virtual_used_str, '\t', len(fs_chunks), 'fs chunks')
+        for devid in devids:
+            dev_info = fs.dev_info(devid)
+            dev_vaddrs = [d.vaddr for d in fs.dev_extents(devid)]
+            print(
+                dev_info.path,
+                '\t',
+                dev_info.bytes_used_str,
+                '\t',
+                len(dev_vaddrs),
+                'device blockgroup extents',
+                "({:.0%})".format(len(dev_vaddrs) / len(fs_chunks)),
+            )
+
+        if args.usage:
+            print('\nBlockgroup usage:')
+            for devid in devids:
+                print(fs.dev_info(devid).path)
+                dev_vaddrs = [d.vaddr for d in fs.dev_extents(devid)]
+
+                chunk_stats = {}
+                with Pool() as pool:
+                    results = pool.map(safe_get_block_group, zip(repeat(fs), dev_vaddrs))
+                    for bg in [r for r in results if r is not None]:
+                        if bg.flags_str in chunk_stats:
+                            chunk_stats[bg.flags_str]['count'] += 1
+                            chunk_stats[bg.flags_str]['size_used'] += bg.used
+                            chunk_stats[bg.flags_str]['percent_used'].append(bg.used_pct)
+                        else:
+                            chunk_stats[bg.flags_str] = {
+                                'count': 1,
+                                'size_used': bg.used,
+                                'percent_used': [bg.used_pct],
+                            }
+
+                for data_flag in sorted(chunk_stats):
+                    stats = chunk_stats[data_flag]
+
+                    print('\t', data_flag)
+                    print('\t' * 2, 'Data-device dependence:', pretty_size(stats['size_used']))
+                    print('\t' * 2, 'Blockgroups:', stats['count'])
+                    print('\t' * 2, 'Blockgroup packing:')
+
+                    grouped_stats = {}
+                    for percent in stats['percent_used']:
+                        group = (percent // 10) * 10
+                        if group in grouped_stats:
+                            grouped_stats[group] += 1
+                        else:
+                            grouped_stats[group] = 1
+
+                    max_count = max(count for _group, count in grouped_stats.items())
+                    for group, count in sorted(grouped_stats.items()):
+                        scaled_count = int(60 * count / max_count) if max_count > 60 else count
+                        print(
+                            '\t' * 2,
+                            f'  {str(group).rjust(3)}% packed',
+                            '*' * max(scaled_count, 1),
+                            f"({count})",
+                        )
+                    print('\n')
+
+
+def main():
+    args = parse_args()
+    try:
+        report_usage(args)
+    except OSError as e:
+        if e.errno == errno.EPERM:
+            raise Bork(
+                "Insufficient permissions to use the btrfs kernel API.\n"
+                "Hint: Try running the script as root user.".format(e)
+            )
+        elif e.errno == errno.ENOTTY:
+            raise Bork("Unable to retrieve data. Hint: Not a mounted btrfs file system?")
+        raise
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Exiting...")
+        sys.exit(130)  # 128 + SIGINT
+    except Bork as e:
+        print("Error: {0}".format(e), file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(e)
+        sys.exit(1)
