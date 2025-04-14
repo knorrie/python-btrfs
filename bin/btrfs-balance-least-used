@@ -43,8 +43,11 @@ def load_block_groups(fs, max_used_pct):
             continue
         try:
             block_group = fs.block_group(chunk.vaddr, chunk.length)
-            if block_group.used_pct <= max_used_pct:
-                block_groups.append((block_group.used_pct, block_group))
+            # if max_used_pct == 0, only balance completely empty block groups
+            if (max_used_pct == 0
+                and block_group.used == 0
+                or block_group.used_pct <= max_used_pct):
+                block_groups.append((block_group.used, block_group.used_pct, block_group))
             if block_group.used_pct < min_used_pct:
                 min_used_pct = block_group.used_pct
         except IndexError:
@@ -55,13 +58,14 @@ def load_block_groups(fs, max_used_pct):
 
 
 def balance_one_block_group(fs, block_groups, max_used_pct):
-    next_used_pct, next_block_group = block_groups[0]
+    next_used, next_used_pct, next_block_group = block_groups[0]
     try:
         block_group = fs.block_group(next_block_group.vaddr, next_block_group.length)
     except IndexError:
         heapq.heappop(block_groups)
         return
     vaddr = block_group.vaddr
+    used = block_group.used
     used_pct = block_group.used_pct
     if used_pct > next_used_pct:
         if used_pct > max_used_pct:
@@ -71,14 +75,14 @@ def balance_one_block_group(fs, block_groups, max_used_pct):
         else:
             print("Postponing block group vaddr {} used_pct changed {} -> {}".format(
                 vaddr, next_used_pct, used_pct))
-            heapq.heapreplace(block_groups, (used_pct, block_group))
+            heapq.heapreplace(block_groups, (used, used_pct, block_group))
         return
 
     start_time = time.time()
     heapq.heappop(block_groups)
     args = btrfs.ioctl.BalanceArgs(vstart=vaddr, vend=vaddr+1)
-    print("Balance block group vaddr {} used_pct {} ...".format(
-        vaddr, used_pct), end='', flush=True)
+    print("Balance block group vaddr {} used_pct {} (used {}) ...".format(
+        vaddr, used_pct, used), end='', flush=True)
     try:
         progress = btrfs.ioctl.balance_v2(fs.fd, data_args=args)
         end_time = time.time()
@@ -96,7 +100,7 @@ def parse_args():
         '--usage',
         type=int,
         default=100,
-        help="Only consider block groups with less than this percentage used",
+        help="Only consider block groups with less than this percentage used (if 0, only consider empty block groups)",
     )
     parser.add_argument(
         'mountpoint',
