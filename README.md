@@ -52,12 +52,6 @@ online file system.  However, at the same time we're operating on a bit lower
 abstraction level. However again, that allows us to also be creative and make
 optimized utilities for our own special use cases.
 
-An example is the `btrfs-balance-least-used` program that you can find in the
-`bin` directory. It's a modified algorithm for using btrfs balance to compact
-allocated space (i.e. defragment free space) as fast and efficient as possible
-by taking the usage ratio of the individual allocations of raw disk space into
-account.
-
 ## Show me some example code!
 
 Let's for example have a look at the equivalent of the `btrfs fi df /` command:
@@ -109,8 +103,8 @@ So, using these values, we could create a nice picture using an imaging library.
 
 ## More examples!
 
-The `bin` and `examples` directory in the source code contain an example
-collection of programs that are built using the library.
+The [Gallery page](doc/gallery.md) lists a collection of software that utilizes
+the python-btrfs library.
 
 ## Documentation
 
