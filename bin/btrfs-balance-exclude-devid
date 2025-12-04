@@ -1,0 +1,101 @@
+#!/usr/bin/python3
+import argparse
+import btrfs
+import errno
+import heapq
+import sys
+import time
+
+class Bork(Exception):
+    pass
+
+def load_block_groups(fs, devid):
+    block_groups = []
+    balanced = 0
+    skipped = 0
+    #print("Loading all block group objects ...", flush=True)
+    for chunk in fs.chunks():
+        if not (chunk.type & btrfs.BLOCK_GROUP_DATA):
+            continue
+        try:
+            block_group = fs.block_group(chunk.vaddr, chunk.length)
+            block_groups.append((block_group.used_pct, block_group))
+            #print (chunk)
+            #print (chunk.stripes)
+            skip = False
+            devid_list = []
+            for stripe in chunk.stripes:
+                devid_list.append(stripe.devid)
+                if stripe.devid == devid:
+                    skip = True
+            if not skip:
+                balanced += 1
+                print ("balancing {} with stripe devids = {} balanced_count = {}".format(chunk, devid_list, balanced))
+                args = btrfs.ioctl.BalanceArgs(vstart=chunk.vaddr, vend=chunk.vaddr+1)
+                progress = btrfs.ioctl.balance_v2(fs.fd, data_args=args)
+            else:
+                skipped += 1
+                print ("skipping {} with stripe devids = {} skipped_count = {}".format(chunk, devid_list, skipped))
+        except IndexError:
+            continue
+    print ("Finished balanced_count = {} skipped_count = {} ".format(balanced, skipped))
+    heapq.heapify(block_groups)
+    print(" found {}".format(len(block_groups)))
+    return block_groups
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-d',
+        '--devid',
+        required=True,
+        type=int,
+        help="devid to exclude from balance - ie balance only block groups that don't have a stripe on this device",
+    )
+    parser.add_argument(
+        'mountpoint',
+        help="Btrfs filesystem mountpoint",
+    )
+    return parser.parse_args()
+
+def permission_check(fs):
+    """This is a simple canary function that explodes if the user does not have
+    enough permissions to use the search ioctl.
+    """
+    fs.top_level()
+
+
+def main():
+    args = parse_args()
+    devid = args.devid
+    path = args.mountpoint
+    try:
+        with btrfs.FileSystem(path) as fs:
+            permission_check(fs)
+            block_groups = load_block_groups(fs, devid)
+            if len(block_groups) == 0:
+                print("No block groups found, akinda weird")
+                return
+#            while len(block_groups) > 0:
+#                balance_if_needed(fs, block_groups, devid)
+    except OSError as e:
+        if e.errno == errno.EPERM:
+            raise Bork("Insufficient permissions to use the btrfs kernel API.\n"
+                       "Hint: Try running the script as root user.".format(e))
+        elif e.errno == errno.ENOTTY:
+            raise Bork("Unable to retrieve data. Hint: Not a mounted btrfs file system?")
+        raise
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Exiting...")
+        sys.exit(130)  # 128 + SIGINT
+    except Bork as e:
+        print("Error: {0}".format(e), file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(e)
+        sys.exit(1)

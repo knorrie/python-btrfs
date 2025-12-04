@@ -1,0 +1,74 @@
+.TH BTRFS\-BALANCE\-EXCLUDE\-DEVID 1 "2025" "" "Btrfs Balance Excluding Devid"
+.nh
+.ad l
+
+.SH "NAME"
+btrfs\-balance\-exclude\-devid \- Balance block groups that don't have a stripe
+on the excluded devid.
+
+.SH SYNOPSIS
+.B btrfs\-balance\-exclude\-devid
+[\fIargs\fR]
+.IR mountpoint
+
+.SH DESCRIPTION
+Suppose you had a unbalanced btrfs 4 drive raid 1 filesystem with one drive
+having a lot of unallocated space.  You'd want to do a balance targeting 
+block groups that don't already have a stripe on the devid 
+with the most Unallocated space.  This program allows you to do just that,
+a balance excluding any block groups that have a stripe on the 
+excluded devid.
+
+Typically you'd want to exclude the devid with the most unallocated space.
+
+# btrfs device usage -g /mnt/backupdrive
+/dev/dm-10, ID: 1
+   Device size:          11175.98GiB
+   Device slack:            0.00GiB
+   Data,RAID1:           9993.95GiB
+   Metadata,RAID1:         35.00GiB
+   System,RAID1:            0.03GiB
+   Unallocated:          1147.00GiB <- Want to do a balance reduces this
+
+/dev/dm-7, ID: 2
+   Device size:          5589.01GiB
+   Device slack:            0.00GiB
+   Data,RAID1:           5297.95GiB
+   Metadata,RAID1:         14.00GiB
+   System,RAID1:            0.03GiB
+   Unallocated:           277.03GiB
+
+/dev/dm-8, ID: 3
+   Device size:          5589.01GiB
+   Device slack:            0.00GiB
+   Data,RAID1:           5296.00GiB
+   Metadata,RAID1:         16.00GiB
+   Unallocated:           277.01GiB
+
+/dev/dm-9, ID: 4
+   Device size:          1863.00GiB
+   Device slack:            0.00GiB
+   Data,RAID1:           1858.00GiB
+   Metadata,RAID1:          5.00GiB
+   Unallocated:             0.00GiB
+
+
+Example output:
+$ sudo ./btrfs-balance-exclude-devid -d 1 /mnt/backupdrive
+balancing chunk vaddr 10301576577024 type DATA|RAID1 length 1.00GiB 
+                 num_stripes 2 with stripe devids = [2, 3] balanced_count = 1
+balancing chunk vaddr 10302650318848 type DATA|RAID1 length 1.00GiB 
+                 num_stripes 2 with stripe devids = [2, 3] balanced_count = 2
+balancing chunk vaddr 10303724060672 type DATA|RAID1 length 1.00GiB 
+                 num_stripes 2 with stripe devids = [2, 3] balanced_count = 3
+[...]
+
+.SH OPTIONS
+.TP
+.BR \-d ", " \-\-devid
+Show the built\-in help message and exit.
+
+.SH "SEE ALSO"
+This program is an example of what can be done using the python-btrfs library.
+
+Source and documentation on github: https://github.com/knorrie/python-btrfs
