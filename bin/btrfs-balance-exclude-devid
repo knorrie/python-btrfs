@@ -12,6 +12,7 @@ class Bork(Exception):
 def load_block_groups(fs, devid):
     block_groups = []
     balanced = 0
+    skipped = 0
     #print("Loading all block group objects ...", flush=True)
     for chunk in fs.chunks():
         if not (chunk.type & btrfs.BLOCK_GROUP_DATA):
@@ -33,10 +34,11 @@ def load_block_groups(fs, devid):
                 args = btrfs.ioctl.BalanceArgs(vstart=chunk.vaddr, vend=chunk.vaddr+1)
                 progress = btrfs.ioctl.balance_v2(fs.fd, data_args=args)
             else:
-                print ("skipping {} with stripe devids = {}".format(chunk, devid_list))
-
+                skipped += 1
+                print ("skipping {} with stripe devids = {} skipped_count = {}".format(chunk, devid_list, skipped))
         except IndexError:
             continue
+    print ("Finished balanced_count = {} skipped_count = {} ".format(balanced, skipped))
     heapq.heapify(block_groups)
     print(" found {}".format(len(block_groups)))
     return block_groups
