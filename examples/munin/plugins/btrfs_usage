@@ -23,6 +23,56 @@ import os
 import sys
 
 
+def calculate_munin_values(fs):
+    # Get detailed usage statistics.
+    usage = fs.usage()
+
+    # Whatever happens, we should not stack the graph above this. IOW, the
+    # unallocated bytes we end up with is just whatever is left over after
+    # doing all other things.
+    left = usage.total
+
+    if not fs.mixed_groups():
+        data_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_DATA].used
+        data_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_DATA].allocated
+        metadata_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_METADATA].used
+        metadata_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_METADATA].allocated
+        left = left - data_allocated - metadata_allocated
+        usage_info = {
+                'data_used': data_used,
+                'data_allocated': data_allocated,
+                'data_unused': data_allocated - data_used,
+                'metadata_used': metadata_used,
+                'metadata_allocated': metadata_allocated,
+                'metadata_unused': metadata_allocated - metadata_used,
+                }
+    else:
+        mixed_type = btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_METADATA
+        used = usage.block_group_type_usage[mixed_type].used
+        allocated = usage.block_group_type_usage[mixed_type].allocated
+        left -= allocated
+        usage_info = {
+                'data_metadata_used': used,
+                'data_metadata_unused': allocated-used,
+                }
+    system_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_SYSTEM].used
+    usage_info['system_used'] = system_used
+    system_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_SYSTEM].allocated
+    usage_info['system_unused'] = system_allocated - system_used
+    left -= system_allocated
+
+    usage_info['parity'] = usage.parity
+    left -= usage.parity
+    usage_info['non_alloc_reclaimable'] = usage.unallocatable_reclaimable
+    left -= usage.unallocatable_reclaimable
+    usage_info['non_alloc'] = usage.unallocatable_hard
+    left = max(left - usage.unallocatable_hard, 0)
+    usage_info['unallocated'] = left
+    usage_info['total'] = usage.total
+
+    return usage_info
+
+
 def munin_config(fs):
     print("multigraph btrfs_usage_{0}".format(str(fs.fsid).replace('-', '_')))
     print("graph_args --base 1024 -l 0")
@@ -94,51 +144,7 @@ def munin_config(fs):
 def munin_values(fs):
     print("multigraph btrfs_usage_{0}".format(str(fs.fsid).replace('-', '_')))
 
-    # Get detailed usage statistics.
-    usage = fs.usage()
-
-    # Whatever happens, we should not stack the graph above this. IOW, the
-    # unallocated bytes we end up with is just whatever is left over after
-    # doing all other things.
-    left = usage.total
-
-    if not fs.mixed_groups():
-        data_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_DATA].used
-        data_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_DATA].allocated
-        metadata_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_METADATA].used
-        metadata_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_METADATA].allocated
-        left = left - data_allocated - metadata_allocated
-        usage_info = {
-                'data_used': data_used,
-                'data_allocated': data_allocated,
-                'data_unused': data_allocated - data_used,
-                'metadata_used': metadata_used,
-                'metadata_allocated': metadata_allocated,
-                'metadata_unused': metadata_allocated - metadata_used,
-                }
-    else:
-        mixed_type = btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_METADATA
-        used = usage.block_group_type_usage[mixed_type].used
-        allocated = usage.block_group_type_usage[mixed_type].allocated
-        left -= allocated
-        usage_info = {
-                'data_metadata_used': used,
-                'data_metadata_unused': allocated-used,
-                }
-    system_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_SYSTEM].used
-    usage_info['system_used'] = system_used
-    system_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_SYSTEM].allocated
-    usage_info['system_unused'] = system_allocated - system_used
-    left -= system_allocated
-
-    usage_info['parity'] = usage.parity
-    left -= usage.parity
-    usage_info['non_alloc_reclaimable'] = usage.unallocatable_reclaimable
-    left -= usage.unallocatable_reclaimable
-    usage_info['non_alloc'] = usage.unallocatable_hard
-    left = max(left - usage.unallocatable_hard, 0)
-    usage_info['unallocated'] = left
-    usage_info['total'] = usage.total
+    usage_info = calculate_munin_values(fs)
 
     if not fs.mixed_groups():
         print("data_used.value {}".format(usage_info['data_used']))
