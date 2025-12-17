@@ -187,13 +187,14 @@ def pretty_size(size, unit=None, binary=True):
     return "{0:.2f}{1}{2}B".format(size, unit, 'i' if base == 1024 and unit != '' else '')
 
 
-_re_parse_pretty_size = re.compile(r'^(?P<size>\d+)(?:(?P<unit>[kMGTPE])((?P<i>i)?B)?)?$')
+_re_parse_pretty_size = re.compile(r'^(?P<size>\d+)(?P<fraction>\.\d+)?'
+                                   r'(?:(?P<unit>[kMGTPE])((?P<i>i)?B)?)?$')
 
 
 def parse_pretty_size(size_str):
     """Parse pretty printed size strings.
 
-    This is the opposite of the :func:`pretty_size` function, but not 100%.
+    This is the opposite of the :func:`pretty_size` function, but not 100%...
 
     :param str size_str: String literal to be parsed.
     :raises ValueError: If the input cannot be parsed as pretty size.
@@ -210,11 +211,31 @@ def parse_pretty_size(size_str):
             257285720899584
             >>> btrfs.utils.parse_pretty_size('1048576')
             1048576
+
+    This function does not allow using fractions, only integer numbers. Doing
+    so would allow the user to accidentally convert back pretty printed sizes
+    again, which likely produces incorrect results because of the rounding
+    errors involved:
+
+    Example::
+            >>> btrfs.utils.parse_pretty_size('2TB')
+            2000000000000
+
+            >>> btrfs.utils.pretty_size(2000000000000)
+            '1.82TiB'
+
+            >>> btrfs.utils.parse_pretty_size('1.82TiB')
+            ValueError: Fractional parts in sizes are not allowed: 1.82TiB
+
+    If we would allow this... the answer would have been: 2001111162552
+
     """
     match = _re_parse_pretty_size.match(size_str)
     if match is None:
         raise ValueError('literal cannot be parsed as pretty size')
     groupdict = match.groupdict()
+    if groupdict['fraction'] is not None:
+        raise ValueError('Fractional parts in sizes are not allowed: {}'.format(size_str))
     if groupdict['unit'] is None:
         return int(size_str)
     base = 1024 if groupdict['i'] == 'i' else 1000
