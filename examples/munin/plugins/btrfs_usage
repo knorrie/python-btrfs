@@ -107,32 +107,55 @@ def munin_values(fs):
         data_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_DATA].allocated
         metadata_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_METADATA].used
         metadata_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_METADATA].allocated
-        print("data_used.value {}".format(data_used))
-        print("data_unused.value {}".format(data_allocated - data_used))
-        print("metadata_used.value {}".format(metadata_used))
-        print("metadata_unused.value {}".format(metadata_allocated - metadata_used))
         left = left - data_allocated - metadata_allocated
+        usage_info = {
+                'data_used': data_used,
+                'data_allocated': data_allocated,
+                'data_unused': data_allocated - data_used,
+                'metadata_used': metadata_used,
+                'metadata_allocated': metadata_allocated,
+                'metadata_unused': metadata_allocated - metadata_used,
+                }
     else:
         mixed_type = btrfs.BLOCK_GROUP_DATA | btrfs.BLOCK_GROUP_METADATA
         used = usage.block_group_type_usage[mixed_type].used
         allocated = usage.block_group_type_usage[mixed_type].allocated
-        print("data_metadata_used.value {}".format(used))
-        print("data_metadata_unused.value {}".format(allocated - used))
         left -= allocated
+        usage_info = {
+                'data_metadata_used': used,
+                'data_metadata_unused': allocated-used,
+                }
     system_used = usage.block_group_type_usage[btrfs.BLOCK_GROUP_SYSTEM].used
+    usage_info['system_used'] = system_used
     system_allocated = usage.block_group_type_usage[btrfs.BLOCK_GROUP_SYSTEM].allocated
-    print("system_used.value {}".format(system_used))
-    print("system_unused.value {}".format(system_allocated - system_used))
+    usage_info['system_unused'] = system_allocated - system_used
     left -= system_allocated
 
-    print("parity.value {}".format(usage.parity))
+    usage_info['parity'] = usage.parity
     left -= usage.parity
-    print("non_alloc_reclaimable.value {}".format(usage.unallocatable_reclaimable))
+    usage_info['non_alloc_reclaimable'] = usage.unallocatable_reclaimable
     left -= usage.unallocatable_reclaimable
-    print("non_alloc.value {}".format(usage.unallocatable_hard))
+    usage_info['non_alloc'] = usage.unallocatable_hard
     left = max(left - usage.unallocatable_hard, 0)
-    print("unallocated.value {}".format(left))
-    print("total.value {}".format(usage.total))
+    usage_info['unallocated'] = left
+    usage_info['total'] = usage.total
+
+    if not fs.mixed_groups():
+        print("data_used.value {}".format(usage_info['data_used']))
+        print("data_unused.value {}".format(usage_info['data_unused']))
+        print("metadata_used.value {}".format(usage_info['metadata_used']))
+        print("metadata_unused.value {}".format(usage_info['metadata_unused']))
+    else:
+        print("data_metadata_used.value {}".format(usage_info['data_metadata_used']))
+        print("data_metadata_unused.value {}".format(usage_info['data_metadata_unused']))
+    print("system_used.value {}".format(usage_info['system_used']))
+    print("system_unused.value {}".format(usage_info['system_unused']))
+
+    print("parity.value {}".format(usage_info['parity']))
+    print("non_alloc_reclaimable.value {}".format(usage_info['non_alloc_reclaimable']))
+    print("non_alloc.value {}".format(usage_info['non_alloc']))
+    print("unallocated.value {}".format(usage_info['unallocated']))
+    print("total.value {}".format(usage_info['total']))
     print("")
 
 
