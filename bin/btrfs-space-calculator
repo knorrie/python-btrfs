@@ -115,11 +115,11 @@ def main():
     mixed_groups = args.mixed
     try:
         metadata_profile = _str_to_profile_map[args.metadata]
-    except KeyError as e:
+    except KeyError:
         raise Bork("Unknown profile {}".format(args.metadata))
     try:
         data_profile = _str_to_profile_map[args.data]
-    except KeyError as e:
+    except KeyError:
         raise Bork("Unknown profile {}".format(args.data))
     if mixed_groups and metadata_profile != data_profile:
         raise Bork(
