@@ -71,4 +71,8 @@ in a filesystem in order to debug btrfs extent allocator behaviour.
 
 ## 3rd party programs using python-btrfs
 
-...
+### btrfs-balance-exclude-devid
+
+[`btrfs-balance-exclude-devid`](https://github.com/wrighrc/btrfs-balance-exclude-devid)
+by Charles Wright balances block groups that don't have a stripe on the
+excluded devid. It is based on the `btrfs-balance-least-used` program.
