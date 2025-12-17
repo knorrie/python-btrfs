@@ -26,7 +26,7 @@ import btrfs
 import sys
 
 
-class WastedSpaceError(Exception):
+class Bork(Exception):
     pass
 
 
@@ -111,18 +111,18 @@ def main():
         try:
             device_sizes.append(btrfs.utils.parse_pretty_size(size))
         except ValueError as e:
-            raise WastedSpaceError("Invalid device size {}".format(size))
+            raise Bork("Invalid device size {}".format(size))
     mixed_groups = args.mixed
     try:
         metadata_profile = _str_to_profile_map[args.metadata]
     except KeyError as e:
-        raise WastedSpaceError("Unknown profile {}".format(args.metadata))
+        raise Bork("Unknown profile {}".format(args.metadata))
     try:
         data_profile = _str_to_profile_map[args.data]
     except KeyError as e:
-        raise WastedSpaceError("Unknown profile {}".format(args.data))
+        raise Bork("Unknown profile {}".format(args.data))
     if mixed_groups and metadata_profile != data_profile:
-        raise WastedSpaceError(
+        raise Bork(
             "When using mixed groups, metadata and data profile need to be identical.")
     fs = FakeFileSystem(device_sizes, mixed_groups, metadata_profile, data_profile)
     if not mixed_groups:
@@ -168,6 +168,6 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except WastedSpaceError as e:
+    except Bork as e:
         print("Error: {0}".format(e), file=sys.stderr)
         sys.exit(1)
