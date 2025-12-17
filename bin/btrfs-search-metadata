@@ -311,7 +311,7 @@ def main():
     except OSError as e:
         if e.errno == errno.EPERM:
             raise Bork("Insufficient permissions to use the btrfs kernel API.\n"
-                       "Hint: Try running the script as root user.".format(e))
+                       "Hint: Try running the script as root user.")
         elif e.errno == errno.ENOTTY:
             raise Bork("Unable to retrieve data. Hint: Not a mounted btrfs file system?")
         raise
