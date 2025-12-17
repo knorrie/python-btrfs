@@ -232,7 +232,7 @@ def parse_pretty_size(size_str):
     """
     match = _re_parse_pretty_size.match(size_str)
     if match is None:
-        raise ValueError('literal cannot be parsed as pretty size')
+        raise ValueError('Literal cannot be parsed as pretty size: {}'.format(size_str))
     groupdict = match.groupdict()
     if groupdict['fraction'] is not None:
         raise ValueError('Fractional parts in sizes are not allowed: {}'.format(size_str))
