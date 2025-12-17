@@ -147,22 +147,25 @@ def munin_values(fs):
     usage_info = calculate_munin_values(fs)
 
     if not fs.mixed_groups():
-        print("data_used.value {}".format(usage_info['data_used']))
-        print("data_unused.value {}".format(usage_info['data_unused']))
-        print("metadata_used.value {}".format(usage_info['metadata_used']))
-        print("metadata_unused.value {}".format(usage_info['metadata_unused']))
+        template = (
+                    "data_used.value {data_used}\n"
+                    "data_unused.value {data_unused}\n"
+                    "metadata_used.value {metadata_used}\n"
+                    "metadata_unused.value {metadata_unused}\n")
     else:
-        print("data_metadata_used.value {}".format(usage_info['data_metadata_used']))
-        print("data_metadata_unused.value {}".format(usage_info['data_metadata_unused']))
-    print("system_used.value {}".format(usage_info['system_used']))
-    print("system_unused.value {}".format(usage_info['system_unused']))
+        template = (
+                    "data_metadata_used.value {data_metadata_used}\n"
+                    "data_metadata_unused.value {data_metadata_unused}\n")
 
-    print("parity.value {}".format(usage_info['parity']))
-    print("non_alloc_reclaimable.value {}".format(usage_info['non_alloc_reclaimable']))
-    print("non_alloc.value {}".format(usage_info['non_alloc']))
-    print("unallocated.value {}".format(usage_info['unallocated']))
-    print("total.value {}".format(usage_info['total']))
-    print("")
+    template += (
+                "system_used.value {system_used}\n"
+                "system_unused.value {system_unused}\n"
+                "parity.value {parity}\n"
+                "non_alloc_reclaimable.value {non_alloc_reclaimable}\n"
+                "non_alloc.value {non_alloc}\n"
+                "unallocated.value {unallocated}\n"
+                "total.value {total}\n")
+    print(template.format(**usage_info))
 
 
 def filter_env_mounts(mounts):
