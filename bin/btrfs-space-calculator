@@ -110,8 +110,8 @@ def main():
     for size in args.size:
         try:
             device_sizes.append(btrfs.utils.parse_pretty_size(size))
-        except ValueError as e:
-            raise Bork("Invalid device size {}".format(size))
+        except ValueError as ve:
+            raise Bork("Invalid device size: {}".format(ve))
     mixed_groups = args.mixed
     try:
         metadata_profile = _str_to_profile_map[args.metadata]
