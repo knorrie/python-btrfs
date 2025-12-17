@@ -21,6 +21,7 @@
 import btrfs
 import os
 import sys
+from math import floor
 
 
 def calculate_munin_values(fs):
@@ -98,6 +99,14 @@ def munin_config(fs):
         print("metadata_unused.draw STACK")
         print("metadata_unused.info Unused Metadata")
         print("metadata_unused.colour 0000CC")
+
+        usage_info = calculate_munin_values(fs)
+        #Assuming metadata is allocated by 256MB chunks
+        available_unallocated_for_metadata = floor(usage_info['unallocated'] / (2**28)) * (2**28)
+        metadata_warning  = int((usage_info['metadata_allocated'] * 0.15) - available_unallocated_for_metadata)
+        metadata_critical = int((usage_info['metadata_allocated'] * 0.10) - available_unallocated_for_metadata)
+        print("metadata_unused.warning {}:".format(metadata_warning))
+        print("metadata_unused.critical {}:".format(metadata_critical))
     else:
         print("data_metadata_used.label Used Data+Metadata")
         print("data_metadata_used.draw AREA")
