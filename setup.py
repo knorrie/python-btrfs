@@ -56,11 +56,11 @@ setup(
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
-        'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',
         'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: Implementation :: CPython',
         'Operating System :: POSIX :: Linux',
         'Topic :: System :: Filesystems',
         'Topic :: System :: Systems Administration',
     ],
+    license='LGPL-3.0-or-later',
 )
