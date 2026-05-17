@@ -1003,7 +1003,7 @@ class BalanceError(Exception):
         ioctl call in one of the balance related functions.
     :ivar str msg: A message describing the error condition.
 
-    Refer to the docucumentation of the different functions who can raise this
+    Refer to the documentation of the different functions who can raise this
     error for more information about combinations of the state and errno
     numbers that can be expected, and about what they mean.
     """
