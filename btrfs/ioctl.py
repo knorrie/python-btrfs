@@ -936,18 +936,20 @@ _balance_progress = struct.Struct('=3Q')
 class BalanceProgress(object):
     """Object representation of struct `btrfs_balance_progress`.
 
-    :ivar int state: current state of a running balance operation.
-
-    When a progress object is returned by :func:`~btrfs.ioctl.balance_v2` after
-    a successful uninterrupted run, the value of state is 0.
+    :ivar int state: state of a balance operation.
 
     When obtaining a progress object by calling
-    :func:`~btrfs.ioctl.balance_progress`, the possible state values (available
-    as attribute of this module) are:
+    :func:`~btrfs.ioctl.balance_progress`, while a balance operation is
+    running, the possible state flags (available as attribute of this module)
+    are:
 
     - `BALANCE_STATE_RUNNING`: Balance is running.
-    - `BALANCE_STATE_PAUSE_REQ`: Balance is running, but a pause is requested.
-    - `BALANCE_STATE_CANCEL_REQ`: Balance is running, but cancel is requested.
+    - `BALANCE_STATE_PAUSE_REQ`: A pause was requested.
+    - `BALANCE_STATE_CANCEL_REQ`: A cancel was requested.
+
+    When a running balance is canceled or paused using :func:`~balance_ctl`,
+    :func:`~btrfs.ioctl.balance_v2` will return a progress object where the
+    state field value reflects the cancel or pause request.
 
     :ivar int expected: Estimated number of block groups that will be relocated
         to fulfill the request.
@@ -1055,10 +1057,6 @@ def balance_v2(fd, data_args=None, meta_args=None, sys_args=None, force=False, r
     When a :class:`BalanceError` is raised, the following combinations of state
     and errno attributes can be expected:
 
-    - errno `ECANCELED`, state `BALANCE_STATE_PAUSE_REQ`: The balance operation
-      was paused because of a user request.
-    - errno `ECANCELED`, state `BALANCE_STATE_CANCEL_REQ`: The balance
-      operation was aborted because of a user request.
     - errno `ENOTCONN`: A resume was requested, but there was no previously
       paused balance operation.
     - errno `EINPROGRESS`: A resume or start was requested, but there is
@@ -1088,25 +1086,23 @@ def balance_v2(fd, data_args=None, meta_args=None, sys_args=None, force=False, r
     try:
         fcntl.ioctl(fd, IOC_BALANCE_V2, args)
     except OSError as oserror:
-        pos = _ioctl_balance_args[0].size
-        state, = _ioctl_balance_args[1].unpack_from(args, pos)
-        errorcode = errno.errorcode[oserror.errno]
         if oserror.errno == errno.ECANCELED:
-            if state & BALANCE_STATE_PAUSE_REQ:
-                msg = "Balance paused by user"
-            if state & BALANCE_STATE_CANCEL_REQ:
-                msg = "Balance canceled by user"
-        elif oserror.errno == errno.ENOTCONN and resume:
-            msg = "Balance resume failed: Not in progress ({})".format(errorcode)
-        elif oserror.errno == errno.EINPROGRESS:
-            if resume:
-                msg = "Balance resume failed: Already running ({})".format(errorcode)
-            else:
-                msg = "Balance start failed: Already in progress ({})".format(errorcode)
+            pass
         else:
-            msg = "Error during balancing, there may be more info in dmesg: {}, " \
-                "state {}".format(errorcode, _balance_state_str(state))
-        raise BalanceError(state, msg) from None
+            pos = _ioctl_balance_args[0].size
+            state, = _ioctl_balance_args[1].unpack_from(args, pos)
+            errorcode = errno.errorcode[oserror.errno]
+            if oserror.errno == errno.ENOTCONN and resume:
+                msg = "Balance resume failed: Not in progress ({})".format(errorcode)
+            elif oserror.errno == errno.EINPROGRESS:
+                if resume:
+                    msg = "Balance resume failed: Already running ({})".format(errorcode)
+                else:
+                    msg = "Balance start failed: Already in progress ({})".format(errorcode)
+            else:
+                msg = "Error during balancing, there may be more info in dmesg: {}, " \
+                    "state {}".format(errorcode, _balance_state_str(state))
+            raise BalanceError(state, msg) from None
     pos = _ioctl_balance_args[0].size
     state, = _ioctl_balance_args[1].unpack_from(args, pos)
     pos = sum(x.size for x in _ioctl_balance_args[:5])
